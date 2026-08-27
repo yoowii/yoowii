@@ -9,8 +9,8 @@ use App\Yoowii\Pricing\Domain\Exception\PricingSnapshotLocked;
 use App\Yoowii\Pricing\Domain\PricingSnapshot;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Sylius\Component\Core\Model\OrderItem as BaseOrderItem;
 use Sylius\Component\Core\Model\OrderInterface as CoreOrderInterface;
+use Sylius\Component\Core\Model\OrderItem as BaseOrderItem;
 use Sylius\Component\Order\Model\OrderItemInterface as BaseOrderItemInterface;
 
 #[ORM\Entity]

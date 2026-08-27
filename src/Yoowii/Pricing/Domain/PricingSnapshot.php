@@ -102,13 +102,13 @@ final readonly class PricingSnapshot
         $calculatedAt = $data['calculated_at'] ?? null;
 
         if (
-            !is_string($calculator)
-            || !is_string($pricingVersion)
-            || !is_array($configuration)
-            || !is_array($priceBreakdown)
-            || !is_int($unitPrice)
-            || !is_string($currencyCode)
-            || !is_string($calculatedAt)
+            !is_string($calculator) ||
+            !is_string($pricingVersion) ||
+            !is_array($configuration) ||
+            !is_array($priceBreakdown) ||
+            !is_int($unitPrice) ||
+            !is_string($currencyCode) ||
+            !is_string($calculatedAt)
         ) {
             throw new \InvalidArgumentException('The pricing snapshot payload is malformed.');
         }
@@ -140,14 +140,17 @@ final readonly class PricingSnapshot
      */
     private static function normalizeConfiguration(array $configuration): array
     {
-        foreach (array_keys($configuration) as $key) {
+        $normalized = [];
+
+        foreach ($configuration as $key => $value) {
             if (!is_string($key)) {
                 throw new \InvalidArgumentException('The pricing configuration must use string keys.');
             }
+
+            $normalized[$key] = $value;
         }
 
-        /** @var array<string, mixed> $configuration */
-        return $configuration;
+        return $normalized;
     }
 
     /**
