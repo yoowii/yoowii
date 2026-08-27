@@ -171,11 +171,11 @@ final class FlyerPricingMatrixCsvImporter
         $semicolons = substr_count($firstLine, ';');
         $commas = substr_count($firstLine, ',');
 
-        if ($semicolons > $commas && $semicolons > 0) {
+        if ($semicolons > $commas) {
             return ';';
         }
 
-        if ($commas > $semicolons && $commas > 0) {
+        if ($commas > $semicolons) {
             return ',';
         }
 

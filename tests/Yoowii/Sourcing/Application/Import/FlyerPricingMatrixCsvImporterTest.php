@@ -33,10 +33,10 @@ CSV;
 
         self::assertSame(2, $result->importedRows());
         self::assertSame(PricingMatrixStatus::Draft, $result->matrix()->status());
-        self::assertSame(
-            3100,
-            $result->matrix()->matrix()['entries']['a5|two_sided|coated_gloss|135|1000|none']['production_cost'],
-        );
+        /** @var array<string, array{production_cost: int}> $entries */
+        $entries = $result->matrix()->matrix()['entries'];
+
+        self::assertSame(3100, $entries['a5|two_sided|coated_gloss|135|1000|none']['production_cost']);
     }
 
     public function testItAcceptsACommaSeparatedUtf8BomDocument(): void

@@ -10,13 +10,14 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'yoowii_supplier_pricing_matrix_version')]
+#[ORM\Index(name: 'IDX_CF4E19BC8241E9B7', columns: ['supplier_product_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_supplier_pricing_matrix_version', columns: ['supplier_product_id', 'version'])]
 class SupplierPricingMatrixVersion
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    private ?int $id = null;
+    private ?int $id = null; // @phpstan-ignore property.unusedType, property.onlyWritten
 
     #[ORM\Column(type: Types::STRING, length: 16, enumType: PricingMatrixStatus::class)]
     private PricingMatrixStatus $status = PricingMatrixStatus::Draft;
@@ -24,23 +25,23 @@ class SupplierPricingMatrixVersion
     #[ORM\Column(type: Types::STRING, length: 64)]
     private readonly string $checksum;
 
-    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    private ?\DateTimeImmutable $activatedAt = null;
+    #[ORM\Column(name: 'activated_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $activatedAt = null; // @phpstan-ignore property.onlyWritten
 
     /** @param array<string, mixed> $matrix */
     public function __construct(
         #[ORM\ManyToOne]
-        #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
+        #[ORM\JoinColumn(name: 'supplier_product_id', nullable: false, onDelete: 'RESTRICT')]
         private readonly SupplierProduct $supplierProduct,
         #[ORM\Column(type: Types::STRING, length: 64)]
         private readonly string $version,
-        #[ORM\Column(type: Types::STRING, length: 3)]
+        #[ORM\Column(name: 'currency_code', type: Types::STRING, length: 3)]
         private readonly string $currencyCode,
         #[ORM\Column(type: Types::JSON)]
         private readonly array $matrix,
-        #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+        #[ORM\Column(name: 'effective_from', type: Types::DATETIME_IMMUTABLE)]
         private readonly \DateTimeImmutable $effectiveFrom,
-        #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+        #[ORM\Column(name: 'imported_at', type: Types::DATETIME_IMMUTABLE)]
         private readonly \DateTimeImmutable $importedAt,
     ) {
         if ('' === trim($this->version)) {

@@ -52,7 +52,8 @@ final class ImportFlyerPricingMatrixCommand extends Command
         $supplierProductCode = $this->stringArgument($input, 'supplier-product');
         $version = $this->stringArgument($input, 'version');
         $file = $this->stringArgument($input, 'file');
-        $currencyCode = strtoupper((string) $input->getOption('currency'));
+        $currencyOption = $input->getOption('currency');
+        $currencyCode = is_string($currencyOption) ? strtoupper($currencyOption) : '';
 
         try {
             $effectiveFrom = $this->dateArgument($input, 'effective-from');
