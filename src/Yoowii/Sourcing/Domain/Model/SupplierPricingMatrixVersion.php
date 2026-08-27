@@ -10,7 +10,6 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'yoowii_supplier_pricing_matrix_version')]
-#[ORM\Index(name: 'IDX_CF4E19BC8241E9B7', columns: ['supplier_product_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_supplier_pricing_matrix_version', columns: ['supplier_product_id', 'version'])]
 class SupplierPricingMatrixVersion
 {
@@ -25,23 +24,23 @@ class SupplierPricingMatrixVersion
     #[ORM\Column(type: Types::STRING, length: 64)]
     private readonly string $checksum;
 
-    #[ORM\Column(name: 'activated_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $activatedAt = null;
 
     /** @param array<string, mixed> $matrix */
     public function __construct(
         #[ORM\ManyToOne]
-        #[ORM\JoinColumn(name: 'supplier_product_id', nullable: false, onDelete: 'RESTRICT')]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
         private readonly SupplierProduct $supplierProduct,
         #[ORM\Column(type: Types::STRING, length: 64)]
         private readonly string $version,
-        #[ORM\Column(name: 'currency_code', type: Types::STRING, length: 3)]
+        #[ORM\Column(type: Types::STRING, length: 3)]
         private readonly string $currencyCode,
         #[ORM\Column(type: Types::JSON)]
         private readonly array $matrix,
-        #[ORM\Column(name: 'effective_from', type: Types::DATETIME_IMMUTABLE)]
+        #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
         private readonly \DateTimeImmutable $effectiveFrom,
-        #[ORM\Column(name: 'imported_at', type: Types::DATETIME_IMMUTABLE)]
+        #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
         private readonly \DateTimeImmutable $importedAt,
     ) {
         if ('' === trim($this->version)) {
@@ -56,7 +55,7 @@ class SupplierPricingMatrixVersion
             throw new \InvalidArgumentException('The pricing matrix must not be empty.');
         }
 
-        $encodedMatrix = json_encode(self::canonicalize($this->matrix), \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION);
+        $encodedMatrix = json_encode(self::canonicalize($this->matrix), JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
         $this->checksum = hash('sha256', $encodedMatrix);
     }
 
@@ -73,6 +72,11 @@ class SupplierPricingMatrixVersion
     public function currencyCode(): string
     {
         return $this->currencyCode;
+    }
+
+    public function effectiveFrom(): \DateTimeImmutable
+    {
+        return $this->effectiveFrom;
     }
 
     /** @return array<string, mixed> */
@@ -138,11 +142,11 @@ class SupplierPricingMatrixVersion
             }
 
             if (
-                null !== $nestedValue &&
-                !is_bool($nestedValue) &&
-                !is_int($nestedValue) &&
-                !is_float($nestedValue) &&
-                !is_string($nestedValue)
+                null !== $nestedValue
+                && !is_bool($nestedValue)
+                && !is_int($nestedValue)
+                && !is_float($nestedValue)
+                && !is_string($nestedValue)
             ) {
                 throw new \InvalidArgumentException('The pricing matrix must be JSON-compatible.');
             }

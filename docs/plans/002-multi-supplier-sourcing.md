@@ -26,11 +26,13 @@ Permettre à Yoowii de vendre un produit d'impression canonique tout en choisiss
 
 ## Prochains incréments
 
-1. Repositories Doctrine et écran d'administration des fournisseurs.
-2. Import CSV contrôlé des matrices avec prévisualisation et rapport d'erreurs.
-3. Calculateur flyer serveur utilisant une matrice active.
-4. Création du `PrintJob` et de son `SourcingSnapshot` après paiement.
-5. Premier adaptateur API, après obtention d'un environnement sandbox fournisseur.
+1. ~~Repositories Doctrine pour le routage et les matrices.~~
+2. ~~Import CSV contrôlé des matrices avec rapport d'erreurs.~~
+3. ~~Calculateur flyer serveur utilisant une matrice active et un fournisseur de secours.~~
+4. Écran d'administration des fournisseurs, routes et imports.
+5. Endpoint de devis temporaire et intégration au configurateur storefront.
+6. Création du `PrintJob` et de son `SourcingSnapshot` après paiement.
+7. Premier adaptateur API, après obtention d'un environnement sandbox fournisseur.
 
 ## Critères d'acceptation
 

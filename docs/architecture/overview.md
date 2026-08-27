@@ -92,6 +92,8 @@ Le prix de vente et le sourcing restent séparés :
 - un futur `SourcingSnapshot` sur le travail d'impression conservera le fournisseur, la référence, la grille de coût et la règle de routage retenus ;
 - le coût d'achat ne sera jamais exposé par les endpoints du storefront.
 
+Les matrices CSV du calculateur flyer utilisent des combinaisons canoniques exactes. Le calculateur classe les routes fixes, charge les versions actives et effectives, puis passe à la route de secours si la combinaison n'existe pas chez le fournisseur principal. La politique commerciale est exprimée séparément en majoration, marge minimale et frais de traitement.
+
 ## Fichiers clients
 
 Les fichiers d'impression, briefs et contenus ne doivent pas être placés dans le répertoire public. Le stockage cible est compatible S3 avec URL signée, contrôle de type/taille, antivirus et journal d'accès. Le stockage local peut être utilisé uniquement en développement.

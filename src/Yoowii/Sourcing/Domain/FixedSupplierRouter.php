@@ -15,6 +15,16 @@ final class FixedSupplierRouter
      */
     public function select(string $productCode, \DateTimeImmutable $at, iterable $routes): SupplierRoute
     {
+        return $this->rank($productCode, $at, $routes)[0];
+    }
+
+    /**
+     * @param iterable<SupplierRoute> $routes
+     *
+     * @return non-empty-list<SupplierRoute>
+     */
+    public function rank(string $productCode, \DateTimeImmutable $at, iterable $routes): array
+    {
         $eligibleRoutes = [];
 
         foreach ($routes as $route) {
@@ -32,10 +42,12 @@ final class FixedSupplierRouter
             static fn (SupplierRoute $left, SupplierRoute $right): int => $left->priority() <=> $right->priority(),
         );
 
-        if (isset($eligibleRoutes[1]) && $eligibleRoutes[0]->priority() === $eligibleRoutes[1]->priority()) {
-            throw new AmbiguousSupplierRoute($productCode, $eligibleRoutes[0]->priority());
+        foreach ($eligibleRoutes as $index => $route) {
+            if (isset($eligibleRoutes[$index + 1]) && $route->priority() === $eligibleRoutes[$index + 1]->priority()) {
+                throw new AmbiguousSupplierRoute($productCode, $route->priority());
+            }
         }
 
-        return $eligibleRoutes[0];
+        return $eligibleRoutes;
     }
 }

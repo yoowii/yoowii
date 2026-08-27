@@ -1,0 +1,7 @@
+format;sides;paper;grammage;quantity;finishing;production_cost;shipping_cost
+a5;two_sided;coated_gloss;135;500;none;2100;800
+a5;two_sided;coated_gloss;135;1000;none;3100;900
+a5;two_sided;coated_gloss;170;500;none;2500;800
+a5;two_sided;coated_gloss;170;1000;none;3600;900
+a6;two_sided;coated_gloss;135;500;none;1700;800
+a6;two_sided;coated_gloss;135;1000;none;2400;900
