@@ -34,6 +34,13 @@ services:
         exclude:
             - '../src/Entity/'
             - '../src/Kernel.php'
+            - '../src/Yoowii/Commerce/Domain/'
+            - '../src/Yoowii/Pricing/Domain/'
+            - '../src/Yoowii/Sourcing/Domain/Exception/'
+            - '../src/Yoowii/Sourcing/Domain/Model/'
+            - '../src/Yoowii/Sourcing/Domain/PricingMatrixStatus.php'
+            - '../src/Yoowii/Sourcing/Domain/SupplierCapability.php'
+            - '../src/Yoowii/Sourcing/Domain/SupplierIntegrationMode.php'
 
     # Controllers are imported separately to make sure services can be injected
     # as action arguments even if you don't extend any base controller class

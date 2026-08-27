@@ -14,6 +14,7 @@ Yoowii commercialise des produits imprimés et des prestations numériques, puis
 | Sylius Payment | Demandes et états de paiement |
 | Sylius Shipping | Modes, frais et expéditions physiques |
 | Pricing | Matrices tarifaires et calcul serveur |
+| Sourcing | Fournisseurs print, mappings, grilles d'achat et routage principal/secours |
 | Configurator | Parcours et choix propres à une famille de produits |
 | PrintProduction | Fichiers, BAT, production, contrôle et livraison |
 | WebProject | CDC, prototype, intégration, recette et mise en production |
@@ -76,6 +77,20 @@ Les montants utilisent l’unité monétaire mineure : `12900` représente `129,
 Le snapshot reste remplaçable tant que la commande est un panier. Une fois le checkout terminé, l’entité refuse toute modification. La ligne est également marquée comme prix personnalisé afin que le recalculateur Sylius ne remplace pas son montant par le prix générique de la variante.
 
 Deux lignes configurées ne sont jamais fusionnées automatiquement : la quantité d’impression appartient à la configuration (`1 000 flyers`) et non à la quantité Sylius de la ligne.
+
+## Sourcing multi-fournisseurs
+
+Le catalogue vendu au client reste indépendant des références Laboprint, Realisaprint, WIRmachenDRUCK ou 123imprim. Un `SupplierProduct` représente la référence technique d'un imprimeur. Ses options sont traduites depuis la configuration Yoowii par un `SupplierProductMappingVersion` immuable.
+
+Chaque grille de coût est importée dans un nouveau `SupplierPricingMatrixVersion`. Une version suit le cycle `draft -> active -> archived` et une version archivée ne peut pas être réactivée. Son checksum permet de détecter un import identique, indépendamment de l'ordre des clés JSON.
+
+Le MVP applique un routage fixe par code produit Yoowii : priorité `10` pour le fournisseur principal, puis `20`, `30`, etc. pour les secours. Le routeur refuse une égalité de priorité et ignore les routes hors période ainsi que les fournisseurs ou produits désactivés. Aucun appel API fournisseur n'est effectué dans ce premier lot.
+
+Le prix de vente et le sourcing restent séparés :
+
+- `PricingSnapshot` sur `OrderItem` conserve le prix client ;
+- un futur `SourcingSnapshot` sur le travail d'impression conservera le fournisseur, la référence, la grille de coût et la règle de routage retenus ;
+- le coût d'achat ne sera jamais exposé par les endpoints du storefront.
 
 ## Fichiers clients
 

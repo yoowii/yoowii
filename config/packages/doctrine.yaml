@@ -19,6 +19,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Entity'
                 prefix: 'App\Entity'
                 alias: App
+            YoowiiSourcing:
+                is_bundle: false
+                type: attribute
+                dir: '%kernel.project_dir%/src/Yoowii/Sourcing/Domain/Model'
+                prefix: 'App\Yoowii\Sourcing\Domain\Model'
+                alias: YoowiiSourcing
 
 when@prod: &doctrine_prod
     doctrine:
