@@ -58,15 +58,24 @@ La ligne de commande conserve au minimum :
 
 ```json
 {
+  "schema_version": 1,
   "calculator": "print.flyer",
   "pricing_version": "2026-08-01",
   "configuration": {},
-  "price_breakdown": {},
+  "price_breakdown": {
+    "total": 12900
+  },
+  "unit_price": 12900,
+  "currency_code": "EUR",
   "calculated_at": "2026-08-27T12:00:00+00:00"
 }
 ```
 
-Le snapshot reste lisible après une modification ultérieure du catalogue ou des tarifs.
+Les montants utilisent l’unité monétaire mineure : `12900` représente `129,00 EUR`. Le total du détail doit correspondre au prix unitaire de la ligne et la devise doit correspondre à celle du panier.
+
+Le snapshot reste remplaçable tant que la commande est un panier. Une fois le checkout terminé, l’entité refuse toute modification. La ligne est également marquée comme prix personnalisé afin que le recalculateur Sylius ne remplace pas son montant par le prix générique de la variante.
+
+Deux lignes configurées ne sont jamais fusionnées automatiquement : la quantité d’impression appartient à la configuration (`1 000 flyers`) et non à la quantité Sylius de la ligne.
 
 ## Fichiers clients
 

@@ -34,9 +34,13 @@ Obtenir un premier parcours vertical testé : configurer un flyer, calculer son 
 
 ### 2. Snapshot de configuration
 
-- étendre la ligne de commande avec un snapshot JSON versionné ;
-- interdire sa mutation après finalisation de la commande ;
-- ajouter validation, migration et tests.
+- [x] étendre la ligne de commande avec un snapshot JSON versionné ;
+- [x] conserver configuration, détail, prix unitaire, devise et date de calcul ;
+- [x] interdire sa mutation après finalisation de la commande ;
+- [x] protéger le prix personnalisé contre le recalcul Sylius ;
+- [x] empêcher la fusion de deux lignes configurées ;
+- [x] ajouter validation, migration et tests ;
+- [ ] exécuter la migration et les tests dans l'environnement Docker.
 
 ### 3. Calculateur de flyers
 

@@ -67,4 +67,4 @@ Consulter :
 
 ## État du chantier
 
-Le dépôt contient le socle Sylius officiel et le typage d’exécution des produits. Le prochain incrément est le snapshot de configuration tarifaire immuable sur les lignes de commande, avant le premier calculateur d’impression.
+Le dépôt contient le socle Sylius officiel, le typage d’exécution des produits et le snapshot tarifaire immuable des lignes de commande. Le prochain incrément est le premier calculateur d’impression consacré aux flyers.
