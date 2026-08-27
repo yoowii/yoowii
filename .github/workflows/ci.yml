@@ -1,0 +1,77 @@
+name: CI
+
+on:
+    pull_request: ~
+    push:
+        branches:
+            - main
+
+concurrency:
+    group: ci-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    quality:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ALLOW_EMPTY_PASSWORD: 1
+                    MYSQL_DATABASE: sylius_test
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=10
+
+        env:
+            APP_ENV: test
+            APP_DEBUG: 0
+            APP_SECRET: ci-only-secret
+            DATABASE_URL: mysql://root@127.0.0.1:3306/sylius_test?serverVersion=8.4&charset=utf8mb4
+            MAILER_DSN: null://null
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: intl, gd, opcache, mysql, pdo_mysql
+                  coverage: none
+                  tools: composer:v2
+
+            - name: Validate Composer metadata
+              run: composer validate --strict
+
+            - name: Install PHP dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Static analysis
+              run: vendor/bin/phpstan analyse
+
+            - name: Coding standards
+              run: vendor/bin/ecs check
+
+            - name: Unit tests
+              run: vendor/bin/phpunit
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+
+            - name: Build frontend assets
+              run: |
+                  corepack enable
+                  yarn install
+                  yarn build
