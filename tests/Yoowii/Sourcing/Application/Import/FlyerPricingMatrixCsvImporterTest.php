@@ -33,10 +33,13 @@ CSV;
 
         self::assertSame(2, $result->importedRows());
         self::assertSame(PricingMatrixStatus::Draft, $result->matrix()->status());
+
         /** @var array<string, array{production_cost: int}> $entries */
         $entries = $result->matrix()->matrix()['entries'];
-
-        self::assertSame(3100, $entries['a5|two_sided|coated_gloss|135|1000|none']['production_cost']);
+        self::assertSame(
+            3100,
+            $entries['a5|two_sided|coated_gloss|135|1000|none']['production_cost'],
+        );
     }
 
     public function testItAcceptsACommaSeparatedUtf8BomDocument(): void
@@ -78,7 +81,7 @@ CSV;
         } catch (PricingMatrixCsvImportFailed $exception) {
             self::assertCount(2, $exception->errors());
             self::assertStringContainsString('Line 3: duplicate configuration', $exception->errors()[0]);
-            self::assertStringContainsString('Line 4: Flyer sides must be', $exception->errors()[1]);
+            self::assertStringContainsString('Line 4: Print option "sides" contains unsupported value', $exception->errors()[1]);
         }
     }
 

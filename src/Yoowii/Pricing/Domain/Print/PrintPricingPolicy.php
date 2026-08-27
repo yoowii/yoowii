@@ -2,11 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Yoowii\Pricing\Domain\Flyer;
+namespace App\Yoowii\Pricing\Domain\Print;
 
-use App\Yoowii\Pricing\Domain\Print\PrintPricingPolicy;
-
-final readonly class FlyerPricingPolicy
+final readonly class PrintPricingPolicy
 {
     public function __construct(
         private string $version,
@@ -15,7 +13,7 @@ final readonly class FlyerPricingPolicy
         private int $handlingFee = 0,
     ) {
         if ('' === trim($this->version)) {
-            throw new \InvalidArgumentException('The flyer pricing policy version must not be empty.');
+            throw new \InvalidArgumentException('The print pricing policy version must not be empty.');
         }
 
         if ($this->markupBasisPoints < 0 || $this->markupBasisPoints > 100000) {
@@ -46,15 +44,5 @@ final readonly class FlyerPricingPolicy
     public function handlingFee(): int
     {
         return $this->handlingFee;
-    }
-
-    public function asPrintPricingPolicy(): PrintPricingPolicy
-    {
-        return new PrintPricingPolicy(
-            $this->version,
-            $this->markupBasisPoints,
-            $this->minimumMargin,
-            $this->handlingFee,
-        );
     }
 }

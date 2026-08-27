@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Pricing\Domain\Flyer;
 
+use App\Yoowii\Pricing\Domain\Print\Definition\BuiltInPrintProductDefinitions;
+use App\Yoowii\Pricing\Domain\Print\PrintConfiguration;
+
 final readonly class FlyerConfiguration
 {
     public function __construct(
@@ -63,6 +66,11 @@ final readonly class FlyerConfiguration
             (string) $this->quantity,
             $this->finishing,
         ]);
+    }
+
+    public function asPrintConfiguration(): PrintConfiguration
+    {
+        return BuiltInPrintProductDefinitions::flyer()->configure($this->toArray());
     }
 
     private static function assertCode(string $code, string $field): void

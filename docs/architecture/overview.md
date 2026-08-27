@@ -92,7 +92,11 @@ Le prix de vente et le sourcing restent séparés :
 - un futur `SourcingSnapshot` sur le travail d'impression conservera le fournisseur, la référence, la grille de coût et la règle de routage retenus ;
 - le coût d'achat ne sera jamais exposé par les endpoints du storefront.
 
-Les matrices CSV du calculateur flyer utilisent des combinaisons canoniques exactes. Le calculateur classe les routes fixes, charge les versions actives et effectives, puis passe à la route de secours si la combinaison n'existe pas chez le fournisseur principal. La politique commerciale est exprimée séparément en majoration, marge minimale et frais de traitement.
+Les produits matriciels utilisent un moteur commun piloté par `PrintProductDefinition`. Chaque définition déclare ses options, leur type et l'ordre des axes tarifaires. Les flyers et cartes de visite partagent ainsi `PrintPricingMatrixCsvImporter` et `MatrixPrintPriceCalculator` sans dupliquer le calcul.
+
+Le calculateur classe les routes fixes, charge les versions actives et effectives, puis passe à la route de secours si la combinaison n'existe pas chez le fournisseur principal. La politique commerciale est exprimée séparément en majoration, marge minimale et frais de traitement.
+
+Les nouvelles matrices utilisent `calculator: print.matrix_exact` et identifient le code produit ainsi que la version de son schéma. Les anciennes matrices `print.flyer` restent lisibles pour assurer une évolution non destructive.
 
 ## Fichiers clients
 

@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Yoowii\Pricing\Domain\Flyer;
+namespace App\Yoowii\Pricing\Domain\Print;
 
 use App\Yoowii\Pricing\Domain\PricingSnapshot;
-use App\Yoowii\Pricing\Domain\Print\PrintQuote;
 
-final readonly class FlyerQuote
+final readonly class PrintQuote
 {
     public function __construct(
         private PricingSnapshot $pricingSnapshot,
@@ -47,11 +46,6 @@ final readonly class FlyerQuote
         return $this->matrixChecksum;
     }
 
-    public function supplierCost(): int
-    {
-        return $this->productionCost + $this->shippingCost;
-    }
-
     public function productionCost(): int
     {
         return $this->productionCost;
@@ -62,6 +56,11 @@ final readonly class FlyerQuote
         return $this->shippingCost;
     }
 
+    public function supplierCost(): int
+    {
+        return $this->productionCost + $this->shippingCost;
+    }
+
     public function margin(): int
     {
         return $this->margin;
@@ -70,20 +69,5 @@ final readonly class FlyerQuote
     public function handlingFee(): int
     {
         return $this->handlingFee;
-    }
-
-    public static function fromPrintQuote(PrintQuote $quote): self
-    {
-        return new self(
-            $quote->pricingSnapshot(),
-            $quote->supplierCode(),
-            $quote->supplierProductCode(),
-            $quote->matrixVersion(),
-            $quote->matrixChecksum(),
-            $quote->productionCost(),
-            $quote->shippingCost(),
-            $quote->margin(),
-            $quote->handlingFee(),
-        );
     }
 }

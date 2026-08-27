@@ -1,5 +1,7 @@
 # Plan 003 — Import de matrices et calculateur flyer
 
+> Ce lot constitue le premier cas vertical. Depuis le plan 004, les façades `Flyer*` délèguent au moteur print générique et restent disponibles pour compatibilité.
+
 ## Objectif
 
 Importer une grille fournisseur normalisée sans écriture partielle, puis calculer côté serveur le prix de vente d'un flyer en appliquant le routage principal/secours et la politique commerciale Yoowii.
