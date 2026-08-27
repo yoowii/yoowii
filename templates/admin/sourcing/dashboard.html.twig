@@ -1,0 +1,155 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+
+{% set page_title = 'Sourcing print multi-fournisseurs' %}
+
+{% block sourcing_actions %}
+    <div class="btn-list">
+        <a href="{{ path('yoowii_admin_sourcing_preview') }}" class="btn btn-outline-primary">Prévisualiser un prix</a>
+        <a href="{{ path('yoowii_admin_sourcing_matrix_import') }}" class="btn btn-primary">Importer une matrice</a>
+    </div>
+{% endblock %}
+
+{% block sourcing_content %}
+    <div class="row row-cards mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ suppliers|length }}</div><div class="text-secondary">Fournisseurs</div></div></div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ supplier_products|length }}</div><div class="text-secondary">Références</div></div></div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ routes|length }}</div><div class="text-secondary">Routes</div></div></div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ matrices|length }}</div><div class="text-secondary">Versions tarifaires</div></div></div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="card-title">Fournisseurs</h2>
+            <a href="{{ path('yoowii_admin_sourcing_supplier_create') }}" class="btn btn-sm btn-primary">Ajouter</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead><tr><th>Code</th><th>Nom</th><th>Mode</th><th>Capacités</th><th>État</th><th></th></tr></thead>
+                <tbody>
+                {% for supplier in suppliers %}
+                    <tr>
+                        <td><code>{{ supplier.code }}</code></td>
+                        <td>{{ supplier.name }}</td>
+                        <td>{{ supplier.integrationMode.value }}</td>
+                        <td>
+                            {% for capability in supplier.capabilities %}<span class="badge bg-blue-lt me-1">{{ capability.value }}</span>{% else %}<span class="text-secondary">Manuel</span>{% endfor %}
+                        </td>
+                        <td><span class="badge {{ supplier.active ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ supplier.active ? 'Actif' : 'Inactif' }}</span></td>
+                        <td class="text-end"><a href="{{ path('yoowii_admin_sourcing_supplier_edit', {id: supplier.id}) }}" class="btn btn-sm btn-outline-secondary">Modifier</a></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6" class="text-center text-secondary py-4">Aucun fournisseur configuré.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="card-title">Références fournisseurs</h2>
+            <a href="{{ path('yoowii_admin_sourcing_product_create') }}" class="btn btn-sm btn-primary">Ajouter</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead><tr><th>Fournisseur</th><th>Code</th><th>Nom</th><th>État</th><th></th></tr></thead>
+                <tbody>
+                {% for product in supplier_products %}
+                    <tr>
+                        <td>{{ product.supplier.name }}</td>
+                        <td><code>{{ product.code }}</code></td>
+                        <td>{{ product.name }}</td>
+                        <td><span class="badge {{ product.active ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ product.active ? 'Active' : 'Inactive' }}</span></td>
+                        <td class="text-end"><a href="{{ path('yoowii_admin_sourcing_product_edit', {id: product.id}) }}" class="btn btn-sm btn-outline-secondary">Modifier</a></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5" class="text-center text-secondary py-4">Aucune référence fournisseur.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="card-title">Routage principal et secours</h2>
+            <a href="{{ path('yoowii_admin_sourcing_route_create') }}" class="btn btn-sm btn-primary">Ajouter une route</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead><tr><th>Produit Yoowii</th><th>Priorité</th><th>Fournisseur</th><th>Référence</th><th>Période</th><th>État</th><th></th></tr></thead>
+                <tbody>
+                {% for route in routes %}
+                    <tr>
+                        <td><code>{{ route.yoowiiProductCode }}</code></td>
+                        <td>{{ route.priority }}</td>
+                        <td>{{ route.supplierProduct.supplier.name }}</td>
+                        <td>{{ route.supplierProduct.code }}</td>
+                        <td>{{ route.effectiveFrom|date('d/m/Y H:i') }} → {{ route.effectiveUntil ? route.effectiveUntil|date('d/m/Y H:i') : 'sans fin' }}</td>
+                        <td><span class="badge {{ route.active ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ route.active ? 'Active' : 'Inactive' }}</span></td>
+                        <td class="text-end">
+                            <form method="post" action="{{ path('yoowii_admin_sourcing_route_toggle', {id: route.id}) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('toggle_route_' ~ route.id) }}">
+                                <button class="btn btn-sm btn-outline-secondary" type="submit">{{ route.active ? 'Désactiver' : 'Activer' }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7" class="text-center text-secondary py-4">Aucune route configurée.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="card-title">Matrices tarifaires</h2>
+            <a href="{{ path('yoowii_admin_sourcing_matrix_import') }}" class="btn btn-sm btn-primary">Importer</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead><tr><th>Produit</th><th>Fournisseur</th><th>Référence</th><th>Version</th><th>Devise</th><th>Applicable</th><th>État</th><th></th></tr></thead>
+                <tbody>
+                {% for matrix in matrices %}
+                    <tr>
+                        <td><code>{{ matrix.matrix.product_code|default('PRINT_FLYER (legacy)') }}</code></td>
+                        <td>{{ matrix.supplierProduct.supplier.name }}</td>
+                        <td>{{ matrix.supplierProduct.code }}</td>
+                        <td>{{ matrix.version }}</td>
+                        <td>{{ matrix.currencyCode }}</td>
+                        <td>{{ matrix.effectiveFrom|date('d/m/Y H:i') }}</td>
+                        <td><span class="badge bg-blue-lt">{{ matrix.status.value }}</span></td>
+                        <td class="text-end">
+                            <div class="btn-list flex-nowrap justify-content-end">
+                                {% if matrix.status.value == 'draft' %}
+                                    <form method="post" action="{{ path('yoowii_admin_sourcing_matrix_activate', {id: matrix.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('activate_matrix_' ~ matrix.id) }}">
+                                        <button class="btn btn-sm btn-success" type="submit">Activer</button>
+                                    </form>
+                                {% endif %}
+                                {% if matrix.status.value != 'archived' %}
+                                    <form method="post" action="{{ path('yoowii_admin_sourcing_matrix_archive', {id: matrix.id}) }}" onsubmit="return confirm('Archiver définitivement cette matrice ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('archive_matrix_' ~ matrix.id) }}">
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Archiver</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8" class="text-center text-secondary py-4">Aucune matrice importée.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

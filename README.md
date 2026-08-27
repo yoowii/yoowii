@@ -48,6 +48,7 @@ Sylius reste responsable du catalogue, des clients, du panier, des commandes, de
 src/Yoowii/
 ├── Commerce/
 ├── Pricing/
+├── Sourcing/
 ├── Configurator/
 ├── PrintProduction/
 ├── WebProject/
@@ -63,8 +64,9 @@ Consulter :
 
 - [vue d'ensemble de l'architecture](docs/architecture/overview.md) ;
 - [décision d'utiliser Sylius](docs/decisions/001-sylius-modular-monolith.md) ;
-- [plan du premier incrément](docs/plans/001-commerce-foundation.md).
+- [plan du premier incrément](docs/plans/001-commerce-foundation.md) ;
+- [administration du sourcing print](docs/plans/005-sourcing-admin.md).
 
 ## État du chantier
 
-Le dépôt contient le socle Sylius officiel, le typage d’exécution des produits et le snapshot tarifaire immuable des lignes de commande. Le prochain incrément est le premier calculateur d’impression consacré aux flyers.
+Le dépôt contient le socle Sylius, le snapshot tarifaire immuable, le sourcing multi-fournisseurs, le moteur matriciel générique pour flyers et cartes de visite, ainsi que son administration sous `/admin/print-sourcing`.

@@ -9,3 +9,6 @@
 
 controllers:
     resource: routing.controllers
+
+yoowii_sourcing_admin:
+    resource: routes/yoowii_sourcing_admin.yaml

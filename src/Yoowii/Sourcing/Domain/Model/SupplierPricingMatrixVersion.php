@@ -10,14 +10,13 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'yoowii_supplier_pricing_matrix_version')]
-#[ORM\Index(name: 'IDX_CF4E19BC8241E9B7', columns: ['supplier_product_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_supplier_pricing_matrix_version', columns: ['supplier_product_id', 'version'])]
 class SupplierPricingMatrixVersion
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    private ?int $id = null; // @phpstan-ignore property.unusedType, property.onlyWritten
+    private ?int $id = null; // @phpstan-ignore property.unusedType
 
     #[ORM\Column(type: Types::STRING, length: 16, enumType: PricingMatrixStatus::class)]
     private PricingMatrixStatus $status = PricingMatrixStatus::Draft;
@@ -26,7 +25,7 @@ class SupplierPricingMatrixVersion
     private readonly string $checksum;
 
     #[ORM\Column(name: 'activated_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    private ?\DateTimeImmutable $activatedAt = null; // @phpstan-ignore property.onlyWritten
+    private ?\DateTimeImmutable $activatedAt = null;
 
     /** @param array<string, mixed> $matrix */
     public function __construct(
@@ -63,6 +62,21 @@ class SupplierPricingMatrixVersion
     public function supplierProduct(): SupplierProduct
     {
         return $this->supplierProduct;
+    }
+
+    public function id(): ?int
+    {
+        return $this->id;
+    }
+
+    public function importedAt(): \DateTimeImmutable
+    {
+        return $this->importedAt;
+    }
+
+    public function activatedAt(): ?\DateTimeImmutable
+    {
+        return $this->activatedAt;
     }
 
     public function version(): string

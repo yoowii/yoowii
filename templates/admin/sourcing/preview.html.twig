@@ -1,0 +1,44 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+
+{% block sourcing_actions %}
+    <a href="{{ path('yoowii_admin_sourcing_dashboard') }}" class="btn btn-outline-secondary">Retour</a>
+{% endblock %}
+
+{% block sourcing_content %}
+    <div class="row row-cards">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Configuration et politique commerciale</h2></div>
+                <div class="card-body">
+                    {{ form_start(form) }}
+                    {{ form_widget(form) }}
+                    <div class="mt-4 text-end"><button type="submit" class="btn btn-primary">Calculer côté serveur</button></div>
+                    {{ form_end(form) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Résultat interne</h2></div>
+                <div class="card-body">
+                    {% if quote %}
+                        <dl class="row">
+                            <dt class="col-7">Prix de vente</dt><dd class="col-5 text-end fw-bold">{{ (quote.pricingSnapshot.unitPrice / 100)|number_format(2, ',', ' ') }} {{ quote.pricingSnapshot.currencyCode }}</dd>
+                            <dt class="col-7">Fournisseur retenu</dt><dd class="col-5 text-end">{{ quote.supplierCode }}</dd>
+                            <dt class="col-7">Référence</dt><dd class="col-5 text-end">{{ quote.supplierProductCode }}</dd>
+                            <dt class="col-7">Version matrice</dt><dd class="col-5 text-end">{{ quote.matrixVersion }}</dd>
+                            <dt class="col-7">Production</dt><dd class="col-5 text-end">{{ (quote.productionCost / 100)|number_format(2, ',', ' ') }}</dd>
+                            <dt class="col-7">Livraison</dt><dd class="col-5 text-end">{{ (quote.shippingCost / 100)|number_format(2, ',', ' ') }}</dd>
+                            <dt class="col-7">Marge</dt><dd class="col-5 text-end">{{ (quote.margin / 100)|number_format(2, ',', ' ') }}</dd>
+                            <dt class="col-7">Traitement</dt><dd class="col-5 text-end">{{ (quote.handlingFee / 100)|number_format(2, ',', ' ') }}</dd>
+                        </dl>
+                        <div class="alert alert-info mb-0">Ces coûts sont réservés à l’administration et ne font pas partie du snapshot public.</div>
+                    {% else %}
+                        <p class="text-secondary mb-0">Soumettez une configuration pour vérifier la route, la matrice et le prix de vente.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

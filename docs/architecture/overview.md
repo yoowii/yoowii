@@ -98,6 +98,10 @@ Le calculateur classe les routes fixes, charge les versions actives et effective
 
 Les nouvelles matrices utilisent `calculator: print.matrix_exact` et identifient le code produit ainsi que la version de son schéma. Les anciennes matrices `print.flyer` restent lisibles pour assurer une évolution non destructive.
 
+L’administration Sylius expose ce référentiel sous `/admin/print-sourcing`. Elle permet de gérer les fournisseurs et leurs références, de planifier les routes principal/secours, d’importer et d’activer des matrices puis de simuler un devis. Les coûts d’achat et la marge ne sont visibles que dans cet espace protégé par le pare-feu d’administration. Les activations, archivages et changements d’état utilisent exclusivement des requêtes `POST` protégées par CSRF.
+
+Les définitions disponibles dans le MVP sont centralisées par `BuiltInPrintProductDefinitionRegistry`. Ajouter un produit print consiste donc à ajouter sa définition générique et son exemple de matrice, sans créer un nouveau calculateur métier propre à ce produit.
+
 ## Fichiers clients
 
 Les fichiers d'impression, briefs et contenus ne doivent pas être placés dans le répertoire public. Le stockage cible est compatible S3 avec URL signée, contrôle de type/taille, antivirus et journal d'accès. Le stockage local peut être utilisé uniquement en développement.

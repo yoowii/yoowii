@@ -17,7 +17,7 @@ class PrintSupplier
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    private ?int $id = null; // @phpstan-ignore property.unusedType, property.onlyWritten
+    private ?int $id = null; // @phpstan-ignore property.unusedType
 
     /** @var list<string> */
     #[ORM\Column(type: Types::JSON)]
@@ -53,6 +53,11 @@ class PrintSupplier
     public function code(): string
     {
         return $this->code;
+    }
+
+    public function id(): ?int
+    {
+        return $this->id;
     }
 
     public function name(): string

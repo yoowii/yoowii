@@ -40,7 +40,7 @@ final readonly class MatrixPrintPriceCalculator
         }
 
         foreach ($rankedRoutes as $route) {
-            $matrix = $this->selectMatrix($route, $currencyCode, $calculatedAt, $matrixList);
+            $matrix = $this->selectMatrix($route, $configuration, $currencyCode, $calculatedAt, $matrixList);
 
             if (null === $matrix) {
                 continue;
@@ -84,15 +84,17 @@ final readonly class MatrixPrintPriceCalculator
     /** @param list<SupplierPricingMatrixVersion> $matrices */
     private function selectMatrix(
         SupplierRoute $route,
+        PrintConfiguration $configuration,
         string $currencyCode,
         \DateTimeImmutable $at,
         array $matrices,
     ): ?SupplierPricingMatrixVersion {
         $eligibleMatrices = array_values(array_filter(
             $matrices,
-            static fn (SupplierPricingMatrixVersion $matrix): bool => $matrix->supplierProduct() === $route->supplierProduct()
+            fn (SupplierPricingMatrixVersion $matrix): bool => $matrix->supplierProduct() === $route->supplierProduct()
                 && $matrix->currencyCode() === $currencyCode
-                && $matrix->isSelectableAt($at),
+                && $matrix->isSelectableAt($at)
+                && $this->isCompatibleMatrix($matrix, $configuration),
         ));
 
         usort(
@@ -142,5 +144,21 @@ final readonly class MatrixPrintPriceCalculator
             'production_cost' => $productionCost,
             'shipping_cost' => $shippingCost,
         ];
+    }
+
+    private function isCompatibleMatrix(
+        SupplierPricingMatrixVersion $matrix,
+        PrintConfiguration $configuration,
+    ): bool {
+        $payload = $matrix->matrix();
+
+        return (
+            'print.matrix_exact' === ($payload['calculator'] ?? null)
+            && $configuration->productCode() === ($payload['product_code'] ?? null)
+            && $configuration->schemaVersion() === ($payload['product_schema_version'] ?? null)
+        ) || (
+            'PRINT_FLYER' === $configuration->productCode()
+            && 'print.flyer' === ($payload['calculator'] ?? null)
+        );
     }
 }

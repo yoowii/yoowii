@@ -1,0 +1,24 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+
+{% block sourcing_actions %}
+    <a href="{{ path(back_route) }}" class="btn btn-outline-secondary">Retour</a>
+{% endblock %}
+
+{% block sourcing_content %}
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    {{ form_start(form) }}
+                    {{ form_widget(form) }}
+
+                    <div class="mt-4 d-flex justify-content-end gap-2">
+                        <a href="{{ path(back_route) }}" class="btn btn-link">Annuler</a>
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                    {{ form_end(form) }}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

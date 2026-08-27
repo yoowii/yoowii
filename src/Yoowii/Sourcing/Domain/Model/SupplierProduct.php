@@ -9,21 +9,20 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'yoowii_supplier_product')]
-#[ORM\Index(name: 'IDX_72BE41A72ADD6D8C', columns: ['supplier_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_supplier_product_code', columns: ['supplier_id', 'code'])]
 class SupplierProduct
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    private ?int $id = null; // @phpstan-ignore property.unusedType, property.onlyWritten
+    private ?int $id = null; // @phpstan-ignore property.unusedType
 
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = true;
 
     public function __construct(
         #[ORM\ManyToOne]
-        #[ORM\JoinColumn(name: 'supplier_id', nullable: false, onDelete: 'RESTRICT')]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
         private readonly PrintSupplier $supplier,
         #[ORM\Column(type: Types::STRING, length: 128)]
         private readonly string $code,
@@ -42,6 +41,11 @@ class SupplierProduct
     public function supplier(): PrintSupplier
     {
         return $this->supplier;
+    }
+
+    public function id(): ?int
+    {
+        return $this->id;
     }
 
     public function code(): string

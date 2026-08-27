@@ -9,14 +9,13 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'yoowii_supplier_route')]
-#[ORM\Index(name: 'IDX_54348EDC8241E9B7', columns: ['supplier_product_id'])]
 #[ORM\Index(name: 'idx_supplier_route_lookup', columns: ['yoowii_product_code', 'active', 'priority'])]
 class SupplierRoute
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    private ?int $id = null; // @phpstan-ignore property.unusedType, property.onlyWritten
+    private ?int $id = null; // @phpstan-ignore property.unusedType
 
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = true;
@@ -52,6 +51,26 @@ class SupplierRoute
         return $this->yoowiiProductCode;
     }
 
+    public function id(): ?int
+    {
+        return $this->id;
+    }
+
+    public function effectiveFrom(): \DateTimeImmutable
+    {
+        return $this->effectiveFrom;
+    }
+
+    public function effectiveUntil(): ?\DateTimeImmutable
+    {
+        return $this->effectiveUntil;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->active;
+    }
+
     public function supplierProduct(): SupplierProduct
     {
         return $this->supplierProduct;
@@ -64,12 +83,12 @@ class SupplierRoute
 
     public function isEligibleFor(string $productCode, \DateTimeImmutable $at): bool
     {
-        return $this->active &&
-            $this->supplierProduct->isActive() &&
-            $this->supplierProduct->supplier()->isActive() &&
-            $this->yoowiiProductCode === $productCode &&
-            $at >= $this->effectiveFrom &&
-            (null === $this->effectiveUntil || $at < $this->effectiveUntil);
+        return $this->active
+            && $this->supplierProduct->isActive()
+            && $this->supplierProduct->supplier()->isActive()
+            && $this->yoowiiProductCode === $productCode
+            && $at >= $this->effectiveFrom
+            && (null === $this->effectiveUntil || $at < $this->effectiveUntil);
     }
 
     public function changePriority(int $priority): void

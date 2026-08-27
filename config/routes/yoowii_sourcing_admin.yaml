@@ -1,0 +1,5 @@
+yoowii_sourcing_admin:
+    resource: '../../src/Yoowii/Sourcing/UI/Http/Admin/Controller/'
+    type: attribute
+    prefix: '/%sylius_admin.path_name%/print-sourcing'
+    trailing_slash_on_root: false

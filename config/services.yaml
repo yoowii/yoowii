@@ -54,9 +54,14 @@ services:
             - '../src/Yoowii/Sourcing/Domain/PricingMatrixStatus.php'
             - '../src/Yoowii/Sourcing/Domain/SupplierCapability.php'
             - '../src/Yoowii/Sourcing/Domain/SupplierIntegrationMode.php'
+            - '../src/Yoowii/Sourcing/UI/Http/Admin/Data/'
 
     # Controllers are imported separately to make sure services can be injected
     # as action arguments even if you don't extend any base controller class
     App\Controller\:
         resource: '../src/Controller'
+        tags: ['controller.service_arguments']
+
+    App\Yoowii\Sourcing\UI\Http\Admin\Controller\:
+        resource: '../src/Yoowii/Sourcing/UI/Http/Admin/Controller/'
         tags: ['controller.service_arguments']

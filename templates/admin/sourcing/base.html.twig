@@ -1,0 +1,41 @@
+{% extends '@SyliusAdmin/shared/layout/base.html.twig' %}
+
+{% block title %}{{ page_title }} | Yoowii{% endblock %}
+
+{% block body %}
+    <div class="page">
+        {% include '@SyliusAdmin/shared/crud/common/sidebar.html.twig' %}
+
+        <div class="page-wrapper">
+            {% include '@SyliusAdmin/shared/crud/common/navbar.html.twig' %}
+
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <div class="page-pretitle">Yoowii Commerce</div>
+                            <h1 class="page-title">{{ page_title }}</h1>
+                        </div>
+                        <div class="col-auto ms-auto d-print-none">
+                            {% block sourcing_actions %}{% endblock %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="page-body">
+                <div class="container-xl">
+                    {% for type, messages in app.flashes %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ type == 'error' ? 'danger' : type }}" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+
+                    {% block sourcing_content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
