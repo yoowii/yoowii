@@ -26,10 +26,11 @@ Obtenir un premier parcours vertical testé : configurer un flyer, calculer son 
 
 ### 1. Typage de l'exécution
 
-- introduire `FulfillmentType` ;
-- rattacher le type au produit ;
-- ajouter la migration et l'administration ;
-- tester les cinq valeurs autorisées.
+- [x] introduire `FulfillmentType` ;
+- [x] rattacher le type au produit avec `quote_only` comme valeur sûre par défaut ;
+- [x] ajouter la migration et le champ d'administration ;
+- [x] tester les cinq valeurs autorisées et le comportement du produit ;
+- [ ] exécuter la migration et les tests dans l'environnement Docker.
 
 ### 2. Snapshot de configuration
 

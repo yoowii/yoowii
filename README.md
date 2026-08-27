@@ -46,6 +46,7 @@ Sylius reste responsable du catalogue, des clients, du panier, des commandes, de
 
 ```text
 src/Yoowii/
+├── Commerce/
 ├── Pricing/
 ├── Configurator/
 ├── PrintProduction/
@@ -66,4 +67,4 @@ Consulter :
 
 ## État du chantier
 
-Le dépôt contient le socle Sylius officiel. Le prochain incrément est la modélisation du type d'exécution des produits et du snapshot de configuration tarifaire, avant le premier calculateur d'impression.
+Le dépôt contient le socle Sylius officiel et le typage d’exécution des produits. Le prochain incrément est le snapshot de configuration tarifaire immuable sur les lignes de commande, avant le premier calculateur d’impression.

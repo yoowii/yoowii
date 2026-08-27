@@ -1,0 +1,10 @@
+yoowii:
+    form:
+        product:
+            fulfillment_type: Fulfilment type
+    fulfillment_type:
+        print: Print production
+        web_project: Web project
+        media_project: Photo or video project
+        subscription: Subscription
+        quote_only: Quote only

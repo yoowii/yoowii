@@ -1,0 +1,10 @@
+yoowii:
+    form:
+        product:
+            fulfillment_type: Type d’exécution
+    fulfillment_type:
+        print: Production imprimée
+        web_project: Projet web
+        media_project: Projet photo ou vidéo
+        subscription: Abonnement
+        quote_only: Sur devis uniquement

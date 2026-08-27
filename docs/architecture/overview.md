@@ -46,6 +46,8 @@ Chaque produit commercial définit un type d'exécution :
 - `subscription` : crée ou rattache un contrat récurrent ;
 - `quote_only` : crée une demande de devis sans checkout direct.
 
+`quote_only` est la valeur par défaut. Ce choix empêche un produit existant, importé ou de démonstration de déclencher une production tant que son type d’exécution n’a pas été validé dans l’administration.
+
 Une commande peut contenir plusieurs produits d'impression. Le MVP utilise des checkouts distincts pour l'impression, les services et les abonnements afin d'éviter les ambiguïtés de livraison, de remboursement et de renouvellement.
 
 ## Calcul tarifaire
