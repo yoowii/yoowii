@@ -7,6 +7,11 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    yoowii.print_pricing.version: 'retail-v1'
+    yoowii.print_pricing.markup_basis_points: 3500
+    yoowii.print_pricing.minimum_margin: 1200
+    yoowii.print_pricing.handling_fee: 0
+    yoowii.print_quote.ttl: 900
 
 services:
     # Default configuration for services in *this* file
@@ -46,6 +51,8 @@ services:
             - '../src/Yoowii/Pricing/Domain/Print/PrintConfiguration.php'
             - '../src/Yoowii/Pricing/Domain/Print/PrintPricingPolicy.php'
             - '../src/Yoowii/Pricing/Domain/Print/PrintQuote.php'
+            - '../src/Yoowii/Pricing/Application/Quote/Exception/'
+            - '../src/Yoowii/Pricing/Application/Quote/StoredPrintQuote.php'
             - '../src/Yoowii/Sourcing/Application/Import/Exception/'
             - '../src/Yoowii/Sourcing/Application/Import/FlyerPricingMatrixImportResult.php'
             - '../src/Yoowii/Sourcing/Application/Import/PrintPricingMatrixImportResult.php'
@@ -65,3 +72,27 @@ services:
     App\Yoowii\Sourcing\UI\Http\Admin\Controller\:
         resource: '../src/Yoowii/Sourcing/UI/Http/Admin/Controller/'
         tags: ['controller.service_arguments']
+
+    App\Yoowii\Pricing\UI\Http\Storefront\Controller\:
+        resource: '../src/Yoowii/Pricing/UI/Http/Storefront/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider:
+        arguments:
+            $version: '%yoowii.print_pricing.version%'
+            $markupBasisPoints: '%yoowii.print_pricing.markup_basis_points%'
+            $minimumMargin: '%yoowii.print_pricing.minimum_margin%'
+            $handlingFee: '%yoowii.print_pricing.handling_fee%'
+
+    App\Yoowii\Pricing\Infrastructure\Http\SessionPrintQuoteStore:
+        arguments:
+            $timeToLive: '%yoowii.print_quote.ttl%'
+
+    App\Yoowii\Pricing\Application\Quote\PrintQuoteStore:
+        alias: App\Yoowii\Pricing\Infrastructure\Http\SessionPrintQuoteStore
+
+    App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
+        alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository
+
+    App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository:
+        alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierPricingMatrixVersionRepository

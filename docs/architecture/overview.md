@@ -102,6 +102,16 @@ L’administration Sylius expose ce référentiel sous `/admin/print-sourcing`. 
 
 Les définitions disponibles dans le MVP sont centralisées par `BuiltInPrintProductDefinitionRegistry`. Ajouter un produit print consiste donc à ajouter sa définition générique et son exemple de matrice, sans créer un nouveau calculateur métier propre à ce produit.
 
+## Calculateur print storefront
+
+Le storefront construit ses listes de formats, papiers, quantités et finitions depuis les matrices génériques actives. Les valeurs postées sont revalidées par la définition du produit, puis `PrintQuoteService` recalcule le prix sur le serveur. Aucun montant envoyé par le navigateur n’est accepté.
+
+Un calcul valide crée un identifiant aléatoire de 256 bits, lié à la session, valable quinze minutes et utilisable une seule fois. La session conserve uniquement le code de variante canonique, le snapshot du prix client et son expiration ; elle ne contient ni coût fournisseur ni marge. Au moment de l’ajout, le serveur vérifie la variante Sylius, son type d’exécution `print`, son canal, la devise et la composition du panier avant de recopier le snapshot sur `OrderItem`.
+
+Les codes des variantes Sylius du MVP sont identiques aux codes canoniques : `PRINT_FLYER` et `PRINT_BUSINESS_CARD`. La quantité Sylius reste `1` car la quantité physique imprimée appartient à la configuration tarifaire. Grâce à la règle `OrderItem::equals()`, deux configurations restent deux lignes distinctes.
+
+Le montant du snapshot print est hors taxes : Sylius applique ensuite la fiscalité du produit. Le transport fournisseur étant déjà inclus dans la matrice, le checkout utilise un mode d’expédition print à coût nul pour éviter une double facturation.
+
 ## Fichiers clients
 
 Les fichiers d'impression, briefs et contenus ne doivent pas être placés dans le répertoire public. Le stockage cible est compatible S3 avec URL signée, contrôle de type/taille, antivirus et journal d'accès. Le stockage local peut être utilisé uniquement en développement.

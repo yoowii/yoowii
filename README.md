@@ -65,8 +65,9 @@ Consulter :
 - [vue d'ensemble de l'architecture](docs/architecture/overview.md) ;
 - [décision d'utiliser Sylius](docs/decisions/001-sylius-modular-monolith.md) ;
 - [plan du premier incrément](docs/plans/001-commerce-foundation.md) ;
-- [administration du sourcing print](docs/plans/005-sourcing-admin.md).
+- [administration du sourcing print](docs/plans/005-sourcing-admin.md) ;
+- [calculateur print du storefront](docs/plans/006-print-storefront.md).
 
 ## État du chantier
 
-Le dépôt contient le socle Sylius, le snapshot tarifaire immuable, le sourcing multi-fournisseurs, le moteur matriciel générique pour flyers et cartes de visite, ainsi que son administration sous `/admin/print-sourcing`.
+Le dépôt contient le socle Sylius, le snapshot tarifaire immuable, le sourcing multi-fournisseurs, son administration sous `/admin/print-sourcing` et le calculateur boutique pour flyers et cartes de visite.
