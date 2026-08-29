@@ -73,22 +73,21 @@
                             <div class="yoowii-print-choice-grid{{ field.vars.name == 'format' ? ' is-format-grid' : '' }}">
                                 {% for choice in field %}
                                     <div class="yoowii-print-choice">
-                                        {{ form_widget(choice, {
-                                            label: false,
-                                            attr: {
-                                                class: 'btn-check',
-                                                autocomplete: 'off',
-                                                'data-action': 'change->print-configurator#change',
-                                                'data-choice-label': choice.vars.label
-                                            }
-                                        }) }}
                                         <label class="yoowii-print-choice-card" for="{{ choice.vars.id }}">
+                                            {{ form_widget(choice, {
+                                                label: false,
+                                                attr: {
+                                                    class: 'btn-check',
+                                                    autocomplete: 'off',
+                                                    'data-action': 'change->print-configurator#change',
+                                                    'data-choice-label': choice.vars.label
+                                                }
+                                            }) }}
                                             {% if field.vars.name == 'format' %}
                                                 <span class="yoowii-print-format-preview" aria-hidden="true">
                                                     <span>{{ choice.vars.value }}</span>
                                                 </span>
                                             {% endif %}
-                                            <span class="yoowii-print-choice-radio" aria-hidden="true"></span>
                                             <span class="yoowii-print-choice-label">{{ choice.vars.label }}</span>
                                         </label>
                                     </div>

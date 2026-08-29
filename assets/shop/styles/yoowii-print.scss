@@ -160,36 +160,14 @@
     transform: translateY(-1px);
 }
 
-.btn-check:focus-visible + .yoowii-print-choice-card {
+.yoowii-print-choice-card:has(.btn-check:focus-visible) {
     outline: 3px solid rgba(var(--bs-primary-rgb), 0.25);
     outline-offset: 2px;
 }
 
-.btn-check:checked + .yoowii-print-choice-card {
+.yoowii-print-choice-card:has(.btn-check:checked) {
     border-color: var(--yoowii-print-choice);
     box-shadow: 0 0 0 1px var(--yoowii-print-choice);
-}
-
-.yoowii-print-choice-radio {
-    display: inline-block;
-    width: 0.9rem;
-    height: 0.9rem;
-    flex: 0 0 0.9rem;
-    border: 1px solid var(--bs-secondary-color);
-    border-radius: 50%;
-    background: var(--bs-body-bg);
-    box-shadow: inset 0 0 0 0.2rem var(--bs-body-bg);
-}
-
-.btn-check:checked + .yoowii-print-choice-card .yoowii-print-choice-radio {
-    border-color: var(--yoowii-print-choice);
-    background: var(--yoowii-print-choice);
-}
-
-.is-format-grid .yoowii-print-choice-radio {
-    position: absolute;
-    top: 0.65rem;
-    right: 0.65rem;
 }
 
 .yoowii-print-choice-label {
@@ -337,8 +315,4 @@
         height: 3rem;
     }
 
-    .is-format-grid .yoowii-print-choice-radio {
-        position: static;
-        order: -1;
-    }
 }
