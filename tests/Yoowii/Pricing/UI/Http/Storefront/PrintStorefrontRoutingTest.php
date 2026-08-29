@@ -22,6 +22,10 @@ final class PrintStorefrontRoutingTest extends KernelTestCase
             '_locale' => 'fr_FR',
             'productCode' => 'PRINT_FLYER',
         ]));
+        self::assertSame('/fr_FR/products/FLYER_STANDARD/print-quote', $router->generate('yoowii_shop_print_product_quote', [
+            '_locale' => 'fr_FR',
+            'productCode' => 'FLYER_STANDARD',
+        ]));
         self::assertSame(
             '/fr_FR/print/quote/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/cart',
             $router->generate('yoowii_shop_print_add_to_cart', [
@@ -32,6 +36,10 @@ final class PrintStorefrontRoutingTest extends KernelTestCase
         self::assertSame(
             ['POST'],
             $router->getRouteCollection()->get('yoowii_shop_print_add_to_cart')?->getMethods(),
+        );
+        self::assertSame(
+            ['POST'],
+            $router->getRouteCollection()->get('yoowii_shop_print_product_quote')?->getMethods(),
         );
     }
 }

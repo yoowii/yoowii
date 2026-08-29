@@ -28,6 +28,7 @@ final class PrintConfiguratorType extends AbstractType
             $builder->add($code, ChoiceType::class, [
                 'label' => $this->optionLabel($code),
                 'choices' => $choices,
+                'expanded' => count($choices) <= 8,
                 'placeholder' => 'Choisir',
             ]);
         }
@@ -39,10 +40,15 @@ final class PrintConfiguratorType extends AbstractType
         $resolver->setAllowedTypes('option_choices', 'array');
         $resolver->setAllowedTypes('product_code', 'string');
         $resolver->setDefaults([
-            'csrf_token_id' => static fn (Options $options): string => sprintf(
-                'configure_print_%s',
-                (string) $options['product_code'],
-            ),
+            'csrf_token_id' => static function (Options $options): string {
+                $productCode = $options['product_code'];
+
+                if (!is_string($productCode)) {
+                    throw new \InvalidArgumentException('The product code must be a string.');
+                }
+
+                return sprintf('configure_print_%s', $productCode);
+            },
         ]);
     }
 

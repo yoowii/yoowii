@@ -10,23 +10,33 @@ final readonly class StoredPrintQuote
 {
     public function __construct(
         private string $variantCode,
+        private string $definitionCode,
         private PricingSnapshot $pricingSnapshot,
         private \DateTimeImmutable $expiresAt,
     ) {
-        if (1 !== preg_match('/^[A-Z][A-Z0-9_]*$/D', $this->variantCode)) {
+        if (1 !== preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]*$/D', $this->variantCode)) {
             throw new \InvalidArgumentException('The print variant code is invalid.');
+        }
+
+        if (1 !== preg_match('/^PRINT_[A-Z0-9_]+$/D', $this->definitionCode)) {
+            throw new \InvalidArgumentException('The print definition code is invalid.');
         }
 
         $configuration = $this->pricingSnapshot->toArray()['configuration'];
 
-        if (($configuration['product_code'] ?? null) !== $this->variantCode) {
-            throw new \InvalidArgumentException('The print quote does not match its catalog variant.');
+        if (($configuration['product_code'] ?? null) !== $this->definitionCode) {
+            throw new \InvalidArgumentException('The print quote does not match its calculator definition.');
         }
     }
 
     public function variantCode(): string
     {
         return $this->variantCode;
+    }
+
+    public function definitionCode(): string
+    {
+        return $this->definitionCode;
     }
 
     public function pricingSnapshot(): PricingSnapshot

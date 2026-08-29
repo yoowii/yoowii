@@ -27,6 +27,10 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 final class AddPrintQuoteToCartController extends AbstractController
 {
+    /**
+     * @param ProductVariantRepositoryInterface<ProductVariant> $productVariantRepository
+     * @param CartItemFactoryInterface<CoreOrderItemInterface> $cartItemFactory
+     */
     #[Route('/print/quote/{token}/cart', name: 'yoowii_shop_print_add_to_cart', requirements: ['token' => '[A-Za-z0-9_-]{43}'], methods: ['POST'])]
     public function __invoke(
         string $token,
@@ -65,27 +69,28 @@ final class AddPrintQuoteToCartController extends AbstractController
         if (!$variant instanceof ProductVariant || !$variant->isEnabled()) {
             $this->addFlash('danger', 'Ce produit imprimé n’est pas disponible dans le catalogue.');
 
-            return $this->redirectToConfigurator($storedQuote->variantCode(), $request);
+            return $this->redirectToRoute('yoowii_shop_print_catalog', ['_locale' => $request->getLocale()]);
         }
 
         $product = $variant->getProduct();
 
         if (
-            !$product instanceof Product
-            || !$product->isEnabled()
-            || !$product->hasChannel($channelContext->getChannel())
-            || FulfillmentType::Print !== $product->getFulfillmentType()
+            !$product instanceof Product ||
+            !$product->isEnabled() ||
+            !$product->hasChannel($channelContext->getChannel()) ||
+            FulfillmentType::Print !== $product->getFulfillmentType() ||
+            $storedQuote->definitionCode() !== $product->getPrintDefinitionCode()
         ) {
             throw $this->createNotFoundException('La variante ne correspond pas à un produit print Yoowii.');
         }
 
         $cart = $cartContext->getCart();
 
-        foreach ($cart->getItems() as $existingItem) {
-            if (!$existingItem instanceof CoreOrderItemInterface) {
-                throw new \LogicException('The print cart must contain Sylius core order items.');
-            }
+        if (!$cart instanceof \Sylius\Component\Core\Model\OrderInterface) {
+            throw new \LogicException('The configured cart must be a Sylius core order.');
+        }
 
+        foreach ($cart->getItems() as $existingItem) {
             $existingProduct = $existingItem->getVariant()?->getProduct();
 
             if (!$existingProduct instanceof Product || FulfillmentType::Print !== $existingProduct->getFulfillmentType()) {
@@ -98,12 +103,12 @@ final class AddPrintQuoteToCartController extends AbstractController
         $snapshot = $storedQuote->pricingSnapshot();
         $cartCurrency = $cart->getCurrencyCode();
 
-        if (null === $cartCurrency) {
+        if ($cart->isEmpty() || null === $cartCurrency) {
             $cart->setCurrencyCode($snapshot->currencyCode());
         } elseif ($cartCurrency !== $snapshot->currencyCode()) {
             $this->addFlash('danger', 'La devise du devis ne correspond plus à celle du panier. Recalculez le prix.');
 
-            return $this->redirectToConfigurator($storedQuote->variantCode(), $request);
+            return $this->redirectToProduct($product, $request);
         }
 
         $cartItem = $cartItemFactory->createNew();
@@ -124,10 +129,10 @@ final class AddPrintQuoteToCartController extends AbstractController
         return $this->redirectToRoute('sylius_shop_cart_summary', ['_locale' => $request->getLocale()]);
     }
 
-    private function redirectToConfigurator(string $productCode, Request $request): Response
+    private function redirectToProduct(Product $product, Request $request): Response
     {
-        return $this->redirectToRoute('yoowii_shop_print_configure', [
-            'productCode' => $productCode,
+        return $this->redirectToRoute('sylius_shop_product_show', [
+            'slug' => $product->getSlug(),
             '_locale' => $request->getLocale(),
         ]);
     }

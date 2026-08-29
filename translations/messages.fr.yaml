@@ -2,9 +2,27 @@ yoowii:
     form:
         product:
             fulfillment_type: Type d’exécution
+            print_definition: Calculateur print
+            print_definition_help: Associe ce produit Sylius à une définition de calculateur et à ses matrices fournisseurs.
+            print_definition_placeholder: Aucun calculateur
     fulfillment_type:
         print: Production imprimée
         web_project: Projet web
         media_project: Projet photo ou vidéo
         subscription: Abonnement
         quote_only: Sur devis uniquement
+    print_definition:
+        PRINT_FLYER: Flyers
+        PRINT_BUSINESS_CARD: Cartes de visite
+    storefront:
+        starting_from: À partir de
+        configure_print_product: Configurer ce produit
+        print_configuration: Configurez votre produit
+        print_configuration_hint: Choisissez les caractéristiques souhaitées pour obtenir le meilleur tarif disponible.
+        print_summary: Votre configuration
+        calculate_price: Calculer mon prix
+        price_after_configuration: Le prix final dépend de votre configuration.
+        configuration_unavailable: Ce produit n’a actuellement aucune configuration tarifaire disponible.
+        reference: Réf.
+        add_to_cart: Ajouter au panier
+        price_excluding_tax: HT

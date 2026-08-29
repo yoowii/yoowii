@@ -1,0 +1,9 @@
+{% set product = variant.product %}
+{% set is_print = product.fulfillmentType.value == 'print' %}
+
+{% if has_discount %}
+    <span {{ sylius_test_html_attribute('product-original-price') }}><del>{{ original_price }}</del></span>
+{% endif %}
+<span {{ sylius_test_html_attribute('product-price') }}>
+    {% if is_print %}<span class="yoowii-starting-from">{{ 'yoowii.storefront.starting_from'|trans }}</span> {% endif %}{{ price }}
+</span>

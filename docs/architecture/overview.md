@@ -106,9 +106,11 @@ Les définitions disponibles dans le MVP sont centralisées par `BuiltInPrintPro
 
 Le storefront construit ses listes de formats, papiers, quantités et finitions depuis les matrices génériques actives. Les valeurs postées sont revalidées par la définition du produit, puis `PrintQuoteService` recalcule le prix sur le serveur. Aucun montant envoyé par le navigateur n’est accepté.
 
-Un calcul valide crée un identifiant aléatoire de 256 bits, lié à la session, valable quinze minutes et utilisable une seule fois. La session conserve uniquement le code de variante canonique, le snapshot du prix client et son expiration ; elle ne contient ni coût fournisseur ni marge. Au moment de l’ajout, le serveur vérifie la variante Sylius, son type d’exécution `print`, son canal, la devise et la composition du panier avant de recopier le snapshot sur `OrderItem`.
+Un calcul valide crée un identifiant aléatoire de 256 bits, lié à la session, valable quinze minutes et utilisable une seule fois. La session conserve le code de variante Sylius, le code de définition print, le snapshot du prix client et son expiration ; elle ne contient ni coût fournisseur ni marge. Au moment de l’ajout, le serveur vérifie la variante Sylius, la définition associée au produit, son type d’exécution `print`, son canal, la devise et la composition du panier avant de recopier le snapshot sur `OrderItem`.
 
-Les codes des variantes Sylius du MVP sont identiques aux codes canoniques : `PRINT_FLYER` et `PRINT_BUSINESS_CARD`. La quantité Sylius reste `1` car la quantité physique imprimée appartient à la configuration tarifaire. Grâce à la règle `OrderItem::equals()`, deux configurations restent deux lignes distinctes.
+Le code de variante Sylius et le code de définition du calculateur sont indépendants. Par exemple, la variante `FLYER_STANDARD` peut utiliser la définition `PRINT_FLYER`. La quantité Sylius reste `1` car la quantité physique imprimée appartient à la configuration tarifaire. Grâce à la règle `OrderItem::equals()`, deux configurations restent deux lignes distinctes.
+
+Le storefront conserve le catalogue et la fiche produit Sylius pour toutes les familles. Les cartes print affichent le prix de canal comme un prix « À partir de », tandis que le calculateur pleine largeur de la fiche produit détermine le prix commandé. La landing `/print` est une vue marketing secondaire alimentée par les mêmes produits Sylius, jamais une seconde source de vérité.
 
 Le montant du snapshot print est hors taxes : Sylius applique ensuite la fiscalité du produit. Le transport fournisseur étant déjà inclus dans la matrice, le checkout utilise un mode d’expédition print à coût nul pour éviter une double facturation.
 

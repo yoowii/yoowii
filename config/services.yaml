@@ -96,3 +96,6 @@ services:
 
     App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository:
         alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierPricingMatrixVersionRepository
+
+    Sylius\Component\Core\Factory\CartItemFactoryInterface:
+        alias: sylius.custom_factory.order_item

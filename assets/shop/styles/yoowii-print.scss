@@ -1,0 +1,78 @@
+.yoowii-starting-from {
+    font-size: 0.82em;
+    font-weight: 500;
+}
+
+.yoowii-print-configurator-section {
+    scroll-margin-top: 2rem;
+}
+
+.yoowii-print-configurator {
+    padding: 2.5rem 0;
+}
+
+.yoowii-print-step {
+    margin-bottom: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg);
+}
+
+.yoowii-print-step[open] {
+    border-color: var(--bs-primary);
+}
+
+.yoowii-print-step summary {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.yoowii-print-step summary::-webkit-details-marker {
+    display: none;
+}
+
+.yoowii-print-step-number {
+    display: inline-flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: 0 0 1.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--bs-white);
+    background: var(--bs-primary);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.yoowii-print-step-content {
+    padding: 0 1.25rem 1.25rem;
+}
+
+.yoowii-print-summary {
+    position: sticky;
+    top: 2rem;
+}
+
+.yoowii-print-summary-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.yoowii-print-summary-list strong {
+    text-align: right;
+}
+
+@media (max-width: 991.98px) {
+    .yoowii-print-summary {
+        position: static;
+    }
+}

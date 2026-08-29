@@ -32,19 +32,22 @@ final class PrintQuotePreviewController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             try {
-                $configurationData = json_decode($data->configurationJson, true, 512, JSON_THROW_ON_ERROR);
+                $decodedConfiguration = json_decode($data->configurationJson, true, 512, \JSON_THROW_ON_ERROR);
 
-                if (!is_array($configurationData) || array_is_list($configurationData)) {
+                if (!is_array($decodedConfiguration) || array_is_list($decodedConfiguration)) {
                     throw new \InvalidArgumentException('La configuration doit être un objet JSON.');
                 }
 
-                foreach (array_keys($configurationData) as $key) {
+                $configurationData = [];
+
+                foreach ($decodedConfiguration as $key => $value) {
                     if (!is_string($key)) {
                         throw new \InvalidArgumentException('Les clés de configuration doivent être des chaînes.');
                     }
+
+                    $configurationData[$key] = $value;
                 }
 
-                /** @var array<string, mixed> $configurationData */
                 $configuration = $definitions->get($data->productCode)->configure($configurationData);
                 $quote = $quoteService->quote(
                     $configuration,

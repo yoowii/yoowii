@@ -1,0 +1,90 @@
+{% form_theme form '@SyliusShop/form/theme.html.twig' %}
+
+<div class="yoowii-print-configurator">
+    <div class="mb-4">
+        <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
+        <h2 class="h1 mb-2">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>
+        <p class="text-secondary mb-0">{{ 'yoowii.storefront.print_configuration_hint'|trans }}</p>
+    </div>
+
+    {% if available %}
+        <div class="row g-4 align-items-start">
+            <div class="col-12 col-lg-8">
+                {{ form_start(form, {attr: {class: 'yoowii-print-options'}}) }}
+                {{ form_errors(form) }}
+
+                {% set step = 0 %}
+                {% for field in form %}
+                    {% if field.vars.name != '_token' %}
+                        {% set step = step + 1 %}
+                        <details class="yoowii-print-step"{% if loop.first or field.vars.value is not empty %} open{% endif %}>
+                            <summary>
+                                <span class="yoowii-print-step-number">{{ step }}</span>
+                                <span class="fw-semibold">{{ field.vars.label }}</span>
+                                {% if field.vars.value is not empty %}
+                                    <span class="ms-auto text-secondary small">{{ field.vars.value }}</span>
+                                {% endif %}
+                            </summary>
+                            <div class="yoowii-print-step-content">
+                                {{ form_row(field) }}
+                            </div>
+                        </details>
+                    {% endif %}
+                {% endfor %}
+
+                {{ form_rest(form) }}
+                <button class="btn btn-primary btn-lg mt-3" type="submit">
+                    {{ 'yoowii.storefront.calculate_price'|trans }}
+                </button>
+                {{ form_end(form, {render_rest: false}) }}
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <aside class="card shadow-sm yoowii-print-summary">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3 class="h4 mb-0">{{ 'yoowii.storefront.print_summary'|trans }}</h3>
+                            {% if configuration is not empty %}
+                                <a class="small" href="#yoowii-print-configurator">Modifier</a>
+                            {% endif %}
+                        </div>
+
+                        {% if configuration is not empty %}
+                            <ul class="list-unstyled yoowii-print-summary-list mb-4">
+                                {% for option, value in configuration %}
+                                    <li>
+                                        <span>{{ option|replace({'_': ' '})|capitalize }}</span>
+                                        <strong>{{ value }}</strong>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-secondary">{{ 'yoowii.storefront.price_after_configuration'|trans }}</p>
+                        {% endif %}
+
+                        {% if stored_quote and quote_token %}
+                            <div class="border-top pt-3 mb-3">
+                                <div class="small text-secondary">Tarif calculé</div>
+                                <div class="display-6 fw-bold">
+                                    {{ (stored_quote.pricingSnapshot.unitPrice / 100)|number_format(2, ',', ' ') }}
+                                    {{ stored_quote.pricingSnapshot.currencyCode }}
+                                </div>
+                                <div class="small text-secondary">{{ 'yoowii.storefront.price_excluding_tax'|trans }}</div>
+                            </div>
+                            <form method="post" action="{{ path('yoowii_shop_print_add_to_cart', {token: quote_token, _locale: app.request.locale}) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('add_print_quote_' ~ quote_token) }}">
+                                <button type="submit" class="btn btn-success btn-lg w-100">
+                                    {{ 'yoowii.storefront.add_to_cart'|trans }}
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </aside>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-warning" role="alert">
+            {{ 'yoowii.storefront.configuration_unavailable'|trans }}
+        </div>
+    {% endif %}
+</div>

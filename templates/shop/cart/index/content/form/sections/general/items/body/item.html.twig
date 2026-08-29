@@ -1,0 +1,21 @@
+{% set item = hookable_metadata.context.item %}
+{% set pricing_snapshot = item.pricingSnapshot %}
+
+<td {{ sylius_test_html_attribute('cart-item-product') }}>
+    {{ component('sylius_shop:order_item:product_info', {item: item}) }}
+
+    {% if pricing_snapshot %}
+        {% set options = pricing_snapshot.configuration.options|default({}) %}
+
+        {% if options is not empty %}
+            <div class="mt-2 small text-body-secondary" data-test-print-configuration>
+                <strong>{{ 'yoowii.storefront.print_summary'|trans }} :</strong>
+                {% for option, value in options %}
+                    <span class="d-inline-block me-2">
+                        {{ option|replace({'_': ' '})|capitalize }}: {{ value }}
+                    </span>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endif %}
+</td>

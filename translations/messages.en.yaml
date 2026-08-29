@@ -2,9 +2,27 @@ yoowii:
     form:
         product:
             fulfillment_type: Fulfilment type
+            print_definition: Print calculator
+            print_definition_help: Links this Sylius product to a calculator definition and its supplier matrices.
+            print_definition_placeholder: No calculator
     fulfillment_type:
         print: Print production
         web_project: Web project
         media_project: Photo or video project
         subscription: Subscription
         quote_only: Quote only
+    print_definition:
+        PRINT_FLYER: Flyers
+        PRINT_BUSINESS_CARD: Business cards
+    storefront:
+        starting_from: Starting at
+        configure_print_product: Configure this product
+        print_configuration: Configure your product
+        print_configuration_hint: Choose the required characteristics to get the best available price.
+        print_summary: Your configuration
+        calculate_price: Calculate my price
+        price_after_configuration: The final price depends on your configuration.
+        configuration_unavailable: This product currently has no available pricing configuration.
+        reference: Ref.
+        add_to_cart: Add to cart
+        price_excluding_tax: excl. tax

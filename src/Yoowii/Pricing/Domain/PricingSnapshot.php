@@ -60,6 +60,12 @@ final readonly class PricingSnapshot
         return $this->currencyCode;
     }
 
+    /** @return array<string, mixed> */
+    public function configuration(): array
+    {
+        return $this->configuration;
+    }
+
     /**
      * @return array{
      *     schema_version: int,

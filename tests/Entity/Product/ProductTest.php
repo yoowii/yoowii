@@ -25,4 +25,22 @@ final class ProductTest extends TestCase
 
         self::assertSame(FulfillmentType::Print, $product->getFulfillmentType());
     }
+
+    public function testItCanBeLinkedToAPrintDefinition(): void
+    {
+        $product = new Product();
+        $product->setFulfillmentType(FulfillmentType::Print);
+        $product->setPrintDefinitionCode('PRINT_FLYER');
+
+        self::assertSame('PRINT_FLYER', $product->getPrintDefinitionCode());
+    }
+
+    public function testItRejectsAnInvalidPrintDefinitionCode(): void
+    {
+        $product = new Product();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $product->setPrintDefinitionCode('flyer');
+    }
 }

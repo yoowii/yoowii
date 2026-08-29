@@ -17,16 +17,22 @@
         </div>
 
         <div class="row g-4 justify-content-center">
-            {% for product_code in product_codes %}
+            {% for product in products %}
                 <div class="col-md-6 col-xl-5">
                     <div class="card h-100 shadow-sm">
                         <div class="card-body p-4 p-xl-5">
-                            <div class="text-primary fw-semibold mb-3">{{ product_code == 'PRINT_FLYER' ? 'Communication' : 'Identité professionnelle' }}</div>
-                            <h2 class="h3">{{ product_code == 'PRINT_FLYER' ? 'Flyers personnalisés' : 'Cartes de visite' }}</h2>
-                            <p class="text-secondary">{{ product_code == 'PRINT_FLYER' ? 'Formats, papiers, grammages et quantités adaptés à vos campagnes.' : 'Une présentation professionnelle avec plusieurs papiers, finitions et types de coins.' }}</p>
-                            <a class="btn btn-primary mt-3" href="{{ path('yoowii_shop_print_configure', {productCode: product_code, _locale: app.request.locale}) }}">Configurer et calculer</a>
+                            <div class="text-primary fw-semibold mb-3">{{ product.code }}</div>
+                            <h2 class="h3">{{ product.name }}</h2>
+                            {% if product.shortDescription %}
+                                <p class="text-secondary">{{ product.shortDescription }}</p>
+                            {% endif %}
+                            <a class="btn btn-primary mt-3" href="{{ path('sylius_shop_product_show', {slug: product.slug, _locale: app.request.locale}) }}">Configurer et calculer</a>
                         </div>
                     </div>
+                </div>
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">Aucun produit print n’est actuellement disponible.</div>
                 </div>
             {% endfor %}
         </div>

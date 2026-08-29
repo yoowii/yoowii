@@ -12,7 +12,9 @@ use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 final class PrintPricingMatrixCsvImporter
 {
     private const MAX_BYTES = 5_000_000;
+
     private const MAX_ROWS = 50_000;
+
     private const MAX_REPORTED_ERRORS = 100;
 
     public function import(
@@ -204,7 +206,6 @@ final class PrintPricingMatrixCsvImporter
         }
 
         if ([] !== $errors) {
-            /** @var non-empty-list<string> $errors */
             throw new PricingMatrixCsvImportFailed($errors);
         }
 
@@ -251,7 +252,7 @@ final class PrintPricingMatrixCsvImporter
             ));
         }
 
-        $value = filter_var($rawValue, FILTER_VALIDATE_INT);
+        $value = filter_var($rawValue, \FILTER_VALIDATE_INT);
 
         if (false === $value) {
             throw new \InvalidArgumentException(sprintf('column "%s" contains an integer outside the supported range.', $column));

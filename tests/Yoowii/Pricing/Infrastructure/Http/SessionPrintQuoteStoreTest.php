@@ -19,10 +19,11 @@ final class SessionPrintQuoteStoreTest extends TestCase
     {
         $store = self::store();
         $now = new \DateTimeImmutable('2026-08-27T12:00:00+00:00');
-        $token = $store->issue('PRINT_FLYER', self::snapshot(), $now);
+        $token = $store->issue('FLYER_STANDARD', 'PRINT_FLYER', self::snapshot(), $now);
 
         self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/D', $token);
-        self::assertSame('PRINT_FLYER', $store->find($token, $now)->variantCode());
+        self::assertSame('FLYER_STANDARD', $store->find($token, $now)->variantCode());
+        self::assertSame('PRINT_FLYER', $store->find($token, $now)->definitionCode());
         self::assertSame(12900, $store->consume($token, $now)->pricingSnapshot()->unitPrice());
 
         $this->expectException(PrintQuoteUnavailable::class);
@@ -33,17 +34,18 @@ final class SessionPrintQuoteStoreTest extends TestCase
     {
         $store = self::store();
         $issuedAt = new \DateTimeImmutable('2026-08-27T12:00:00+00:00');
-        $token = $store->issue('PRINT_FLYER', self::snapshot(), $issuedAt);
+        $token = $store->issue('FLYER_STANDARD', 'PRINT_FLYER', self::snapshot(), $issuedAt);
 
         $this->expectException(PrintQuoteUnavailable::class);
         $store->find($token, $issuedAt->modify('+15 minutes'));
     }
 
-    public function testItRejectsAQuoteWhoseVariantDoesNotMatchTheCalculatedProduct(): void
+    public function testItRejectsAQuoteWhoseDefinitionDoesNotMatchTheCalculatedProduct(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
         self::store()->issue(
+            'BUSINESS_CARD_STANDARD',
             'PRINT_BUSINESS_CARD',
             self::snapshot(),
             new \DateTimeImmutable('2026-08-27T12:00:00+00:00'),

@@ -9,3 +9,40 @@ sylius_twig_hooks:
             fulfillment_type:
                 template: 'admin/product/form/sections/general/fulfillment_type.html.twig'
                 priority: 450
+
+        'sylius_shop.shared.product.card.prices':
+            price:
+                component: 'sylius_shop:product:card:price'
+                props:
+                    variant: '@=_context.variant'
+                    template: 'shop/shared/product/card/prices/price.html.twig'
+                priority: 0
+
+        'sylius_shop.product.show.content.info.summary':
+            reference:
+                template: 'shop/product/show/content/info/summary/reference.html.twig'
+                priority: 450
+            add_to_cart:
+                component: 'sylius_shop:product:add_to_cart_form'
+                props:
+                    product: '@=_context.product'
+                    template: 'shop/product/show/content/info/summary/add_to_cart.html.twig'
+                priority: 100
+
+        'sylius_shop.product.show.content.info.summary.prices':
+            price:
+                component: 'sylius_shop:product:price'
+                props:
+                    variant: '@=_context.variant'
+                    template: 'shop/product/show/content/info/summary/prices/price.html.twig'
+                priority: 100
+
+        'sylius_shop.product.show.content':
+            print_configurator:
+                template: 'shop/product/show/content/print_configurator.html.twig'
+                priority: 50
+
+        'sylius_shop.cart.index.content.form.sections.general.items.body':
+            item:
+                template: 'shop/cart/index/content/form/sections/general/items/body/item.html.twig'
+                priority: 300

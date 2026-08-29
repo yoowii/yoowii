@@ -1,0 +1,13 @@
+{% set product = hookable_metadata.context.product %}
+
+{% if product.fulfillmentType.value == 'print' %}
+    <section id="yoowii-print-configurator" class="yoowii-print-configurator-section">
+        {{ render(controller(
+            'App\\Yoowii\\Pricing\\UI\\Http\\Storefront\\Controller\\PrintProductConfiguratorController::component',
+            {
+                productCode: product.code,
+                quoteToken: app.request.query.get('print_quote')
+            }
+        )) }}
+    </section>
+{% endif %}

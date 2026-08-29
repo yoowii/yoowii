@@ -10,6 +10,7 @@ interface PrintQuoteStore
 {
     public function issue(
         string $variantCode,
+        string $definitionCode,
         PricingSnapshot $pricingSnapshot,
         \DateTimeImmutable $now,
     ): string;

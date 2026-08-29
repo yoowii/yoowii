@@ -1,0 +1,4 @@
+yoowii:
+    product:
+        print_definition_required: Select a calculator for a print product.
+        print_definition_forbidden: The calculator must be empty for a non-print product.

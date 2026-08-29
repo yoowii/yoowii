@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\Session\SessionInterface;
 final readonly class SessionPrintQuoteStore implements PrintQuoteStore
 {
     private const SESSION_KEY = 'yoowii.print_quotes';
+
     private const MAX_QUOTES = 10;
 
     public function __construct(
@@ -27,11 +28,13 @@ final readonly class SessionPrintQuoteStore implements PrintQuoteStore
 
     public function issue(
         string $variantCode,
+        string $definitionCode,
         PricingSnapshot $pricingSnapshot,
         \DateTimeImmutable $now,
     ): string {
         $storedQuote = new StoredPrintQuote(
             $variantCode,
+            $definitionCode,
             $pricingSnapshot,
             $now->modify(sprintf('+%d seconds', $this->timeToLive)),
         );
@@ -40,6 +43,7 @@ final readonly class SessionPrintQuoteStore implements PrintQuoteStore
         $token = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
         $quotes[$token] = [
             'variant_code' => $variantCode,
+            'definition_code' => $definitionCode,
             'pricing_snapshot' => $pricingSnapshot->toArray(),
             'expires_at' => $storedQuote->expiresAt()->format(\DateTimeInterface::ATOM),
         ];
@@ -85,7 +89,7 @@ final readonly class SessionPrintQuoteStore implements PrintQuoteStore
     }
 
     /**
-     * @return array<string, array{variant_code: string, pricing_snapshot: array<string, mixed>, expires_at: string}>
+     * @return array<string, array{variant_code: string, definition_code: string, pricing_snapshot: array<string, mixed>, expires_at: string}>
      */
     private function activeQuotes(SessionInterface $session, \DateTimeImmutable $now): array
     {
@@ -103,12 +107,16 @@ final readonly class SessionPrintQuoteStore implements PrintQuoteStore
             }
 
             $variantCode = $storedQuote['variant_code'] ?? null;
-            $pricingSnapshot = $storedQuote['pricing_snapshot'] ?? null;
+            $definitionCode = $storedQuote['definition_code'] ?? null;
+            $pricingSnapshotData = $storedQuote['pricing_snapshot'] ?? null;
             $expiresAt = $storedQuote['expires_at'] ?? null;
 
-            if (!is_string($variantCode) || !is_array($pricingSnapshot) || !is_string($expiresAt)) {
+            if (!is_string($variantCode) || !is_string($definitionCode) || !is_array($pricingSnapshotData) || !is_string($expiresAt)) {
                 continue;
             }
+
+            /** @var array<string, mixed> $pricingSnapshot */
+            $pricingSnapshot = $pricingSnapshotData;
 
             try {
                 $expiration = new \DateTimeImmutable($expiresAt);
@@ -120,9 +128,9 @@ final readonly class SessionPrintQuoteStore implements PrintQuoteStore
                 continue;
             }
 
-            /** @var array<string, mixed> $pricingSnapshot */
             $activeQuotes[$token] = [
                 'variant_code' => $variantCode,
+                'definition_code' => $definitionCode,
                 'pricing_snapshot' => $pricingSnapshot,
                 'expires_at' => $expiresAt,
             ];
@@ -132,7 +140,7 @@ final readonly class SessionPrintQuoteStore implements PrintQuoteStore
     }
 
     /**
-     * @param array{variant_code: string, pricing_snapshot: array<string, mixed>, expires_at: string}|null $data
+     * @param array{variant_code: string, definition_code: string, pricing_snapshot: array<string, mixed>, expires_at: string}|null $data
      */
     private function hydrate(?array $data): StoredPrintQuote
     {
@@ -143,6 +151,7 @@ final readonly class SessionPrintQuoteStore implements PrintQuoteStore
         try {
             return new StoredPrintQuote(
                 $data['variant_code'],
+                $data['definition_code'],
                 PricingSnapshot::fromArray($data['pricing_snapshot']),
                 new \DateTimeImmutable($data['expires_at']),
             );
