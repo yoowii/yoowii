@@ -59,7 +59,11 @@ Options en accordéon       Récapitulatif sticky
 - finition
 ```
 
-Sur mobile, le récapitulatif repasse sous les options. L’ancienne URL `/print/{productCode}` redirige vers la fiche Sylius canonique. La landing `/print` est conservée, mais elle charge uniquement des produits Sylius actifs du canal courant.
+Chaque axe est présenté sous forme de cartes radio Bootstrap. Les étapes s’ouvrent progressivement, le récapitulatif est mis à jour dès chaque choix et un lien permet de revenir directement à une étape. Dès que tous les axes obligatoires sont renseignés, un contrôleur Stimulus poste automatiquement le formulaire avec son jeton CSRF. Le serveur recalcule le devis et renvoie uniquement le fragment HTML du prix et du bouton d’ajout au panier. Aucun prix provenant du navigateur n’est utilisé.
+
+En cas d’indisponibilité ou de combinaison absente des matrices, le bloc affiche l’erreur sans perdre les choix. Une nouvelle sélection invalide immédiatement le devis précédent et relance le calcul après un court debounce. Sans JavaScript, un bouton de calcul de secours reste disponible dans un bloc `noscript`.
+
+Sur mobile, le récapitulatif repasse sous les options et les cartes format sont affichées sur une colonne. L’ancienne URL `/print/{productCode}` redirige vers la fiche Sylius canonique. La landing `/print` est conservée, mais elle charge uniquement des produits Sylius actifs du canal courant.
 
 Le prix calculé est un prix hors taxes. La catégorie fiscale du produit laisse Sylius calculer la TVA dans le panier. Comme la matrice fournisseur contient déjà le coût de livraison, le mode d’expédition print du MVP doit être un mode à `0` intitulé par exemple « Livraison incluse », afin de ne pas facturer deux fois le transport.
 
@@ -71,7 +75,7 @@ Les routes sont localisées comme le storefront Sylius :
 |---|---|---|
 | Catalogue print | GET | `/{_locale}/print` |
 | Ancienne URL de configuration | GET, redirection | `/{_locale}/print/{productCode}` |
-| Calculer depuis la fiche | POST | `/{_locale}/products/{productCode}/print-quote` |
+| Calculer depuis la fiche | POST, HTML ou JSON AJAX | `/{_locale}/products/{productCode}/print-quote` |
 | Ajouter le devis au panier | POST | `/{_locale}/print/quote/{token}/cart` |
 
 Exemples :
@@ -139,7 +143,7 @@ La migration `Version20260828180000` ajoute le lien entre le produit Sylius et l
 2. Activer au moins une route et une matrice EUR depuis `/admin/print-sourcing`.
 3. Ouvrir le catalogue Sylius et vérifier la présence simultanée de produits print et non-print.
 4. Vérifier « À partir de » uniquement sur les cartes print.
-5. Ouvrir la fiche Sylius du flyer et calculer un prix dans le configurateur pleine largeur.
+5. Ouvrir la fiche Sylius du flyer, vérifier la progression des étapes et le calcul automatique après le dernier choix.
 6. Modifier le HTML côté navigateur et confirmer qu’aucun champ de prix n’existe à falsifier.
 7. Ajouter au panier et vérifier le prix ainsi que la configuration du snapshot en base.
 8. Réutiliser le même formulaire d’ajout et vérifier que le devis est refusé.

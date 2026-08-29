@@ -19,6 +19,7 @@ use Sylius\Component\Core\Model\ChannelInterface as CoreChannelInterface;
 use Sylius\Component\Core\Repository\ProductRepositoryInterface;
 use Sylius\Component\Currency\Context\CurrencyContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -49,15 +50,20 @@ final class PrintProductConfiguratorController extends AbstractController
         $form->handleRequest($request);
 
         if ([] === $availableOptions || in_array([], $availableOptions, true)) {
-            $this->addFlash('warning', 'Ce produit n’a actuellement aucune configuration tarifaire disponible.');
-
-            return $this->redirectToProduct($product, $request);
+            return $this->quoteError(
+                $request,
+                $product,
+                'Ce produit n’a actuellement aucune configuration tarifaire disponible.',
+                'warning',
+            );
         }
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            $this->addFlash('danger', 'La configuration sélectionnée est invalide.');
-
-            return $this->redirectToProduct($product, $request);
+            return $this->quoteError(
+                $request,
+                $product,
+                'La configuration sélectionnée est invalide.',
+            );
         }
 
         try {
@@ -90,9 +96,17 @@ final class PrintProductConfiguratorController extends AbstractController
                 $now,
             );
         } catch (\InvalidArgumentException|\DomainException $exception) {
-            $this->addFlash('danger', $exception->getMessage());
+            return $this->quoteError($request, $product, $exception->getMessage());
+        }
 
-            return $this->redirectToProduct($product, $request);
+        if ($request->isXmlHttpRequest()) {
+            return new JsonResponse([
+                'quote_token' => $quoteToken,
+                'quote_html' => $this->renderView('shop/product/show/_print_quote.html.twig', [
+                    'pricing_snapshot' => $quote->pricingSnapshot(),
+                    'quote_token' => $quoteToken,
+                ]),
+            ], Response::HTTP_CREATED, ['Cache-Control' => 'no-store']);
         }
 
         return $this->redirectToProduct($product, $request, $quoteToken);
@@ -240,5 +254,24 @@ final class PrintProductConfiguratorController extends AbstractController
         }
 
         return $this->redirectToRoute('sylius_shop_product_show', $parameters);
+    }
+
+    private function quoteError(
+        Request $request,
+        Product $product,
+        string $message,
+        string $flashType = 'danger',
+    ): Response {
+        if ($request->isXmlHttpRequest()) {
+            return new JsonResponse(
+                ['message' => $message],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+                ['Cache-Control' => 'no-store'],
+            );
+        }
+
+        $this->addFlash($flashType, $message);
+
+        return $this->redirectToProduct($product, $request);
     }
 }

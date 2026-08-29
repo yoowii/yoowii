@@ -14,7 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'sylius_product', indexes: [new ORM\Index(name: 'idx_product_print_definition', columns: ['print_definition_code'])])]
+#[ORM\Table(name: 'sylius_product')]
 class Product extends BaseProduct implements ProductInterface
 {
     use ProductTrait;

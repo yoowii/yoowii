@@ -28,8 +28,8 @@ final class PrintConfiguratorType extends AbstractType
             $builder->add($code, ChoiceType::class, [
                 'label' => $this->optionLabel($code),
                 'choices' => $choices,
-                'expanded' => count($choices) <= 8,
-                'placeholder' => 'Choisir',
+                'expanded' => true,
+                'placeholder' => false,
             ]);
         }
     }

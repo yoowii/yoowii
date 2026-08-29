@@ -1,6 +1,18 @@
 {% form_theme form '@SyliusShop/form/theme.html.twig' %}
 
-<div class="yoowii-print-configurator">
+{% set configurable_fields = [] %}
+{% for field in form %}
+    {% if field.vars.name != '_token' %}
+        {% set configurable_fields = configurable_fields|merge([field]) %}
+    {% endif %}
+{% endfor %}
+
+<div
+    class="yoowii-print-configurator"
+    data-controller="print-configurator"
+    data-print-configurator-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
+    data-empty-quote-label="{{ 'yoowii.storefront.price_after_configuration'|trans }}"
+>
     <div class="mb-4">
         <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
         <h2 class="h1 mb-2">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>
@@ -10,32 +22,92 @@
     {% if available %}
         <div class="row g-4 align-items-start">
             <div class="col-12 col-lg-8">
-                {{ form_start(form, {attr: {class: 'yoowii-print-options'}}) }}
+                <div
+                    class="alert alert-danger d-none"
+                    role="alert"
+                    data-print-configurator-target="error"
+                ></div>
+
+                {{ form_start(form, {
+                    attr: {
+                        class: 'yoowii-print-options',
+                        'data-print-configurator-target': 'form',
+                        'data-action': 'submit->print-configurator#submit'
+                    }
+                }) }}
                 {{ form_errors(form) }}
 
-                {% set step = 0 %}
-                {% for field in form %}
-                    {% if field.vars.name != '_token' %}
-                        {% set step = step + 1 %}
-                        <details class="yoowii-print-step"{% if loop.first or field.vars.value is not empty %} open{% endif %}>
-                            <summary>
-                                <span class="yoowii-print-step-number">{{ step }}</span>
-                                <span class="fw-semibold">{{ field.vars.label }}</span>
-                                {% if field.vars.value is not empty %}
-                                    <span class="ms-auto text-secondary small">{{ field.vars.value }}</span>
-                                {% endif %}
-                            </summary>
-                            <div class="yoowii-print-step-content">
-                                {{ form_row(field) }}
+                {% set previous_steps_complete = true %}
+                {% for field in configurable_fields %}
+                    {% set step_index = loop.index0 %}
+                    {% set selected_label = null %}
+                    {% for choice in field %}
+                        {% if choice.vars.checked %}
+                            {% set selected_label = choice.vars.label %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set step_complete = selected_label is not null %}
+                    {% set step_enabled = previous_steps_complete %}
+
+                    <details
+                        class="yoowii-print-step{{ step_complete ? ' is-complete' : '' }}{{ not step_enabled ? ' is-disabled' : '' }}"
+                        data-print-configurator-target="step"
+                        data-step-index="{{ step_index }}"
+                        data-axis="{{ field.vars.name }}"
+                        {% if step_enabled and not step_complete %}open{% endif %}
+                    >
+                        <summary data-action="click->print-configurator#guardStep">
+                            <span class="yoowii-print-step-status" aria-hidden="true">
+                                <span class="yoowii-print-step-number">{{ loop.index }}</span>
+                                <span class="yoowii-print-step-check">✓</span>
+                            </span>
+                            <span class="fw-semibold">{{ field.vars.label }}</span>
+                            <span class="yoowii-print-step-value" data-role="step-value">
+                                {{ selected_label ?? 'yoowii.storefront.choice_pending'|trans }}
+                            </span>
+                            <span class="yoowii-print-step-chevron" aria-hidden="true"></span>
+                        </summary>
+
+                        <div class="yoowii-print-step-content">
+                            {{ form_errors(field) }}
+                            <div class="yoowii-print-choice-grid{{ field.vars.name == 'format' ? ' is-format-grid' : '' }}">
+                                {% for choice in field %}
+                                    <div class="yoowii-print-choice">
+                                        {{ form_widget(choice, {
+                                            label: false,
+                                            attr: {
+                                                class: 'btn-check',
+                                                autocomplete: 'off',
+                                                'data-action': 'change->print-configurator#change',
+                                                'data-choice-label': choice.vars.label
+                                            }
+                                        }) }}
+                                        <label class="yoowii-print-choice-card" for="{{ choice.vars.id }}">
+                                            {% if field.vars.name == 'format' %}
+                                                <span class="yoowii-print-format-preview" aria-hidden="true">
+                                                    <span>{{ choice.vars.value }}</span>
+                                                </span>
+                                            {% endif %}
+                                            <span class="yoowii-print-choice-radio" aria-hidden="true"></span>
+                                            <span class="yoowii-print-choice-label">{{ choice.vars.label }}</span>
+                                        </label>
+                                    </div>
+                                {% endfor %}
                             </div>
-                        </details>
+                        </div>
+                    </details>
+
+                    {% if not step_complete %}
+                        {% set previous_steps_complete = false %}
                     {% endif %}
                 {% endfor %}
 
                 {{ form_rest(form) }}
-                <button class="btn btn-primary btn-lg mt-3" type="submit">
-                    {{ 'yoowii.storefront.calculate_price'|trans }}
-                </button>
+                <noscript>
+                    <button class="btn btn-primary btn-lg mt-3" type="submit">
+                        {{ 'yoowii.storefront.calculate_price'|trans }}
+                    </button>
+                </noscript>
                 {{ form_end(form, {render_rest: false}) }}
             </div>
 
@@ -44,40 +116,62 @@
                     <div class="card-body p-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h3 class="h4 mb-0">{{ 'yoowii.storefront.print_summary'|trans }}</h3>
-                            {% if configuration is not empty %}
-                                <a class="small" href="#yoowii-print-configurator">Modifier</a>
-                            {% endif %}
+                            <button
+                                class="btn btn-link btn-sm p-0"
+                                type="button"
+                                data-action="print-configurator#reset"
+                            >
+                                {{ 'yoowii.storefront.restore_choices'|trans }}
+                            </button>
                         </div>
 
-                        {% if configuration is not empty %}
-                            <ul class="list-unstyled yoowii-print-summary-list mb-4">
-                                {% for option, value in configuration %}
-                                    <li>
-                                        <span>{{ option|replace({'_': ' '})|capitalize }}</span>
-                                        <strong>{{ value }}</strong>
-                                    </li>
+                        <ul class="list-unstyled yoowii-print-summary-list mb-4">
+                            {% for field in configurable_fields %}
+                                {% set selected_label = null %}
+                                {% for choice in field %}
+                                    {% if choice.vars.checked %}
+                                        {% set selected_label = choice.vars.label %}
+                                    {% endif %}
                                 {% endfor %}
-                            </ul>
-                        {% else %}
-                            <p class="text-secondary">{{ 'yoowii.storefront.price_after_configuration'|trans }}</p>
-                        {% endif %}
+                                <li
+                                    class="{{ selected_label is not null ? 'is-complete' : 'is-pending' }}"
+                                    data-print-configurator-target="summaryItem"
+                                    data-step-index="{{ loop.index0 }}"
+                                    data-pending-label="{{ 'yoowii.storefront.choice_pending'|trans }}"
+                                >
+                                    <span class="yoowii-print-summary-check" aria-hidden="true">✓</span>
+                                    <span class="yoowii-print-summary-name">{{ field.vars.label }}</span>
+                                    <strong data-role="summary-value">
+                                        {{ selected_label ?? 'yoowii.storefront.choice_pending'|trans }}
+                                    </strong>
+                                    <button
+                                        class="btn btn-link btn-sm p-0"
+                                        type="button"
+                                        data-action="print-configurator#openStep"
+                                        data-step-index="{{ loop.index0 }}"
+                                    >
+                                        {{ 'yoowii.storefront.change_choice'|trans }}
+                                    </button>
+                                </li>
+                            {% endfor %}
+                        </ul>
 
-                        {% if stored_quote and quote_token %}
-                            <div class="border-top pt-3 mb-3">
-                                <div class="small text-secondary">Tarif calculé</div>
-                                <div class="display-6 fw-bold">
-                                    {{ (stored_quote.pricingSnapshot.unitPrice / 100)|number_format(2, ',', ' ') }}
-                                    {{ stored_quote.pricingSnapshot.currencyCode }}
-                                </div>
-                                <div class="small text-secondary">{{ 'yoowii.storefront.price_excluding_tax'|trans }}</div>
-                            </div>
-                            <form method="post" action="{{ path('yoowii_shop_print_add_to_cart', {token: quote_token, _locale: app.request.locale}) }}">
-                                <input type="hidden" name="_token" value="{{ csrf_token('add_print_quote_' ~ quote_token) }}">
-                                <button type="submit" class="btn btn-success btn-lg w-100">
-                                    {{ 'yoowii.storefront.add_to_cart'|trans }}
-                                </button>
-                            </form>
-                        {% endif %}
+                        <div
+                            class="yoowii-print-calculating d-none"
+                            role="status"
+                            aria-live="polite"
+                            data-print-configurator-target="loading"
+                        >
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span>{{ 'yoowii.storefront.calculating_price'|trans }}</span>
+                        </div>
+
+                        <div data-print-configurator-target="quoteResult">
+                            {% include 'shop/product/show/_print_quote.html.twig' with {
+                                pricing_snapshot: stored_quote ? stored_quote.pricingSnapshot : null,
+                                quote_token: quote_token
+                            } only %}
+                        </div>
                     </div>
                 </aside>
             </div>

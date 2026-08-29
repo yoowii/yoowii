@@ -21,7 +21,12 @@ yoowii:
         print_configuration_hint: Choisissez les caractéristiques souhaitées pour obtenir le meilleur tarif disponible.
         print_summary: Votre configuration
         calculate_price: Calculer mon prix
+        calculating_price: Calcul du meilleur tarif…
+        calculated_price: Tarif calculé
         price_after_configuration: Le prix final dépend de votre configuration.
+        choice_pending: À choisir
+        change_choice: Modifier
+        restore_choices: Restaurer les choix
         configuration_unavailable: Ce produit n’a actuellement aucune configuration tarifaire disponible.
         reference: Réf.
         add_to_cart: Ajouter au panier
