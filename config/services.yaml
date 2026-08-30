@@ -84,6 +84,10 @@ services:
         resource: '../src/Yoowii/PrintProduction/UI/Http/Storefront/'
         tags: ['controller.service_arguments']
 
+    App\Yoowii\PrintProduction\UI\Http\Admin\Controller\:
+        resource: '../src/Yoowii/PrintProduction/UI/Http/Admin/Controller/'
+        tags: ['controller.service_arguments']
+
     App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider:
         arguments:
             $version: '%yoowii.print_pricing.version%'

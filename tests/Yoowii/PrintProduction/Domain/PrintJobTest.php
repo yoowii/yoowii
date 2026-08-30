@@ -23,6 +23,12 @@ final class PrintJobTest extends TestCase
     {
         $now = new \DateTimeImmutable('2026-08-29T20:00:00+02:00');
         $job = new PrintJob(new OrderItem(), 'PJ-TEST-1', 'laboprint', 'FLYER', ['schema_version' => 1], $now);
+        $job->changeStatus(PrintJobStatus::FilesReceived, $now);
+        $job->changeStatus(PrintJobStatus::BatPending, $now);
+        $job->changeStatus(PrintJobStatus::BatReady, $now);
+        $job->changeStatus(PrintJobStatus::BatApproved, $now);
+        $job->changeStatus(PrintJobStatus::InProduction, $now);
+        $job->changeStatus(PrintJobStatus::Shipped, $now);
         $job->changeStatus(PrintJobStatus::Delivered, $now);
         $this->expectException(\DomainException::class);
         $job->changeStatus(PrintJobStatus::InProduction, $now);
@@ -58,5 +64,14 @@ final class PrintJobTest extends TestCase
         $job->renewGuestLinks($now);
         self::assertSame(3, $job->accessVersion());
         self::assertTrue($job->guestAccessEnabled());
+    }
+
+    public function testItRejectsAProductionStepThatSkipsClientBatApproval(): void
+    {
+        $now = new \DateTimeImmutable('2026-08-30T12:00:00+02:00');
+        $job = new PrintJob(new OrderItem(), 'PJ-TEST-1', 'laboprint', 'FLYER', ['schema_version' => 1], $now);
+
+        $this->expectException(\DomainException::class);
+        $job->changeStatus(PrintJobStatus::InProduction, $now);
     }
 }

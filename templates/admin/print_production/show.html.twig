@@ -1,0 +1,71 @@
+{% extends 'admin/print_production/base.html.twig' %}
+
+{% set page_title = 'Dossier ' ~ job.reference %}
+
+{% block production_actions %}
+    <a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_print_production_index') }}">Retour aux dossiers</a>
+{% endblock %}
+
+{% block production_content %}
+    {% set order = job.orderItem.order %}
+    <div class="row row-cards">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header"><h2 class="card-title">Commande et production</h2></div>
+                <div class="card-body"><dl class="row mb-0">
+                    <dt class="col-sm-4">Produit</dt><dd class="col-sm-8">{{ job.orderItem.productName }} × {{ job.orderItem.quantity }}</dd>
+                    <dt class="col-sm-4">Commande</dt><dd class="col-sm-8">{{ order.number }}</dd>
+                    <dt class="col-sm-4">Client</dt><dd class="col-sm-8">{{ order.customer ? order.customer.email : 'Client invité' }}</dd>
+                    <dt class="col-sm-4">Fournisseur retenu</dt><dd class="col-sm-8"><code>{{ job.supplierCode }}</code> — <code>{{ job.supplierProductCode }}</code></dd>
+                    <dt class="col-sm-4">Statut</dt><dd class="col-sm-8"><span class="badge bg-blue-lt">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span></dd>
+                    <dt class="col-sm-4">Créé / mis à jour</dt><dd class="col-sm-8">{{ job.createdAt|date('d/m/Y H:i') }} / {{ job.updatedAt|date('d/m/Y H:i') }}</dd>
+                </dl></div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header"><h2 class="card-title">Fichiers</h2></div>
+                <div class="table-responsive"><table class="table table-vcenter card-table">
+                    <thead><tr><th>Type</th><th>Nom</th><th>Poids</th><th>Déposé le</th><th>État</th><th></th></tr></thead>
+                    <tbody>{% for asset in assets %}
+                        <tr><td>{{ asset.type.value == 'bat' ? 'BAT' : 'Fichier client' }}</td><td>{{ asset.originalName }}</td><td>{{ (asset.size / 1024 / 1024)|number_format(2, ',', ' ') }} Mo</td><td>{{ asset.createdAt|date('d/m/Y H:i') }}</td><td><span class="badge {{ asset.active ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ asset.active ? 'Actif' : 'Remplacé' }}</span></td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ path('yoowii_admin_print_production_download_asset', {id: job.id, assetId: asset.id}) }}" target="_blank" rel="noopener">Ouvrir</a></td></tr>
+                    {% else %}<tr><td colspan="6" class="text-center text-secondary py-4">Aucun fichier déposé.</td></tr>{% endfor %}</tbody>
+                </table></div>
+                {% if job.canRegisterBat %}
+                    <div class="card-body border-top"><form method="post" enctype="multipart/form-data" action="{{ path('yoowii_admin_print_production_upload_bat', {id: job.id}) }}" class="row g-3 align-items-end">
+                        <input type="hidden" name="_token" value="{{ csrf_token('print_job_bat_' ~ job.id) }}">
+                        <div class="col-md-8"><label class="form-label">Importer le BAT</label><input class="form-control" type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff,application/pdf,image/jpeg,image/png,image/tiff" required><div class="form-hint">PDF recommandé. Le BAT remplacera le précédent BAT actif.</div></div>
+                        <div class="col-md-4"><button class="btn btn-primary w-100" type="submit">Publier le BAT</button></div>
+                    </form></div>
+                {% endif %}
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header"><h2 class="card-title">Configuration et snapshot fournisseur</h2></div>
+                <div class="card-body"><pre class="mb-0 small text-wrap" style="white-space: pre-wrap">{{ job.productionSnapshot|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h2 class="card-title">Historique</h2></div>
+                <div class="list-group list-group-flush">{% for activity in activities %}
+                    <div class="list-group-item"><div class="d-flex justify-content-between gap-3"><strong>{{ activity.action }}</strong><small class="text-secondary text-nowrap">{{ activity.createdAt|date('d/m/Y H:i') }}</small></div><div class="small text-secondary">{{ activity.actor ?: 'Système' }}{% if activity.details %} — {{ activity.details|json_encode }}{% endif %}</div></div>
+                {% else %}<div class="list-group-item text-secondary">Aucune action opérateur enregistrée pour l’instant.</div>{% endfor %}</div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-4"><div class="card-header"><h2 class="card-title">Changer le statut</h2></div><div class="card-body">
+                {% if transitions %}<form method="post" action="{{ path('yoowii_admin_print_production_change_status', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_status_' ~ job.id) }}"><label class="form-label">Transition disponible</label><select class="form-select" name="status">{% for status in transitions %}<option value="{{ status.value }}">{{ ('yoowii.print_flow.status.' ~ status.value)|trans }}</option>{% endfor %}</select><button class="btn btn-outline-primary w-100 mt-3" type="submit">Mettre à jour</button></form>{% else %}<p class="text-secondary mb-0">Aucune transition disponible.</p>{% endif %}
+            </div></div>
+
+            {% if job.status.value == 'bat_approved' %}
+                <div class="card mb-4"><div class="card-header"><h2 class="card-title">Commande fournisseur</h2></div><div class="card-body"><form method="post" action="{{ path('yoowii_admin_print_production_register_supplier_order', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_supplier_order_' ~ job.id) }}"><label class="form-label">Référence fournisseur</label><input class="form-control" name="supplier_order_reference" required placeholder="Ex. LABO-123456"><button class="btn btn-primary w-100 mt-3" type="submit">Passer en production</button></form></div></div>
+            {% endif %}
+
+            {% if job.status.value == 'in_production' %}
+                <div class="card"><div class="card-header"><h2 class="card-title">Expédition</h2></div><div class="card-body"><form method="post" action="{{ path('yoowii_admin_print_production_register_shipment', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_shipment_' ~ job.id) }}"><label class="form-label">N° de suivi</label><input class="form-control" name="tracking_number" required><label class="form-label mt-3">Lien de suivi</label><input class="form-control" type="url" name="tracking_url" placeholder="https://…"><button class="btn btn-primary w-100 mt-3" type="submit">Marquer comme expédié</button></form></div></div>
+            {% elseif job.trackingNumber %}
+                <div class="card"><div class="card-header"><h2 class="card-title">Suivi transport</h2></div><div class="card-body"><strong>{{ job.trackingNumber }}</strong>{% if job.trackingUrl %}<a class="d-block mt-2" href="{{ job.trackingUrl }}" target="_blank" rel="noopener">Ouvrir le suivi</a>{% endif %}</div></div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

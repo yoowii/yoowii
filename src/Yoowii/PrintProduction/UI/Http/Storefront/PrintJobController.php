@@ -8,6 +8,7 @@ use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
 use App\Yoowii\PrintProduction\Application\PrintAssetStorage;
 use App\Yoowii\PrintProduction\Application\PrintJobAccessLink;
+use App\Yoowii\PrintProduction\Application\RecordPrintJobActivity;
 use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
@@ -68,7 +69,7 @@ final class PrintJobController extends AbstractController
     }
 
     #[Route('/{reference}/files', name: 'upload', methods: ['POST'])]
-    public function upload(string $reference, Request $request, EntityManagerInterface $entityManager, PrintJobAccessLink $links, RegisterPrintAsset $register): Response
+    public function upload(string $reference, Request $request, EntityManagerInterface $entityManager, PrintJobAccessLink $links, RegisterPrintAsset $register, RecordPrintJobActivity $activity): Response
     {
         $job = $this->accessibleJob($reference, $request, $entityManager, $links);
         if (!$this->isCsrfTokenValid('print_job_upload_' . $reference, (string) $request->request->get('_token'))) {
@@ -90,6 +91,8 @@ final class PrintJobController extends AbstractController
 
         try {
             $asset = $register($job, PrintAssetType::CustomerArtwork, $file->getClientOriginalName(), (string) $file->getMimeType(), (int) $file->getSize(), $stream);
+            $activity($job, 'customer_artwork_uploaded', $this->activityActor(), ['asset_id' => $asset->id(), 'file_name' => $asset->originalName()]);
+            $entityManager->flush();
         } catch (\DomainException $exception) {
             return $this->uploadError($request, $exception->getMessage(), false);
         } finally {
@@ -137,7 +140,7 @@ final class PrintJobController extends AbstractController
     }
 
     #[Route('/{reference}/bat/approve', name: 'approve_bat', methods: ['POST'])]
-    public function approveBat(string $reference, Request $request, EntityManagerInterface $entityManager, PrintJobAccessLink $links): Response
+    public function approveBat(string $reference, Request $request, EntityManagerInterface $entityManager, PrintJobAccessLink $links, RecordPrintJobActivity $activity): Response
     {
         $job = $this->accessibleJob($reference, $request, $entityManager, $links);
         if (!$this->isCsrfTokenValid('print_job_bat_' . $reference, (string) $request->request->get('_token'))) {
@@ -150,6 +153,7 @@ final class PrintJobController extends AbstractController
         }
 
         $job->markBatApproved(new \DateTimeImmutable());
+        $activity($job, 'bat_approved_by_customer', $this->activityActor());
         $entityManager->flush();
         $this->addFlash('success', 'yoowii.print_flow.bat_approved');
 
@@ -201,5 +205,12 @@ final class PrintJobController extends AbstractController
         $locale = $request->attributes->get('_locale');
 
         return is_string($locale) ? $locale : '';
+    }
+
+    private function activityActor(): string
+    {
+        $user = $this->getUser();
+
+        return $user instanceof ShopUser ? $user->getUserIdentifier() : 'guest';
     }
 }

@@ -1,0 +1,29 @@
+{% extends 'admin/print_production/base.html.twig' %}
+
+{% set page_title = 'Production print' %}
+
+{% block production_content %}
+    <div class="card mb-4">
+        <form class="card-body" method="get">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4"><label class="form-label">Recherche</label><input class="form-control" name="q" value="{{ filters.q }}" placeholder="Référence, commande ou produit"></div>
+                <div class="col-md-3"><label class="form-label">Statut</label><select class="form-select" name="status"><option value="">Tous les statuts</option>{% for status in statuses %}<option value="{{ status.value }}" {{ filters.status == status.value ? 'selected' }}>{{ ('yoowii.print_flow.status.' ~ status.value)|trans }}</option>{% endfor %}</select></div>
+                <div class="col-md-3"><label class="form-label">Fournisseur</label><select class="form-select" name="supplier"><option value="">Tous les fournisseurs</option>{% for supplier in suppliers %}<option value="{{ supplier }}" {{ filters.supplier == supplier ? 'selected' }}>{{ supplier }}</option>{% endfor %}</select></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Filtrer</button></div>
+            </div>
+        </form>
+    </div>
+    <div class="card">
+        <div class="table-responsive"><table class="table table-vcenter card-table">
+            <thead><tr><th>Référence</th><th>Commande</th><th>Produit</th><th>Client</th><th>Fournisseur</th><th>Statut</th><th>Mis à jour</th><th></th></tr></thead>
+            <tbody>{% for job in jobs %}
+                {% set order = job.orderItem.order %}
+                <tr>
+                    <td><code>{{ job.reference }}</code></td><td>{{ order.number }}</td><td>{{ job.orderItem.productName }}</td><td>{{ order.customer ? order.customer.email : 'Client invité' }}</td><td>{{ job.supplierCode }}</td>
+                    <td><span class="badge bg-blue-lt">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span></td><td>{{ job.updatedAt|date('d/m/Y H:i') }}</td>
+                    <td class="text-end"><a class="btn btn-sm btn-primary" href="{{ path('yoowii_admin_print_production_show', {id: job.id}) }}">Ouvrir</a></td>
+                </tr>
+            {% else %}<tr><td colspan="8" class="text-center text-secondary py-4">Aucun dossier ne correspond aux filtres.</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </div>
+{% endblock %}

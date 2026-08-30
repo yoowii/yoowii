@@ -1,0 +1,5 @@
+yoowii_print_production_admin:
+    resource: '../../src/Yoowii/PrintProduction/UI/Http/Admin/Controller/'
+    type: attribute
+    prefix: '/%sylius_admin.path_name%/print-production'
+    trailing_slash_on_root: false

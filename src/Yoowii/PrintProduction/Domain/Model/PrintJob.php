@@ -151,8 +151,11 @@ class PrintJob
 
     public function changeStatus(PrintJobStatus $status, \DateTimeImmutable $at): void
     {
-        if (in_array($this->status, [PrintJobStatus::Delivered, PrintJobStatus::Cancelled], true) && $status !== $this->status) {
-            throw new \DomainException('A terminal print job cannot change status.');
+        if ($status === $this->status) {
+            return;
+        }
+        if (!in_array($status, $this->allowedNextStatuses(), true)) {
+            throw new \DomainException(sprintf('The transition from "%s" to "%s" is not allowed.', $this->status->value, $status->value));
         }
         $this->status = $status;
         $this->updatedAt = $at;
@@ -189,6 +192,12 @@ class PrintJob
         return in_array($this->status, [PrintJobStatus::FilesReceived, PrintJobStatus::BatPending, PrintJobStatus::BatReady], true);
     }
 
+    /** @return list<PrintJobStatus> */
+    public function availableStatusTransitions(): array
+    {
+        return $this->allowedNextStatuses();
+    }
+
     public function registerSupplierOrder(string $reference, \DateTimeImmutable $at): void
     {
         if ('' === trim($reference)) {
@@ -206,5 +215,30 @@ class PrintJob
         $this->trackingNumber = $trackingNumber;
         $this->trackingUrl = $trackingUrl;
         $this->changeStatus(PrintJobStatus::Shipped, $at);
+    }
+
+    /** @return list<PrintJobStatus> */
+    private function allowedNextStatuses(): array
+    {
+        return match ($this->status) {
+            PrintJobStatus::AwaitingFiles => [PrintJobStatus::FilesReceived, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
+            PrintJobStatus::FilesReceived => [PrintJobStatus::BatPending, PrintJobStatus::BatReady, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
+            PrintJobStatus::BatPending => [PrintJobStatus::BatReady, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
+            PrintJobStatus::BatReady => [PrintJobStatus::BatApproved, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
+            PrintJobStatus::BatApproved => [PrintJobStatus::InProduction, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
+            PrintJobStatus::InProduction => [PrintJobStatus::Shipped, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
+            PrintJobStatus::Shipped => [PrintJobStatus::Delivered, PrintJobStatus::Blocked],
+            PrintJobStatus::Blocked => [
+                PrintJobStatus::AwaitingFiles,
+                PrintJobStatus::FilesReceived,
+                PrintJobStatus::BatPending,
+                PrintJobStatus::BatReady,
+                PrintJobStatus::BatApproved,
+                PrintJobStatus::InProduction,
+                PrintJobStatus::Shipped,
+                PrintJobStatus::Cancelled,
+            ],
+            PrintJobStatus::Delivered, PrintJobStatus::Cancelled => [],
+        };
     }
 }

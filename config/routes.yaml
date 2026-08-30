@@ -13,6 +13,9 @@ controllers:
 yoowii_sourcing_admin:
     resource: routes/yoowii_sourcing_admin.yaml
 
+yoowii_print_production_admin:
+    resource: routes/yoowii_print_production_admin.yaml
+
 yoowii_print_storefront:
     resource: routes/yoowii_print_storefront.yaml
 
