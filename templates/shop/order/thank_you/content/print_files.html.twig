@@ -1,18 +1,2 @@
-{% set has_print = false %}
-{% for item in order.items %}
-    {% if item.variant and item.variant.product and item.variant.product.fulfillmentType and item.variant.product.fulfillmentType.value == 'print' %}
-        {% set has_print = true %}
-    {% endif %}
-{% endfor %}
-
-{% if has_print and order.paymentState == 'paid' %}
-    <div class="alert alert-primary d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 my-4">
-        <div>
-            <strong class="d-block">{{ 'yoowii.print_flow.thank_you_title'|trans }}</strong>
-            <span>{{ 'yoowii.print_flow.thank_you_hint'|trans }}</span>
-        </div>
-        <a class="btn btn-primary text-nowrap" href="{{ path('yoowii_shop_flow_order_print_files', {_locale: app.request.locale, tokenValue: order.tokenValue}) }}">
-            {{ 'yoowii.print_flow.upload_my_files'|trans }}
-        </a>
-    </div>
-{% endif %}
+{% set order = hookable_metadata.context.order %}
+{% include 'shop/order/content/print_files.html.twig' with {order: order} only %}

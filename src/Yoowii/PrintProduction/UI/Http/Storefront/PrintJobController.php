@@ -107,7 +107,7 @@ final class PrintJobController extends AbstractController
             ], Response::HTTP_CREATED);
         }
 
-        $this->addFlash('success', 'yoowii.print_flow.upload_success');
+        $this->addFlash('success', $this->translator->trans('yoowii.print_flow.upload_success', [], 'messages', $this->translationLocale($request)));
 
         return $this->redirect($links->show($job, $this->requestLocale($request)));
     }
@@ -147,7 +147,7 @@ final class PrintJobController extends AbstractController
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
         if ('1' !== $request->request->get('bat_confirmation')) {
-            $this->addFlash('danger', 'yoowii.print_flow.errors.bat_confirmation_required');
+            $this->addFlash('danger', $this->translator->trans('yoowii.print_flow.errors.bat_confirmation_required', [], 'messages', $this->translationLocale($request)));
 
             return $this->redirect($links->show($job, $this->requestLocale($request)));
         }
@@ -155,7 +155,7 @@ final class PrintJobController extends AbstractController
         $job->markBatApproved(new \DateTimeImmutable());
         $activity($job, 'bat_approved_by_customer', $this->activityActor());
         $entityManager->flush();
-        $this->addFlash('success', 'yoowii.print_flow.bat_approved');
+        $this->addFlash('success', $this->translator->trans('yoowii.print_flow.bat_approved', [], 'messages', $this->translationLocale($request)));
 
         return $this->redirect($links->show($job, $this->requestLocale($request)));
     }
@@ -191,8 +191,10 @@ final class PrintJobController extends AbstractController
 
     private function uploadError(Request $request, string $message, bool $translate = true): Response
     {
+        $message = $translate ? $this->translator->trans($message, [], 'messages', $this->translationLocale($request)) : $message;
+
         if ($request->isXmlHttpRequest()) {
-            return $this->json(['message' => $translate ? $this->translator->trans($message) : $message], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->json(['message' => $message], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $this->addFlash('danger', $message);
@@ -205,6 +207,13 @@ final class PrintJobController extends AbstractController
         $locale = $request->attributes->get('_locale');
 
         return is_string($locale) ? $locale : '';
+    }
+
+    private function translationLocale(Request $request): string
+    {
+        $locale = $request->getLocale();
+
+        return 2 < strlen($locale) ? substr($locale, 0, 2) : $locale;
     }
 
     private function activityActor(): string

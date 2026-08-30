@@ -14,7 +14,7 @@
             <div class="col-12 col-lg-8">
                 {% for type, messages in app.flashes %}
                     {% for message in messages %}
-                        <div class="alert alert-{{ type == 'error' ? 'danger' : type }}" role="alert">{{ message|trans }}</div>
+                        <div class="alert alert-{{ type == 'error' ? 'danger' : type }}" role="alert">{{ message|trans({}, 'messages', app.request.locale) }}</div>
                     {% endfor %}
                 {% endfor %}
 
