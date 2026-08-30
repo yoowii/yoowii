@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Yoowii\PrintProduction\UI\Http\Admin\Controller;
 
+use App\Yoowii\PrintProduction\Application\AddPrintJobNote;
 use App\Yoowii\PrintProduction\Application\PrintAssetStorage;
 use App\Yoowii\PrintProduction\Application\RecordPrintJobActivity;
 use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobActivity;
+use App\Yoowii\PrintProduction\Domain\Model\PrintJobNote;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,15 +34,20 @@ final class PrintJobController extends AbstractController
         $status = PrintJobStatus::tryFrom((string) $request->query->get('status'));
         $supplier = trim((string) $request->query->get('supplier'));
         $search = trim((string) $request->query->get('q'));
+        $customer = trim((string) $request->query->get('customer'));
+        $attention = (string) $request->query->get('attention');
+        $from = $this->dateFilter((string) $request->query->get('from'), false);
+        $to = $this->dateFilter((string) $request->query->get('to'), true);
         $query = $entityManager->createQueryBuilder()
-            ->select('job', 'item', 'salesOrder')
+            ->select('job', 'item', 'salesOrder', 'customerAccount')
             ->from(PrintJob::class, 'job')
             ->join('job.orderItem', 'item')
             ->join('item.order', 'salesOrder')
+            ->leftJoin('salesOrder.customer', 'customerAccount')
             ->orderBy('job.updatedAt', 'DESC');
 
         if ($status instanceof PrintJobStatus) {
-            $query->andWhere('job.status = :status')->setParameter('status', $status);
+            $query->andWhere('job.status = :status')->setParameter('status', $status->value);
         }
         if ('' !== $supplier) {
             $query->andWhere('job.supplierCode = :supplier')->setParameter('supplier', $supplier);
@@ -48,6 +55,28 @@ final class PrintJobController extends AbstractController
         if ('' !== $search) {
             $query->andWhere('job.reference LIKE :search OR salesOrder.number LIKE :search OR item.productName LIKE :search')
                 ->setParameter('search', '%' . $search . '%');
+        }
+        if ('' !== $customer) {
+            $query->andWhere('customerAccount.email LIKE :customer')->setParameter('customer', '%' . $customer . '%');
+        }
+        if (null !== $from) {
+            $query->andWhere('job.updatedAt >= :from')->setParameter('from', $from);
+        }
+        if (null !== $to) {
+            $query->andWhere('job.updatedAt <= :to')->setParameter('to', $to);
+        }
+        if ('late' === $attention) {
+            $query
+                ->andWhere('job.dueAt IS NOT NULL AND job.dueAt < :now')
+                ->andWhere('job.status NOT IN (:terminalStatuses)')
+                ->setParameter('now', new \DateTimeImmutable())
+                ->setParameter('terminalStatuses', [PrintJobStatus::Delivered->value, PrintJobStatus::Cancelled->value]);
+        } elseif ('blocked' === $attention) {
+            $query->andWhere('job.status = :attentionStatus')->setParameter('attentionStatus', PrintJobStatus::Blocked->value);
+        } elseif ('awaiting_files' === $attention) {
+            $query->andWhere('job.status = :attentionStatus')->setParameter('attentionStatus', PrintJobStatus::AwaitingFiles->value);
+        } else {
+            $attention = '';
         }
 
         $supplierRows = $entityManager->createQueryBuilder()
@@ -67,11 +96,30 @@ final class PrintJobController extends AbstractController
             }
         }
 
+        $now = new \DateTimeImmutable();
+        $blockedCount = (int) $entityManager->createQueryBuilder()
+            ->select('COUNT(job.id)')->from(PrintJob::class, 'job')
+            ->where('job.status = :status')->setParameter('status', PrintJobStatus::Blocked->value)
+            ->getQuery()->getSingleScalarResult();
+        $awaitingFilesCount = (int) $entityManager->createQueryBuilder()
+            ->select('COUNT(job.id)')->from(PrintJob::class, 'job')
+            ->where('job.status = :status')->setParameter('status', PrintJobStatus::AwaitingFiles->value)
+            ->getQuery()->getSingleScalarResult();
+        $lateCount = (int) $entityManager->createQueryBuilder()
+            ->select('COUNT(job.id)')->from(PrintJob::class, 'job')
+            ->where('job.dueAt IS NOT NULL AND job.dueAt < :now')
+            ->andWhere('job.status NOT IN (:terminalStatuses)')
+            ->setParameter('now', $now)
+            ->setParameter('terminalStatuses', [PrintJobStatus::Delivered->value, PrintJobStatus::Cancelled->value])
+            ->getQuery()->getSingleScalarResult();
+
         return $this->render('admin/print_production/index.html.twig', [
             'jobs' => $query->getQuery()->getResult(),
             'statuses' => PrintJobStatus::cases(),
             'suppliers' => $suppliers,
-            'filters' => ['status' => $status?->value, 'supplier' => $supplier, 'q' => $search],
+            'filters' => ['status' => $status?->value, 'supplier' => $supplier, 'q' => $search, 'customer' => $customer, 'attention' => $attention, 'from' => $request->query->get('from', ''), 'to' => $request->query->get('to', '')],
+            'indicators' => ['late' => $lateCount, 'blocked' => $blockedCount, 'awaiting_files' => $awaitingFilesCount],
+            'now' => $now,
         ]);
     }
 
@@ -85,7 +133,9 @@ final class PrintJobController extends AbstractController
             'job' => $job,
             'assets' => $assets,
             'activities' => $entityManager->getRepository(PrintJobActivity::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
+            'notes' => $entityManager->getRepository(PrintJobNote::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'transitions' => $job->availableStatusTransitions(),
+            'now' => new \DateTimeImmutable(),
         ]);
     }
 
@@ -158,13 +208,54 @@ final class PrintJobController extends AbstractController
         }
         $previous = $job->status();
 
+        $reason = trim((string) $request->request->get('reason')) ?: null;
+
         try {
-            $job->changeStatus($status, new \DateTimeImmutable());
-            $activity($job, 'status_changed', $this->actor(), ['from' => $previous->value, 'to' => $status->value]);
+            $job->changeStatus($status, new \DateTimeImmutable(), $reason);
+            $activity($job, 'status_changed', $this->actor(), ['from' => $previous->value, 'to' => $status->value, 'reason' => $reason]);
             $entityManager->flush();
             $this->addFlash('success', 'Le statut de production a été mis à jour.');
         } catch (\DomainException $exception) {
             $this->addFlash('danger', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
+    }
+
+    #[Route('/{id}/notes', name: 'add_note', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    public function addNote(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, AddPrintJobNote $addNote, RecordPrintJobActivity $activity): Response
+    {
+        $job = $this->job($entityManager, $id);
+        $this->assertCsrf($csrf, $request, 'print_job_note_' . $id);
+        $message = trim((string) $request->request->get('message'));
+
+        try {
+            $addNote($job, $message, $this->actor());
+            $activity($job, 'internal_note_added', $this->actor());
+            $entityManager->flush();
+            $this->addFlash('success', 'La note interne a été ajoutée.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->addFlash('danger', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
+    }
+
+    #[Route('/{id}/due-date', name: 'set_due_date', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    public function setDueDate(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity): Response
+    {
+        $job = $this->job($entityManager, $id);
+        $this->assertCsrf($csrf, $request, 'print_job_due_date_' . $id);
+        $value = trim((string) $request->request->get('due_at'));
+
+        try {
+            $dueAt = '' === $value ? null : new \DateTimeImmutable($value);
+            $job->scheduleDueAt($dueAt, new \DateTimeImmutable());
+            $activity($job, 'due_date_changed', $this->actor(), ['due_at' => $dueAt?->format(\DATE_ATOM)]);
+            $entityManager->flush();
+            $this->addFlash('success', null === $dueAt ? 'L’échéance a été retirée.' : 'L’échéance de production a été enregistrée.');
+        } catch (\Exception) {
+            $this->addFlash('danger', 'La date d’échéance est invalide.');
         }
 
         return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
@@ -236,5 +327,18 @@ final class PrintJobController extends AbstractController
         $user = $this->getUser();
 
         return $user instanceof UserInterface ? $user->getUserIdentifier() : null;
+    }
+
+    private function dateFilter(string $value, bool $endOfDay): ?\DateTimeImmutable
+    {
+        if ('' === trim($value)) {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable($value . ($endOfDay ? ' 23:59:59' : ' 00:00:00'));
+        } catch (\Exception) {
+            return null;
+        }
     }
 }

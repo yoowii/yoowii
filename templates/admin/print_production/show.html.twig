@@ -18,9 +18,12 @@
                     <dt class="col-sm-4">Client</dt><dd class="col-sm-8">{{ order.customer ? order.customer.email : 'Client invité' }}</dd>
                     <dt class="col-sm-4">Fournisseur retenu</dt><dd class="col-sm-8"><code>{{ job.supplierCode }}</code> — <code>{{ job.supplierProductCode }}</code></dd>
                     <dt class="col-sm-4">Statut</dt><dd class="col-sm-8"><span class="badge bg-blue-lt">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span></dd>
+                    <dt class="col-sm-4">Échéance</dt><dd class="col-sm-8">{% if job.dueAt %}<span class="{{ job.isLate(now) ? 'text-danger fw-bold' }}">{{ job.dueAt|date('d/m/Y H:i') }}{{ job.isLate(now) ? ' · En retard' }}</span>{% else %}<span class="text-secondary">Non définie</span>{% endif %}</dd>
                     <dt class="col-sm-4">Créé / mis à jour</dt><dd class="col-sm-8">{{ job.createdAt|date('d/m/Y H:i') }} / {{ job.updatedAt|date('d/m/Y H:i') }}</dd>
                 </dl></div>
             </div>
+
+            {% if job.statusReason %}<div class="alert alert-warning mb-4"><strong>Motif opérationnel :</strong> {{ job.statusReason }}</div>{% endif %}
 
             <div class="card mb-4">
                 <div class="card-header"><h2 class="card-title">Fichiers</h2></div>
@@ -54,8 +57,14 @@
 
         <div class="col-lg-4">
             <div class="card mb-4"><div class="card-header"><h2 class="card-title">Changer le statut</h2></div><div class="card-body">
-                {% if transitions %}<form method="post" action="{{ path('yoowii_admin_print_production_change_status', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_status_' ~ job.id) }}"><label class="form-label">Transition disponible</label><select class="form-select" name="status">{% for status in transitions %}<option value="{{ status.value }}">{{ ('yoowii.print_flow.status.' ~ status.value)|trans }}</option>{% endfor %}</select><button class="btn btn-outline-primary w-100 mt-3" type="submit">Mettre à jour</button></form>{% else %}<p class="text-secondary mb-0">Aucune transition disponible.</p>{% endif %}
+                {% if transitions %}<form method="post" action="{{ path('yoowii_admin_print_production_change_status', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_status_' ~ job.id) }}"><label class="form-label">Transition disponible</label><select class="form-select" name="status">{% for status in transitions %}<option value="{{ status.value }}">{{ ('yoowii.print_flow.status.' ~ status.value)|trans }}</option>{% endfor %}</select><label class="form-label mt-3">Motif</label><textarea class="form-control" name="reason" rows="3" placeholder="Obligatoire pour bloquer ou annuler"></textarea><div class="form-hint">Le motif est conservé dans l’historique interne.</div><button class="btn btn-outline-primary w-100 mt-3" type="submit">Mettre à jour</button></form>{% else %}<p class="text-secondary mb-0">Aucune transition disponible.</p>{% endif %}
             </div></div>
+
+            <div class="card mb-4"><div class="card-header"><h2 class="card-title">Échéance de production</h2></div><div class="card-body"><form method="post" action="{{ path('yoowii_admin_print_production_set_due_date', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_due_date_' ~ job.id) }}"><input class="form-control" type="datetime-local" name="due_at" value="{{ job.dueAt ? job.dueAt|date('Y-m-d\\TH:i') }}"><div class="form-hint">Laisser vide pour retirer l’échéance.</div><button class="btn btn-outline-primary w-100 mt-3" type="submit">Enregistrer</button></form></div></div>
+
+            <div class="card mb-4"><div class="card-header"><h2 class="card-title">Note interne</h2></div><div class="card-body"><form method="post" action="{{ path('yoowii_admin_print_production_add_note', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_note_' ~ job.id) }}"><textarea class="form-control" name="message" rows="4" required placeholder="Visible uniquement dans l’administration"></textarea><button class="btn btn-outline-primary w-100 mt-3" type="submit">Ajouter la note</button></form></div></div>
+
+            <div class="card mb-4"><div class="card-header"><h2 class="card-title">Notes internes</h2></div><div class="list-group list-group-flush">{% for note in notes %}<div class="list-group-item"><div class="d-flex justify-content-between gap-3"><strong>{{ note.author ?: 'Système' }}</strong><small class="text-secondary text-nowrap">{{ note.createdAt|date('d/m/Y H:i') }}</small></div><div class="mt-1" style="white-space: pre-wrap">{{ note.message }}</div></div>{% else %}<div class="list-group-item text-secondary">Aucune note interne.</div>{% endfor %}</div></div>
 
             {% if job.status.value == 'bat_approved' %}
                 <div class="card mb-4"><div class="card-header"><h2 class="card-title">Commande fournisseur</h2></div><div class="card-body"><form method="post" action="{{ path('yoowii_admin_print_production_register_supplier_order', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_supplier_order_' ~ job.id) }}"><label class="form-label">Référence fournisseur</label><input class="form-control" name="supplier_order_reference" required placeholder="Ex. LABO-123456"><button class="btn btn-primary w-100 mt-3" type="submit">Passer en production</button></form></div></div>

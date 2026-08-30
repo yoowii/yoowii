@@ -74,4 +74,31 @@ final class PrintJobTest extends TestCase
         $this->expectException(\DomainException::class);
         $job->changeStatus(PrintJobStatus::InProduction, $now);
     }
+
+    public function testBlockingRequiresAndKeepsAnOperationalReason(): void
+    {
+        $now = new \DateTimeImmutable('2026-08-30T12:00:00+02:00');
+        $job = new PrintJob(new OrderItem(), 'PJ-TEST-1', 'laboprint', 'FLYER', ['schema_version' => 1], $now);
+
+        try {
+            $job->changeStatus(PrintJobStatus::Blocked, $now);
+            self::fail('A blocking reason should be required.');
+        } catch (\DomainException) {
+        }
+
+        $job->changeStatus(PrintJobStatus::Blocked, $now, 'Fichier PDF incomplet.');
+        self::assertSame('Fichier PDF incomplet.', $job->statusReason());
+        $job->changeStatus(PrintJobStatus::AwaitingFiles, $now);
+        self::assertNull($job->statusReason());
+    }
+
+    public function testItDetectsLateNonTerminalJobs(): void
+    {
+        $createdAt = new \DateTimeImmutable('2026-08-30T12:00:00+02:00');
+        $job = new PrintJob(new OrderItem(), 'PJ-TEST-1', 'laboprint', 'FLYER', ['schema_version' => 1], $createdAt);
+        $job->scheduleDueAt(new \DateTimeImmutable('2026-08-31T12:00:00+02:00'), $createdAt);
+
+        self::assertFalse($job->isLate(new \DateTimeImmutable('2026-08-31T11:59:00+02:00')));
+        self::assertTrue($job->isLate(new \DateTimeImmutable('2026-08-31T12:01:00+02:00')));
+    }
 }

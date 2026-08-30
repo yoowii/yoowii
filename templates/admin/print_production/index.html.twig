@@ -3,27 +3,36 @@
 {% set page_title = 'Production print' %}
 
 {% block production_content %}
+    <div class="row row-cards mb-4">
+        <div class="col-sm-4"><a class="card card-link {{ filters.attention == 'late' ? 'border-danger' }}" href="{{ path('yoowii_admin_print_production_index', {attention: 'late'}) }}"><div class="card-body"><div class="text-secondary">Dossiers en retard</div><div class="h1 mb-0 text-danger">{{ indicators.late }}</div></div></a></div>
+        <div class="col-sm-4"><a class="card card-link {{ filters.attention == 'blocked' ? 'border-warning' }}" href="{{ path('yoowii_admin_print_production_index', {attention: 'blocked'}) }}"><div class="card-body"><div class="text-secondary">Dossiers bloqués</div><div class="h1 mb-0 text-warning">{{ indicators.blocked }}</div></div></a></div>
+        <div class="col-sm-4"><a class="card card-link {{ filters.attention == 'awaiting_files' ? 'border-info' }}" href="{{ path('yoowii_admin_print_production_index', {attention: 'awaiting_files'}) }}"><div class="card-body"><div class="text-secondary">Fichiers attendus</div><div class="h1 mb-0 text-info">{{ indicators.awaiting_files }}</div></div></a></div>
+    </div>
     <div class="card mb-4">
         <form class="card-body" method="get">
             <div class="row g-3 align-items-end">
                 <div class="col-md-4"><label class="form-label">Recherche</label><input class="form-control" name="q" value="{{ filters.q }}" placeholder="Référence, commande ou produit"></div>
-                <div class="col-md-3"><label class="form-label">Statut</label><select class="form-select" name="status"><option value="">Tous les statuts</option>{% for status in statuses %}<option value="{{ status.value }}" {{ filters.status == status.value ? 'selected' }}>{{ ('yoowii.print_flow.status.' ~ status.value)|trans }}</option>{% endfor %}</select></div>
-                <div class="col-md-3"><label class="form-label">Fournisseur</label><select class="form-select" name="supplier"><option value="">Tous les fournisseurs</option>{% for supplier in suppliers %}<option value="{{ supplier }}" {{ filters.supplier == supplier ? 'selected' }}>{{ supplier }}</option>{% endfor %}</select></div>
-                <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Filtrer</button></div>
+                <div class="col-md-4"><label class="form-label">E-mail client</label><input class="form-control" name="customer" value="{{ filters.customer }}" placeholder="client@example.com"></div>
+                <div class="col-md-2"><label class="form-label">Statut</label><select class="form-select" name="status"><option value="">Tous les statuts</option>{% for status in statuses %}<option value="{{ status.value }}" {{ filters.status == status.value ? 'selected' }}>{{ ('yoowii.print_flow.status.' ~ status.value)|trans }}</option>{% endfor %}</select></div>
+                <div class="col-md-2"><label class="form-label">Fournisseur</label><select class="form-select" name="supplier"><option value="">Tous</option>{% for supplier in suppliers %}<option value="{{ supplier }}" {{ filters.supplier == supplier ? 'selected' }}>{{ supplier }}</option>{% endfor %}</select></div>
+                <div class="col-md-3"><label class="form-label">Mis à jour du</label><input class="form-control" type="date" name="from" value="{{ filters.from }}"></div>
+                <div class="col-md-3"><label class="form-label">au</label><input class="form-control" type="date" name="to" value="{{ filters.to }}"></div>
+                <div class="col-md-3"><label class="form-label">Attention</label><select class="form-select" name="attention"><option value="">Tous les dossiers</option><option value="late" {{ filters.attention == 'late' ? 'selected' }}>En retard</option><option value="blocked" {{ filters.attention == 'blocked' ? 'selected' }}>Bloqués</option><option value="awaiting_files" {{ filters.attention == 'awaiting_files' ? 'selected' }}>Fichiers attendus</option></select></div>
+                <div class="col-md-3 d-flex gap-2"><button class="btn btn-primary flex-fill" type="submit">Filtrer</button><a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_print_production_index') }}">Réinitialiser</a></div>
             </div>
         </form>
     </div>
     <div class="card">
         <div class="table-responsive"><table class="table table-vcenter card-table">
-            <thead><tr><th>Référence</th><th>Commande</th><th>Produit</th><th>Client</th><th>Fournisseur</th><th>Statut</th><th>Mis à jour</th><th></th></tr></thead>
+            <thead><tr><th>Référence</th><th>Commande</th><th>Produit</th><th>Client</th><th>Fournisseur</th><th>Échéance</th><th>Statut</th><th>Mis à jour</th><th></th></tr></thead>
             <tbody>{% for job in jobs %}
                 {% set order = job.orderItem.order %}
                 <tr>
                     <td><code>{{ job.reference }}</code></td><td>{{ order.number }}</td><td>{{ job.orderItem.productName }}</td><td>{{ order.customer ? order.customer.email : 'Client invité' }}</td><td>{{ job.supplierCode }}</td>
-                    <td><span class="badge bg-blue-lt">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span></td><td>{{ job.updatedAt|date('d/m/Y H:i') }}</td>
+                    <td>{% if job.dueAt %}<span class="{{ job.isLate(now) ? 'text-danger fw-bold' }}">{{ job.dueAt|date('d/m/Y H:i') }}{% if job.isLate(now) %} · En retard{% endif %}</span>{% else %}<span class="text-secondary">Non définie</span>{% endif %}</td><td><span class="badge {{ job.status.value == 'blocked' ? 'bg-warning-lt' : 'bg-blue-lt' }}">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span></td><td>{{ job.updatedAt|date('d/m/Y H:i') }}</td>
                     <td class="text-end"><a class="btn btn-sm btn-primary" href="{{ path('yoowii_admin_print_production_show', {id: job.id}) }}">Ouvrir</a></td>
                 </tr>
-            {% else %}<tr><td colspan="8" class="text-center text-secondary py-4">Aucun dossier ne correspond aux filtres.</td></tr>{% endfor %}</tbody>
+            {% else %}<tr><td colspan="9" class="text-center text-secondary py-4">Aucun dossier ne correspond aux filtres.</td></tr>{% endfor %}</tbody>
         </table></div>
     </div>
 {% endblock %}

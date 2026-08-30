@@ -32,6 +32,12 @@ class PrintJob
     #[ORM\Column(name: 'tracking_url', type: Types::STRING, length: 2048, nullable: true)]
     private ?string $trackingUrl = null;
 
+    #[ORM\Column(name: 'status_reason', type: Types::TEXT, nullable: true)]
+    private ?string $statusReason = null;
+
+    #[ORM\Column(name: 'due_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $dueAt = null;
+
     #[ORM\Column(name: 'updated_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $updatedAt;
 
@@ -149,7 +155,30 @@ class PrintJob
         return $this->trackingUrl;
     }
 
-    public function changeStatus(PrintJobStatus $status, \DateTimeImmutable $at): void
+    public function statusReason(): ?string
+    {
+        return $this->statusReason;
+    }
+
+    public function dueAt(): ?\DateTimeImmutable
+    {
+        return $this->dueAt;
+    }
+
+    public function isLate(\DateTimeImmutable $at): bool
+    {
+        return null !== $this->dueAt &&
+            $this->dueAt < $at &&
+            !in_array($this->status, [PrintJobStatus::Delivered, PrintJobStatus::Cancelled], true);
+    }
+
+    public function scheduleDueAt(?\DateTimeImmutable $dueAt, \DateTimeImmutable $at): void
+    {
+        $this->dueAt = $dueAt;
+        $this->updatedAt = $at;
+    }
+
+    public function changeStatus(PrintJobStatus $status, \DateTimeImmutable $at, ?string $reason = null): void
     {
         if ($status === $this->status) {
             return;
@@ -157,7 +186,12 @@ class PrintJob
         if (!in_array($status, $this->allowedNextStatuses(), true)) {
             throw new \DomainException(sprintf('The transition from "%s" to "%s" is not allowed.', $this->status->value, $status->value));
         }
+        $reason = null === $reason ? null : trim($reason);
+        if (in_array($status, [PrintJobStatus::Blocked, PrintJobStatus::Cancelled], true) && (null === $reason || '' === $reason)) {
+            throw new \DomainException('A reason is required when blocking or cancelling a print job.');
+        }
         $this->status = $status;
+        $this->statusReason = in_array($status, [PrintJobStatus::Blocked, PrintJobStatus::Cancelled], true) ? $reason : null;
         $this->updatedAt = $at;
     }
 

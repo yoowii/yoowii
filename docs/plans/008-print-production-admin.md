@@ -60,3 +60,23 @@ Le pare-feu Sylius protège toutes ces routes et chaque mutation possède un jet
 - préflight PDF avancé ;
 - e-mails, relances SLA et commentaires client lors du refus du BAT ;
 - rôles métier distincts au-delà des droits Sylius Admin existants.
+
+## Lot 7.2 — Pilotage opérationnel
+
+Le complément 7.2 rend la file de production plus exploitable au quotidien :
+
+- notes internes horodatées, non visibles depuis le storefront ;
+- motif obligatoire lors d’un blocage ou d’une annulation ;
+- échéance de production définie par un opérateur ;
+- indicateurs de dossiers en retard, bloqués et en attente de fichier ;
+- filtres supplémentaires par e-mail client, période de mise à jour et situation nécessitant une attention ;
+- conservation des motifs et changements d’échéance dans le journal d’activité.
+
+Les routes ajoutées restent administratives et protégées par Sylius Admin et CSRF :
+
+| Action | Méthode | Chemin relatif |
+|---|---|---|
+| Ajouter une note interne | POST | `/print-production/jobs/{id}/notes` |
+| Définir une échéance | POST | `/print-production/jobs/{id}/due-date` |
+
+Une échéance est une cible de pilotage saisie par l’équipe Yoowii. Elle ne modifie ni le prix, ni l’engagement fournisseur, ni le statut du dossier. Un dossier livré ou annulé n’est jamais signalé en retard.
