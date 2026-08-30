@@ -1,6 +1,8 @@
 services:
     php:
         image: ghcr.io/sylius/sylius-php:8.3-alpine
+        volumes:
+            - ./docker/php/uploads.ini:/usr/local/etc/php/conf.d/zz-uploads.ini:ro
     mysql:
         image: mysql:8.4
         platform: linux/amd64
@@ -15,6 +17,8 @@ services:
             - SYS_NICE # prevent "mbind: Operation not permitted" errors
     nginx:
         image: ghcr.io/sylius/sylius-nginx:latest
+        volumes:
+            - ./docker/nginx/upload.conf:/etc/nginx/conf.d/zz-upload.conf:ro
     mailhog:
         # do not use in production!
         image: mailhog/mailhog:latest
