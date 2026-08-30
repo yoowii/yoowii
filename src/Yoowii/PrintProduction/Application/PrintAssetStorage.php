@@ -8,4 +8,7 @@ interface PrintAssetStorage
 {
     /** @param resource $stream */
     public function store(string $key, mixed $stream): void;
+
+    /** @return resource */
+    public function open(string $key): mixed;
 }

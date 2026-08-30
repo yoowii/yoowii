@@ -46,3 +46,13 @@ sylius_twig_hooks:
             item:
                 template: 'shop/cart/index/content/form/sections/general/items/body/item.html.twig'
                 priority: 300
+
+        'sylius_shop.order.thank_you.content':
+            print_files:
+                template: 'shop/order/thank_you/content/print_files.html.twig'
+                priority: 50
+
+        'sylius_shop.account.order.show.content.main':
+            print_files:
+                template: 'shop/account/order/show/print_files.html.twig'
+                priority: 100

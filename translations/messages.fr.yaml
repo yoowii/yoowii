@@ -31,3 +31,48 @@ yoowii:
         reference: Réf.
         add_to_cart: Ajouter au panier
         price_excluding_tax: HT
+    print_flow:
+        my_print_files: Mes fichiers d’impression
+        order_hint: 'Commande %number% : déposez et suivez les fichiers de chaque produit imprimé.'
+        thank_you_title: Votre commande nécessite des fichiers d’impression
+        thank_you_hint: Déposez-les maintenant ou revenez plus tard avec le lien sécurisé de votre commande.
+        upload_my_files: Importer mes fichiers
+        quantity: '%quantity% exemplaire(s)'
+        manage_files: Gérer les fichiers
+        no_jobs: Aucun dossier de production print n’est encore disponible pour cette commande.
+        job_title: 'Dossier %reference%'
+        upload_artwork: Importer votre fichier d’impression
+        replace_artwork: Remplacer votre fichier d’impression
+        upload_formats: PDF recommandé, ou JPG, PNG et TIFF. Pour un recto-verso, utilisez un PDF de deux pages.
+        preview: Aperçu
+        drop_file: Glissez-déposez votre fichier ici
+        or_choose_file: ou cliquez pour le sélectionner
+        artwork_confirmation: Je confirme avoir vérifié le format, le contenu, le fond perdu et les informations du document.
+        send_file: Envoyer le fichier
+        replace_file: Remplacer le fichier
+        upload_success: Votre fichier a bien été reçu.
+        artwork_locked: Le fichier d’impression est verrouillé car le BAT est disponible ou la production a commencé.
+        bat_title: Bon à tirer (BAT)
+        bat_hint: Vérifiez attentivement les textes, couleurs, dimensions et la disposition. Votre validation autorise la mise en production.
+        open_bat: Ouvrir le BAT
+        bat_confirmation: Je confirme avoir contrôlé le BAT et autorise la mise en production de ce document.
+        approve_bat: Valider définitivement le BAT
+        bat_already_approved: BAT validé
+        bat_approved: Le BAT est validé. Le fichier ne peut plus être remplacé.
+        follow_up: Suivi de production
+        tracking: Suivi transport
+        errors:
+            confirmation_required: Confirmez avoir vérifié votre document avant de l’envoyer.
+            invalid_file: Sélectionnez un fichier PDF, JPG, PNG ou TIFF valide de 100 Mo maximum.
+            bat_confirmation_required: Cochez la confirmation avant de valider le BAT.
+        status:
+            awaiting_files: Fichiers à transmettre
+            files_received: Fichiers reçus
+            bat_pending: BAT en préparation
+            bat_ready: BAT à valider
+            bat_approved: BAT validé
+            in_production: En fabrication
+            shipped: Expédié
+            delivered: Livré
+            blocked: Action requise
+            cancelled: Annulé

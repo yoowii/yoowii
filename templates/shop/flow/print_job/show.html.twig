@@ -1,0 +1,124 @@
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+
+{% block title %}{{ 'yoowii.print_flow.job_title'|trans({'%reference%': job.reference}) }} | {{ parent() }}{% endblock %}
+
+{% block content %}
+    {% set item = job.orderItem %}
+    {% set steps = ['awaiting_files', 'files_received', 'bat_pending', 'bat_ready', 'bat_approved', 'in_production', 'shipped', 'delivered'] %}
+    {% set current_step = -1 %}
+    {% for step in steps %}
+        {% if step == job.status.value %}{% set current_step = loop.index0 %}{% endif %}
+    {% endfor %}
+    <div class="container py-5 yoowii-print-flow">
+        <div class="row g-5 align-items-start">
+            <div class="col-12 col-lg-8">
+                {% for type, messages in app.flashes %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ type == 'error' ? 'danger' : type }}" role="alert">{{ message|trans }}</div>
+                    {% endfor %}
+                {% endfor %}
+
+                <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Flow</p>
+                <h1 class="display-6 mb-2">{{ item.productName }}</h1>
+                <p class="text-secondary mb-4">{{ job.reference }} · {{ 'yoowii.print_flow.quantity'|trans({'%quantity%': item.quantity}) }}</p>
+
+                {% if job.canAcceptCustomerArtwork %}
+                    <section class="card border-0 shadow-sm mb-4" data-controller="print-upload">
+                        <div class="card-body p-4 p-md-5">
+                            <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
+                                <div>
+                                    <h2 class="h3 mb-2">{{ artwork ? 'yoowii.print_flow.replace_artwork'|trans : 'yoowii.print_flow.upload_artwork'|trans }}</h2>
+                                    <p class="text-secondary mb-0">{{ 'yoowii.print_flow.upload_formats'|trans }}</p>
+                                </div>
+                                <span class="badge text-bg-light">100 Mo max.</span>
+                            </div>
+
+                            {% if artwork %}
+                                <div class="alert alert-success d-flex align-items-center justify-content-between gap-3">
+                                    <div class="text-truncate">
+                                        <strong class="d-block text-truncate">{{ artwork.originalName }}</strong>
+                                        <small>{{ (artwork.size / 1024 / 1024)|number_format(2, ',', ' ') }} Mo · {{ artwork.createdAt|date('d/m/Y H:i') }}</small>
+                                    </div>
+                                    <a class="btn btn-sm btn-outline-success" href="{{ artwork_url }}" target="_blank" rel="noopener">{{ 'yoowii.print_flow.preview'|trans }}</a>
+                                </div>
+                            {% endif %}
+
+                            <form action="{{ upload_url }}" method="post" enctype="multipart/form-data" data-print-upload-target="form" data-action="submit->print-upload#submit">
+                                <input type="hidden" name="_token" value="{{ csrf_token('print_job_upload_' ~ job.reference) }}">
+                                <label class="yoowii-print-dropzone" data-print-upload-target="dropzone" data-action="dragover->print-upload#dragover dragleave->print-upload#dragleave drop->print-upload#drop">
+                                    <input class="visually-hidden" type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff,application/pdf,image/jpeg,image/png,image/tiff" required data-print-upload-target="input" data-action="change->print-upload#selected">
+                                    <span class="yoowii-print-dropzone-icon" aria-hidden="true">↑</span>
+                                    <strong data-print-upload-target="label">{{ 'yoowii.print_flow.drop_file'|trans }}</strong>
+                                    <span class="text-secondary">{{ 'yoowii.print_flow.or_choose_file'|trans }}</span>
+                                </label>
+                                <div class="progress mt-3 d-none" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-print-upload-target="progress">
+                                    <div class="progress-bar" style="width: 0%" data-print-upload-target="bar">0%</div>
+                                </div>
+                                <div class="alert alert-danger mt-3 d-none" role="alert" data-print-upload-target="error"></div>
+                                <label class="form-check mt-4">
+                                    <input class="form-check-input" type="checkbox" name="artwork_confirmation" value="1" required>
+                                    <span class="form-check-label">{{ 'yoowii.print_flow.artwork_confirmation'|trans }}</span>
+                                </label>
+                                <button class="btn btn-primary btn-lg mt-4" type="submit" data-print-upload-target="submit">
+                                    {{ artwork ? 'yoowii.print_flow.replace_file'|trans : 'yoowii.print_flow.send_file'|trans }}
+                                </button>
+                            </form>
+                        </div>
+                    </section>
+                {% else %}
+                    <div class="alert alert-info mb-4">{{ 'yoowii.print_flow.artwork_locked'|trans }}</div>
+                {% endif %}
+
+                {% if bat %}
+                    <section class="card border-0 shadow-sm mb-4">
+                        <div class="card-body p-4 p-md-5">
+                            <h2 class="h3 mb-2">{{ 'yoowii.print_flow.bat_title'|trans }}</h2>
+                            <p class="text-secondary">{{ 'yoowii.print_flow.bat_hint'|trans }}</p>
+                            <div class="ratio ratio-4x3 bg-light rounded overflow-hidden mb-4">
+                                {% if bat.mimeType == 'application/pdf' %}
+                                    <object data="{{ bat_url }}" type="application/pdf"><a href="{{ bat_url }}" target="_blank">{{ 'yoowii.print_flow.open_bat'|trans }}</a></object>
+                                {% else %}
+                                    <img class="object-fit-contain" src="{{ bat_url }}" alt="{{ 'yoowii.print_flow.bat_title'|trans }}">
+                                {% endif %}
+                            </div>
+                            {% if job.status.value == 'bat_ready' %}
+                                <form action="{{ approve_bat_url }}" method="post">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('print_job_bat_' ~ job.reference) }}">
+                                    <label class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="bat_confirmation" value="1" required>
+                                        <span class="form-check-label fw-semibold">{{ 'yoowii.print_flow.bat_confirmation'|trans }}</span>
+                                    </label>
+                                    <button class="btn btn-success btn-lg" type="submit">{{ 'yoowii.print_flow.approve_bat'|trans }}</button>
+                                </form>
+                            {% else %}
+                                <span class="badge text-bg-success">{{ 'yoowii.print_flow.bat_already_approved'|trans }}</span>
+                            {% endif %}
+                        </div>
+                    </section>
+                {% endif %}
+            </div>
+
+            <aside class="col-12 col-lg-4">
+                <div class="card border-0 shadow-sm yoowii-print-flow-summary">
+                    <div class="card-body p-4">
+                        <h2 class="h4 mb-3">{{ 'yoowii.print_flow.follow_up'|trans }}</h2>
+                        <span class="yoowii-print-status is-{{ job.status.value }} mb-4">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span>
+                        <ol class="yoowii-print-timeline list-unstyled mb-0">
+                            {% for step in steps %}
+                                <li class="{{ current_step >= loop.index0 ? 'is-complete' : '' }}{{ current_step == loop.index0 ? ' is-current' : '' }}">
+                                    <span aria-hidden="true"></span>
+                                    {{ ('yoowii.print_flow.status.' ~ step)|trans }}
+                                </li>
+                            {% endfor %}
+                        </ol>
+                        {% if job.trackingNumber %}
+                            <hr>
+                            <strong>{{ 'yoowii.print_flow.tracking'|trans }}</strong>
+                            {% if job.trackingUrl %}<a class="d-block mt-2" href="{{ job.trackingUrl }}" target="_blank" rel="noopener">{{ job.trackingNumber }}</a>{% else %}<span class="d-block">{{ job.trackingNumber }}</span>{% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+{% endblock %}

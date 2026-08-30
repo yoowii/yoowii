@@ -13,6 +13,7 @@ parameters:
     yoowii.print_pricing.handling_fee: 0
     yoowii.print_quote.ttl: 900
     yoowii.print_assets.directory: '%kernel.project_dir%/var/private/print'
+    yoowii.print_job_link.ttl: 2592000
 
 services:
     # Default configuration for services in *this* file
@@ -103,6 +104,11 @@ services:
     App\Yoowii\PrintProduction\Infrastructure\Storage\PrivateLocalPrintAssetStorage:
         arguments:
             $rootDirectory: '%yoowii.print_assets.directory%'
+
+    App\Yoowii\PrintProduction\Application\PrintJobAccessLink:
+        arguments:
+            $secret: '%kernel.secret%'
+            $timeToLive: '%yoowii.print_job_link.ttl%'
 
     App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
         alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository

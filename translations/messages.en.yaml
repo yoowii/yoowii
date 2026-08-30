@@ -31,3 +31,48 @@ yoowii:
         reference: Ref.
         add_to_cart: Add to cart
         price_excluding_tax: excl. tax
+    print_flow:
+        my_print_files: My print files
+        order_hint: 'Order %number%: upload and track the files for each printed product.'
+        thank_you_title: Your order requires print files
+        thank_you_hint: Upload them now or return later using your order’s secure link.
+        upload_my_files: Upload my files
+        quantity: '%quantity% copy/copies'
+        manage_files: Manage files
+        no_jobs: No print production job is available for this order yet.
+        job_title: 'Job %reference%'
+        upload_artwork: Upload your print file
+        replace_artwork: Replace your print file
+        upload_formats: PDF recommended, or JPG, PNG and TIFF. For double-sided artwork, use a two-page PDF.
+        preview: Preview
+        drop_file: Drop your file here
+        or_choose_file: or click to select it
+        artwork_confirmation: I confirm that I checked the format, content, bleed and document information.
+        send_file: Send file
+        replace_file: Replace file
+        upload_success: Your file was received.
+        artwork_locked: The print file is locked because the proof is available or production has started.
+        bat_title: Print proof
+        bat_hint: Carefully check text, colours, dimensions and layout. Your approval authorises production.
+        open_bat: Open proof
+        bat_confirmation: I have checked the proof and authorise production of this document.
+        approve_bat: Approve proof permanently
+        bat_already_approved: Proof approved
+        bat_approved: The proof is approved. The artwork can no longer be replaced.
+        follow_up: Production tracking
+        tracking: Shipment tracking
+        errors:
+            confirmation_required: Confirm that you checked your document before sending it.
+            invalid_file: Select a valid PDF, JPG, PNG or TIFF file up to 100 MB.
+            bat_confirmation_required: Tick the confirmation before approving the proof.
+        status:
+            awaiting_files: Files required
+            files_received: Files received
+            bat_pending: Proof in preparation
+            bat_ready: Proof to approve
+            bat_approved: Proof approved
+            in_production: In production
+            shipped: Shipped
+            delivered: Delivered
+            blocked: Action required
+            cancelled: Cancelled

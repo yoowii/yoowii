@@ -34,4 +34,26 @@ final readonly class PrivateLocalPrintAssetStorage implements PrintAssetStorage
         }
         chmod($path, 0600);
     }
+
+    public function open(string $key): mixed
+    {
+        if (str_contains($key, '..')) {
+            throw new \InvalidArgumentException('Invalid private print asset.');
+        }
+
+        $root = rtrim($this->rootDirectory, '/');
+        $path = $root . '/' . ltrim($key, '/');
+        $realPath = realpath($path);
+        $realRoot = realpath($root);
+        if (false === $realPath || false === $realRoot || !str_starts_with($realPath, $realRoot . \DIRECTORY_SEPARATOR)) {
+            throw new \RuntimeException('Private print asset not found.');
+        }
+
+        $stream = fopen($realPath, 'rb');
+        if (false === $stream) {
+            throw new \RuntimeException('Unable to read private print asset.');
+        }
+
+        return $stream;
+    }
 }

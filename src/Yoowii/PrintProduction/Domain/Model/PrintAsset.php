@@ -11,7 +11,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(
     name: 'yoowii_print_asset',
-    indexes: [new ORM\Index(name: 'IDX_PRINT_ASSET_JOB', columns: ['print_job_id'])],
+    indexes: [
+        new ORM\Index(name: 'IDX_PRINT_ASSET_JOB', columns: ['print_job_id']),
+    ],
     uniqueConstraints: [new ORM\UniqueConstraint(name: 'UNIQ_PRINT_ASSET_STORAGE', columns: ['storage_key'])],
 )]
 class PrintAsset
@@ -20,6 +22,9 @@ class PrintAsset
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null; // @phpstan-ignore property.unusedType
+
+    #[ORM\Column(name: 'superseded_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $supersededAt = null;
 
     public function __construct(
         #[ORM\ManyToOne]
@@ -88,5 +93,20 @@ class PrintAsset
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function supersededAt(): ?\DateTimeImmutable
+    {
+        return $this->supersededAt;
+    }
+
+    public function supersede(\DateTimeImmutable $at): void
+    {
+        $this->supersededAt ??= $at;
+    }
+
+    public function isActive(): bool
+    {
+        return null === $this->supersededAt;
     }
 }

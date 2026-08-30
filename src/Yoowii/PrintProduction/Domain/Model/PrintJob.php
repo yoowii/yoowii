@@ -35,6 +35,12 @@ class PrintJob
     #[ORM\Column(name: 'updated_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $updatedAt;
 
+    #[ORM\Column(name: 'access_version', type: Types::INTEGER, options: ['default' => 1])]
+    private int $accessVersion = 1;
+
+    #[ORM\Column(name: 'guest_access_enabled', type: Types::BOOLEAN, options: ['default' => true])]
+    private bool $guestAccessEnabled = true;
+
     /** @param array<string, mixed> $productionSnapshot */
     public function __construct(
         #[ORM\OneToOne]
@@ -104,6 +110,30 @@ class PrintJob
         return $this->updatedAt;
     }
 
+    public function accessVersion(): int
+    {
+        return $this->accessVersion;
+    }
+
+    public function revokeGuestLinks(\DateTimeImmutable $at): void
+    {
+        ++$this->accessVersion;
+        $this->guestAccessEnabled = false;
+        $this->updatedAt = $at;
+    }
+
+    public function guestAccessEnabled(): bool
+    {
+        return $this->guestAccessEnabled;
+    }
+
+    public function renewGuestLinks(\DateTimeImmutable $at): void
+    {
+        ++$this->accessVersion;
+        $this->guestAccessEnabled = true;
+        $this->updatedAt = $at;
+    }
+
     public function supplierOrderReference(): ?string
     {
         return $this->supplierOrderReference;
@@ -134,6 +164,29 @@ class PrintJob
             throw new \DomainException('Only a ready BAT can be approved.');
         }
         $this->changeStatus(PrintJobStatus::BatApproved, $at);
+    }
+
+    public function canAcceptCustomerArtwork(): bool
+    {
+        return in_array($this->status, [PrintJobStatus::AwaitingFiles, PrintJobStatus::FilesReceived, PrintJobStatus::BatPending], true);
+    }
+
+    public function recordCustomerArtwork(\DateTimeImmutable $at): void
+    {
+        if (!$this->canAcceptCustomerArtwork()) {
+            throw new \DomainException('Customer artwork can no longer be replaced after the BAT is ready.');
+        }
+
+        if (PrintJobStatus::AwaitingFiles === $this->status) {
+            $this->changeStatus(PrintJobStatus::FilesReceived, $at);
+        } else {
+            $this->updatedAt = $at;
+        }
+    }
+
+    public function canRegisterBat(): bool
+    {
+        return in_array($this->status, [PrintJobStatus::FilesReceived, PrintJobStatus::BatPending, PrintJobStatus::BatReady], true);
     }
 
     public function registerSupplierOrder(string $reference, \DateTimeImmutable $at): void

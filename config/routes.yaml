@@ -15,3 +15,6 @@ yoowii_sourcing_admin:
 
 yoowii_print_storefront:
     resource: routes/yoowii_print_storefront.yaml
+
+yoowii_print_production:
+    resource: routes/yoowii_print_production.yaml
