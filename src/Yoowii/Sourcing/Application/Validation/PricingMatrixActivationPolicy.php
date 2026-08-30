@@ -26,11 +26,11 @@ final class PricingMatrixActivationPolicy
             }
 
             if (
-                PricingMatrixStatus::Active === $candidate->status()
-                && $candidate->supplierProduct() === $matrix->supplierProduct()
-                && $candidate->currencyCode() === $matrix->currencyCode()
-                && $candidate->effectiveFrom() == $matrix->effectiveFrom()
-                && ($candidate->matrix()['product_code'] ?? null) === $productCode
+                PricingMatrixStatus::Active === $candidate->status() &&
+                $candidate->supplierProduct() === $matrix->supplierProduct() &&
+                $candidate->currencyCode() === $matrix->currencyCode() &&
+                $candidate->effectiveFrom() == $matrix->effectiveFrom() &&
+                ($candidate->matrix()['product_code'] ?? null) === $productCode
             ) {
                 return true;
             }

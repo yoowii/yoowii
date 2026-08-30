@@ -19,8 +19,7 @@ final class PrintCatalogController extends AbstractController
     public function __invoke(
         ProductRepositoryInterface $productRepository,
         ChannelContextInterface $channelContext,
-    ): Response
-    {
+    ): Response {
         $products = array_values(array_filter(
             $productRepository->findBy([
                 'enabled' => true,

@@ -12,6 +12,7 @@ parameters:
     yoowii.print_pricing.minimum_margin: 1200
     yoowii.print_pricing.handling_fee: 0
     yoowii.print_quote.ttl: 900
+    yoowii.print_assets.directory: '%kernel.project_dir%/var/private/print'
 
 services:
     # Default configuration for services in *this* file
@@ -62,6 +63,7 @@ services:
             - '../src/Yoowii/Sourcing/Domain/SupplierCapability.php'
             - '../src/Yoowii/Sourcing/Domain/SupplierIntegrationMode.php'
             - '../src/Yoowii/Sourcing/UI/Http/Admin/Data/'
+            - '../src/Yoowii/PrintProduction/Domain/'
 
     # Controllers are imported separately to make sure services can be injected
     # as action arguments even if you don't extend any base controller class
@@ -77,6 +79,10 @@ services:
         resource: '../src/Yoowii/Pricing/UI/Http/Storefront/Controller/'
         tags: ['controller.service_arguments']
 
+    App\Yoowii\PrintProduction\UI\Http\Storefront\:
+        resource: '../src/Yoowii/PrintProduction/UI/Http/Storefront/'
+        tags: ['controller.service_arguments']
+
     App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider:
         arguments:
             $version: '%yoowii.print_pricing.version%'
@@ -90,6 +96,13 @@ services:
 
     App\Yoowii\Pricing\Application\Quote\PrintQuoteStore:
         alias: App\Yoowii\Pricing\Infrastructure\Http\SessionPrintQuoteStore
+
+    App\Yoowii\PrintProduction\Application\PrintAssetStorage:
+        alias: App\Yoowii\PrintProduction\Infrastructure\Storage\PrivateLocalPrintAssetStorage
+
+    App\Yoowii\PrintProduction\Infrastructure\Storage\PrivateLocalPrintAssetStorage:
+        arguments:
+            $rootDirectory: '%yoowii.print_assets.directory%'
 
     App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
         alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository

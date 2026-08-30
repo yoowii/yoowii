@@ -40,9 +40,9 @@ final readonly class PrintConfigurationCatalog
             $payload = $matrix->matrix();
 
             if (
-                'print.matrix_exact' !== ($payload['calculator'] ?? null)
-                || $definition->productCode() !== ($payload['product_code'] ?? null)
-                || $definition->schemaVersion() !== ($payload['product_schema_version'] ?? null)
+                'print.matrix_exact' !== ($payload['calculator'] ?? null) ||
+                $definition->productCode() !== ($payload['product_code'] ?? null) ||
+                $definition->schemaVersion() !== ($payload['product_schema_version'] ?? null)
             ) {
                 continue;
             }

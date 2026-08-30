@@ -58,7 +58,16 @@ final readonly class MatrixPrintPriceCalculator
             $pricingSnapshot = new PricingSnapshot(
                 'print.matrix_exact',
                 sprintf('%s@%s', $pricingPolicy->version(), $matrix->version()),
-                $configuration->snapshotData(),
+                array_merge($configuration->snapshotData(), [
+                    'sourcing' => [
+                        'supplier_code' => $route->supplierProduct()->supplier()->code(),
+                        'supplier_product_code' => $route->supplierProduct()->code(),
+                        'matrix_version' => $matrix->version(),
+                        'matrix_checksum' => $matrix->checksum(),
+                        'production_cost' => $cost['production_cost'],
+                        'shipping_cost' => $cost['shipping_cost'],
+                    ],
+                ]),
                 ['total' => $unitPrice],
                 $unitPrice,
                 $currencyCode,
@@ -91,10 +100,10 @@ final readonly class MatrixPrintPriceCalculator
     ): ?SupplierPricingMatrixVersion {
         $eligibleMatrices = array_values(array_filter(
             $matrices,
-            fn (SupplierPricingMatrixVersion $matrix): bool => $matrix->supplierProduct() === $route->supplierProduct()
-                && $matrix->currencyCode() === $currencyCode
-                && $matrix->isSelectableAt($at)
-                && $this->isCompatibleMatrix($matrix, $configuration),
+            fn (SupplierPricingMatrixVersion $matrix): bool => $matrix->supplierProduct() === $route->supplierProduct() &&
+                $matrix->currencyCode() === $currencyCode &&
+                $matrix->isSelectableAt($at) &&
+                $this->isCompatibleMatrix($matrix, $configuration),
         ));
 
         usort(
@@ -112,11 +121,11 @@ final readonly class MatrixPrintPriceCalculator
     ): ?array {
         $payload = $matrix->matrix();
         $calculator = $payload['calculator'] ?? null;
-        $isGenericMatrix = 'print.matrix_exact' === $calculator
-            && $configuration->productCode() === ($payload['product_code'] ?? null)
-            && $configuration->schemaVersion() === ($payload['product_schema_version'] ?? null);
-        $isLegacyFlyerMatrix = 'PRINT_FLYER' === $configuration->productCode()
-            && 'print.flyer' === $calculator;
+        $isGenericMatrix = 'print.matrix_exact' === $calculator &&
+            $configuration->productCode() === ($payload['product_code'] ?? null) &&
+            $configuration->schemaVersion() === ($payload['product_schema_version'] ?? null);
+        $isLegacyFlyerMatrix = 'PRINT_FLYER' === $configuration->productCode() &&
+            'print.flyer' === $calculator;
 
         if (1 !== ($payload['schema_version'] ?? null) || (!$isGenericMatrix && !$isLegacyFlyerMatrix)) {
             throw new \DomainException(sprintf(
@@ -153,12 +162,12 @@ final readonly class MatrixPrintPriceCalculator
         $payload = $matrix->matrix();
 
         return (
-            'print.matrix_exact' === ($payload['calculator'] ?? null)
-            && $configuration->productCode() === ($payload['product_code'] ?? null)
-            && $configuration->schemaVersion() === ($payload['product_schema_version'] ?? null)
+            'print.matrix_exact' === ($payload['calculator'] ?? null) &&
+            $configuration->productCode() === ($payload['product_code'] ?? null) &&
+            $configuration->schemaVersion() === ($payload['product_schema_version'] ?? null)
         ) || (
-            'PRINT_FLYER' === $configuration->productCode()
-            && 'print.flyer' === ($payload['calculator'] ?? null)
+            'PRINT_FLYER' === $configuration->productCode() &&
+            'print.flyer' === ($payload['calculator'] ?? null)
         );
     }
 }

@@ -168,9 +168,9 @@ final class ImportFlyerPricingMatrixCommand extends Command
         $errors = \DateTimeImmutable::getLastErrors();
 
         if (
-            false === $date
-            || (false !== $errors && (0 !== $errors['warning_count'] || 0 !== $errors['error_count']))
-            || $date->format('Y-m-d') !== $value
+            false === $date ||
+            (false !== $errors && (0 !== $errors['warning_count'] || 0 !== $errors['error_count'])) ||
+            $date->format('Y-m-d') !== $value
         ) {
             throw new \InvalidArgumentException(sprintf('Argument "%s" must use the YYYY-MM-DD format.', $name));
         }

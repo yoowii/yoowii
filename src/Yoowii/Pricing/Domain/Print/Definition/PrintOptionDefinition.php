@@ -99,7 +99,7 @@ final readonly class PrintOptionDefinition
             throw new \InvalidArgumentException(sprintf('Print option "%s" must be an integer.', $this->code));
         }
 
-        $integer = filter_var(trim($value), FILTER_VALIDATE_INT);
+        $integer = filter_var(trim($value), \FILTER_VALIDATE_INT);
 
         if (false === $integer) {
             throw new \InvalidArgumentException(sprintf('Print option "%s" is outside the supported integer range.', $this->code));

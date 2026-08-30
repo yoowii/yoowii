@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository;
 
 use App\Yoowii\Sourcing\Domain\Model\SupplierPricingMatrixVersion;
-use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 use App\Yoowii\Sourcing\Domain\PricingMatrixStatus;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository;
 use Doctrine\ORM\EntityManagerInterface;

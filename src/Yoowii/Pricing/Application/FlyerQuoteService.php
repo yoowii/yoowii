@@ -8,9 +8,9 @@ use App\Yoowii\Pricing\Domain\Flyer\FlyerCalculator;
 use App\Yoowii\Pricing\Domain\Flyer\FlyerConfiguration;
 use App\Yoowii\Pricing\Domain\Flyer\FlyerPricingPolicy;
 use App\Yoowii\Pricing\Domain\Flyer\FlyerQuote;
+use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository;
-use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 
 final readonly class FlyerQuoteService
 {

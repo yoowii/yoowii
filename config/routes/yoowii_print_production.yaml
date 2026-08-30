@@ -1,0 +1,3 @@
+yoowii_print_production_storefront:
+    resource: ../../src/Yoowii/PrintProduction/UI/Http/Storefront/
+    type: attribute

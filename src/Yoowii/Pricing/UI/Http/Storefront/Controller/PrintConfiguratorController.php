@@ -33,10 +33,10 @@ final class PrintConfiguratorController extends AbstractController
         }
 
         if (
-            !$product instanceof Product
-            || !$product->isEnabled()
-            || !$product->hasChannel($channelContext->getChannel())
-            || FulfillmentType::Print !== $product->getFulfillmentType()
+            !$product instanceof Product ||
+            !$product->isEnabled() ||
+            !$product->hasChannel($channelContext->getChannel()) ||
+            FulfillmentType::Print !== $product->getFulfillmentType()
         ) {
             throw $this->createNotFoundException('Le produit print demandé n’est pas disponible.');
         }

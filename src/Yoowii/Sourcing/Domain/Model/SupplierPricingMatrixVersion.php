@@ -55,7 +55,7 @@ class SupplierPricingMatrixVersion
             throw new \InvalidArgumentException('The pricing matrix must not be empty.');
         }
 
-        $encodedMatrix = json_encode(self::canonicalize($this->matrix), JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
+        $encodedMatrix = json_encode(self::canonicalize($this->matrix), \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION);
         $this->checksum = hash('sha256', $encodedMatrix);
     }
 
@@ -157,11 +157,11 @@ class SupplierPricingMatrixVersion
             }
 
             if (
-                null !== $nestedValue
-                && !is_bool($nestedValue)
-                && !is_int($nestedValue)
-                && !is_float($nestedValue)
-                && !is_string($nestedValue)
+                null !== $nestedValue &&
+                !is_bool($nestedValue) &&
+                !is_int($nestedValue) &&
+                !is_float($nestedValue) &&
+                !is_string($nestedValue)
             ) {
                 throw new \InvalidArgumentException('The pricing matrix must be JSON-compatible.');
             }

@@ -83,12 +83,12 @@ class SupplierRoute
 
     public function isEligibleFor(string $productCode, \DateTimeImmutable $at): bool
     {
-        return $this->active
-            && $this->supplierProduct->isActive()
-            && $this->supplierProduct->supplier()->isActive()
-            && $this->yoowiiProductCode === $productCode
-            && $at >= $this->effectiveFrom
-            && (null === $this->effectiveUntil || $at < $this->effectiveUntil);
+        return $this->active &&
+            $this->supplierProduct->isActive() &&
+            $this->supplierProduct->supplier()->isActive() &&
+            $this->yoowiiProductCode === $productCode &&
+            $at >= $this->effectiveFrom &&
+            (null === $this->effectiveUntil || $at < $this->effectiveUntil);
     }
 
     public function changePriority(int $priority): void
