@@ -80,3 +80,28 @@ Les routes ajoutées restent administratives et protégées par Sylius Admin et 
 | Définir une échéance | POST | `/print-production/jobs/{id}/due-date` |
 
 Une échéance est une cible de pilotage saisie par l’équipe Yoowii. Elle ne modifie ni le prix, ni l’engagement fournisseur, ni le statut du dossier. Un dossier livré ou annulé n’est jamais signalé en retard.
+
+## Lot 7.3 — Alertes, notifications et rôle production
+
+- les e-mails client sont placés dans une file persistante lorsque le BAT est prêt, lors du lancement de production, de l’expédition et de la livraison ;
+- la commande quotidienne de retard alerte l’équipe de production une seule fois par dossier et par jour ;
+- la file conserve un identifiant unique de notification : relancer une commande ne crée pas de doublon ;
+- les actions de production sensibles requièrent désormais `ROLE_PRINT_PRODUCTION` ; la consultation reste disponible aux administrateurs Sylius ;
+- les e-mails ne sont jamais envoyés depuis une mutation HTTP : ils sont traités via une commande, afin qu’une panne SMTP ne bloque pas le dossier.
+
+Configuration requise :
+
+```dotenv
+MAILER_DSN=smtp://…
+YOOWII_PRINT_NOTIFICATIONS_SENDER=no-reply@yoowii.fr
+YOOWII_PRINT_PRODUCTION_ALERT_RECIPIENTS=production@yoowii.fr,ops@yoowii.fr
+```
+
+Planifier ensuite :
+
+```cron
+*/5 * * * * php bin/console yoowii:print-jobs:send-notifications --env=prod
+5 8 * * * php bin/console yoowii:print-jobs:alert-late --env=prod
+```
+
+Dans Sylius Admin, attribuer `ROLE_PRINT_PRODUCTION` aux utilisateurs ou groupes autorisés à déposer un BAT, modifier un statut, saisir l’échéance, enregistrer une commande fournisseur ou une expédition.

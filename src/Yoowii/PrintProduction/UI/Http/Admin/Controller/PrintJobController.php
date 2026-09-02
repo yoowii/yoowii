@@ -6,6 +6,7 @@ namespace App\Yoowii\PrintProduction\UI\Http\Admin\Controller;
 
 use App\Yoowii\PrintProduction\Application\AddPrintJobNote;
 use App\Yoowii\PrintProduction\Application\PrintAssetStorage;
+use App\Yoowii\PrintProduction\Application\QueuePrintJobNotification;
 use App\Yoowii\PrintProduction\Application\RecordPrintJobActivity;
 use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
@@ -24,6 +25,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/jobs', name: 'yoowii_admin_print_production_')]
 final class PrintJobController extends AbstractController
@@ -166,7 +168,8 @@ final class PrintJobController extends AbstractController
     }
 
     #[Route('/{id}/bat', name: 'upload_bat', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function uploadBat(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RegisterPrintAsset $register, RecordPrintJobActivity $activity): Response
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
+    public function uploadBat(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RegisterPrintAsset $register, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
     {
         $job = $this->job($entityManager, $id);
         $this->assertCsrf($csrf, $request, 'print_job_bat_' . $id);
@@ -184,6 +187,7 @@ final class PrintJobController extends AbstractController
         try {
             $asset = $register($job, PrintAssetType::Bat, $file->getClientOriginalName(), (string) $file->getMimeType(), (int) $file->getSize(), $stream);
             $activity($job, 'bat_uploaded', $this->actor(), ['asset_id' => $asset->id(), 'file_name' => $asset->originalName()]);
+            $notifications->customerStatusChanged($job);
             $entityManager->flush();
             $this->addFlash('success', 'Le BAT est disponible pour validation client.');
         } catch (\DomainException $exception) {
@@ -196,7 +200,8 @@ final class PrintJobController extends AbstractController
     }
 
     #[Route('/{id}/status', name: 'change_status', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function changeStatus(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity): Response
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
+    public function changeStatus(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
     {
         $job = $this->job($entityManager, $id);
         $this->assertCsrf($csrf, $request, 'print_job_status_' . $id);
@@ -213,6 +218,7 @@ final class PrintJobController extends AbstractController
         try {
             $job->changeStatus($status, new \DateTimeImmutable(), $reason);
             $activity($job, 'status_changed', $this->actor(), ['from' => $previous->value, 'to' => $status->value, 'reason' => $reason]);
+            $notifications->customerStatusChanged($job);
             $entityManager->flush();
             $this->addFlash('success', 'Le statut de production a été mis à jour.');
         } catch (\DomainException $exception) {
@@ -223,6 +229,7 @@ final class PrintJobController extends AbstractController
     }
 
     #[Route('/{id}/notes', name: 'add_note', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
     public function addNote(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, AddPrintJobNote $addNote, RecordPrintJobActivity $activity): Response
     {
         $job = $this->job($entityManager, $id);
@@ -242,6 +249,7 @@ final class PrintJobController extends AbstractController
     }
 
     #[Route('/{id}/due-date', name: 'set_due_date', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
     public function setDueDate(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity): Response
     {
         $job = $this->job($entityManager, $id);
@@ -262,7 +270,8 @@ final class PrintJobController extends AbstractController
     }
 
     #[Route('/{id}/supplier-order', name: 'register_supplier_order', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function registerSupplierOrder(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity): Response
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
+    public function registerSupplierOrder(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
     {
         $job = $this->job($entityManager, $id);
         $this->assertCsrf($csrf, $request, 'print_job_supplier_order_' . $id);
@@ -271,6 +280,7 @@ final class PrintJobController extends AbstractController
         try {
             $job->registerSupplierOrder($reference, new \DateTimeImmutable());
             $activity($job, 'supplier_order_registered', $this->actor(), ['supplier_order_reference' => $reference]);
+            $notifications->customerStatusChanged($job);
             $entityManager->flush();
             $this->addFlash('success', 'La commande fournisseur est enregistrée : le dossier est en production.');
         } catch (\DomainException|\InvalidArgumentException $exception) {
@@ -281,7 +291,8 @@ final class PrintJobController extends AbstractController
     }
 
     #[Route('/{id}/shipment', name: 'register_shipment', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function registerShipment(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity): Response
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
+    public function registerShipment(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
     {
         $job = $this->job($entityManager, $id);
         $this->assertCsrf($csrf, $request, 'print_job_shipment_' . $id);
@@ -296,6 +307,7 @@ final class PrintJobController extends AbstractController
         try {
             $job->markShipped($trackingNumber, $trackingUrl, new \DateTimeImmutable());
             $activity($job, 'shipment_registered', $this->actor(), ['tracking_number' => $trackingNumber, 'tracking_url' => $trackingUrl]);
+            $notifications->customerStatusChanged($job);
             $entityManager->flush();
             $this->addFlash('success', 'L’expédition est enregistrée et le suivi client est disponible.');
         } catch (\DomainException|\InvalidArgumentException $exception) {
