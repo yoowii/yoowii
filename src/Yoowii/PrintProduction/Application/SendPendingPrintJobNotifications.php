@@ -16,13 +16,13 @@ final readonly class SendPendingPrintJobNotifications
 
     public function __invoke(int $limit = 100): int
     {
+        /** @var list<PrintJobNotification> $notifications */
         $notifications = $this->entityManager->createQueryBuilder()
             ->select('notification')->from(PrintJobNotification::class, 'notification')
             ->where('notification.sentAt IS NULL')->orderBy('notification.id', 'ASC')->setMaxResults($limit)
             ->getQuery()->getResult();
         $sent = 0;
         foreach ($notifications as $notification) {
-            if (!$notification instanceof PrintJobNotification) { continue; }
             $this->sender->send($this->emailCode($notification), [$notification->recipient()], [
                 'printJob' => $notification->printJob(),
                 'printJobLink' => $this->links->show($notification->printJob(), 'fr_FR'),

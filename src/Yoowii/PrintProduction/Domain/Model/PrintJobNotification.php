@@ -9,15 +9,16 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'yoowii_print_job_notification')]
+#[ORM\Index(name: 'IDX_9C3D9B1D727301B', columns: ['print_job_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_print_notification_fingerprint', columns: ['fingerprint'])]
 class PrintJobNotification
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    private ?int $id = null;
+    private ?int $id = null; // @phpstan-ignore property.unusedType
 
-    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    #[ORM\Column(name: 'sent_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $sentAt = null;
 
     public function __construct(
@@ -35,10 +36,43 @@ class PrintJobNotification
     ) {
     }
 
-    public function id(): ?int { return $this->id; }
-    public function printJob(): PrintJob { return $this->printJob; }
-    public function type(): string { return $this->type; }
-    public function recipient(): string { return $this->recipient; }
-    public function isSent(): bool { return null !== $this->sentAt; }
-    public function markSent(\DateTimeImmutable $at): void { $this->sentAt = $at; }
+    public function id(): ?int
+    {
+        return $this->id;
+    }
+
+    public function printJob(): PrintJob
+    {
+        return $this->printJob;
+    }
+
+    public function fingerprint(): string
+    {
+        return $this->fingerprint;
+    }
+
+    public function type(): string
+    {
+        return $this->type;
+    }
+
+    public function recipient(): string
+    {
+        return $this->recipient;
+    }
+
+    public function createdAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function isSent(): bool
+    {
+        return null !== $this->sentAt;
+    }
+
+    public function markSent(\DateTimeImmutable $at): void
+    {
+        $this->sentAt = $at;
+    }
 }

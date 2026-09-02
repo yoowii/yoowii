@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Yoowii\PrintProduction\Application;
 
+use App\Entity\Order\Order;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobNotification;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
@@ -25,7 +26,11 @@ final readonly class QueuePrintJobNotification
             PrintJobStatus::Delivered->value => 'yoowii_print_delivered',
         ];
         $emailCode = $emailCodes[$job->status()->value] ?? null;
-        $recipient = $job->orderItem()->getOrder()->getCustomerEmail();
+        $order = $job->orderItem()->getOrder();
+        if (!$order instanceof Order) {
+            return;
+        }
+        $recipient = $order->getCustomer()?->getEmail();
         if (!is_string($emailCode) || !is_string($recipient) || '' === trim($recipient)) {
             return;
         }
