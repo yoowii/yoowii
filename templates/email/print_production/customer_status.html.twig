@@ -1,0 +1,18 @@
+{% block subject %}
+    {% if printJob.status.value == 'bat_ready' %}Votre BAT est disponible{% elseif printJob.status.value == 'in_production' %}Votre commande est en production{% elseif printJob.status.value == 'shipped' %}Votre commande a été expédiée{% else %}Votre commande a été livrée{% endif %}
+{% endblock %}
+
+{% block body %}
+    <p>Bonjour,</p>
+    {% if printJob.status.value == 'bat_ready' %}
+        <p>Votre BAT est prêt à être validé.</p>
+    {% elseif printJob.status.value == 'in_production' %}
+        <p>Votre commande est désormais en cours de fabrication.</p>
+    {% elseif printJob.status.value == 'shipped' %}
+        <p>Votre commande a été expédiée{% if printJob.trackingNumber %} sous le numéro de suivi <strong>{{ printJob.trackingNumber }}</strong>{% endif %}.</p>
+    {% else %}
+        <p>Votre commande est indiquée comme livrée.</p>
+    {% endif %}
+    <p>Dossier : <strong>{{ printJob.reference }}</strong></p>
+    <p><a href="{{ printJobLink }}">Suivre mon dossier d’impression</a></p>
+{% endblock %}

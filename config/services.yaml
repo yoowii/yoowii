@@ -14,7 +14,6 @@ parameters:
     yoowii.print_quote.ttl: 900
     yoowii.print_assets.directory: '%kernel.project_dir%/var/private/print'
     yoowii.print_job_link.ttl: 2592000
-    yoowii.print_notifications.sender: '%env(YOOWII_PRINT_NOTIFICATIONS_SENDER)%'
     yoowii.print_production.alert_recipients: '%env(csv:YOOWII_PRINT_PRODUCTION_ALERT_RECIPIENTS)%'
 
 services:
@@ -119,10 +118,6 @@ services:
     App\Yoowii\PrintProduction\Application\QueuePrintJobNotification:
         arguments:
             $productionAlertRecipients: '%yoowii.print_production.alert_recipients%'
-
-    App\Yoowii\PrintProduction\Application\SendPendingPrintJobNotifications:
-        arguments:
-            $sender: '%yoowii.print_notifications.sender%'
 
     App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
         alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository

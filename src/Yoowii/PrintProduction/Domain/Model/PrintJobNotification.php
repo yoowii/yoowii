@@ -30,10 +30,6 @@ class PrintJobNotification
         private readonly string $type,
         #[ORM\Column(type: Types::STRING, length: 255)]
         private readonly string $recipient,
-        #[ORM\Column(type: Types::STRING, length: 255)]
-        private readonly string $subject,
-        #[ORM\Column(type: Types::TEXT)]
-        private readonly string $content,
         #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
         private readonly \DateTimeImmutable $createdAt,
     ) {
@@ -41,9 +37,8 @@ class PrintJobNotification
 
     public function id(): ?int { return $this->id; }
     public function printJob(): PrintJob { return $this->printJob; }
+    public function type(): string { return $this->type; }
     public function recipient(): string { return $this->recipient; }
-    public function subject(): string { return $this->subject; }
-    public function content(): string { return $this->content; }
     public function isSent(): bool { return null !== $this->sentAt; }
     public function markSent(\DateTimeImmutable $at): void { $this->sentAt = $at; }
 }

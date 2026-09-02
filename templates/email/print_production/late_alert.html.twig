@@ -1,0 +1,10 @@
+{% block subject %}Action requise — dossier print {{ printJob.reference }} en retard{% endblock %}
+
+{% block body %}
+    <p>Le dossier <strong>{{ printJob.reference }}</strong> est en retard.</p>
+    <ul>
+        <li>Échéance : {{ printJob.dueAt ? printJob.dueAt|date('d/m/Y H:i') : 'non définie' }}</li>
+        <li>Statut : {{ printJob.status.value }}</li>
+        <li>Fournisseur : {{ printJob.supplierCode }}</li>
+    </ul>
+{% endblock %}

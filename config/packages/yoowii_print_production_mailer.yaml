@@ -1,0 +1,16 @@
+sylius_mailer:
+    sender_adapter: sylius.email_sender.adapter.symfony_mailer
+    sender:
+        name: '%env(SYLIUS_MAILER_SENDER_NAME)%'
+        address: '%env(SYLIUS_MAILER_SENDER_ADDRESS)%'
+    emails:
+        yoowii_print_bat_ready:
+            template: 'email/print_production/customer_status.html.twig'
+        yoowii_print_in_production:
+            template: 'email/print_production/customer_status.html.twig'
+        yoowii_print_shipped:
+            template: 'email/print_production/customer_status.html.twig'
+        yoowii_print_delivered:
+            template: 'email/print_production/customer_status.html.twig'
+        yoowii_print_late_alert:
+            template: 'email/print_production/late_alert.html.twig'
