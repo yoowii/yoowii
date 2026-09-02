@@ -1,0 +1,6 @@
+{% block subject %}Action requise — BAT refusé pour {{ printJob.reference }}{% endblock %}
+
+{% block body %}
+    <p>Le client a refusé le BAT du dossier <strong>{{ printJob.reference }}</strong>.</p>
+    <p>Le dépôt de fichiers est de nouveau ouvert et le dossier est revenu à l’étape « BAT en préparation ».</p>
+{% endblock %}

@@ -8,10 +8,13 @@ use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
 use App\Yoowii\PrintProduction\Application\PrintAssetStorage;
 use App\Yoowii\PrintProduction\Application\PrintJobAccessLink;
+use App\Yoowii\PrintProduction\Application\QueuePrintJobNotification;
 use App\Yoowii\PrintProduction\Application\RecordPrintJobActivity;
 use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
+use App\Yoowii\PrintProduction\Application\RejectPrintJobBat;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
+use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -45,8 +48,10 @@ final class PrintJobController extends AbstractController
             'bat' => $bat,
             'upload_url' => $links->upload($job, $locale),
             'approve_bat_url' => $links->approveBat($job, $locale),
+            'reject_bat_url' => $links->rejectBat($job, $locale),
             'artwork_url' => $artwork instanceof PrintAsset ? $links->download($artwork, $locale) : null,
             'bat_url' => $bat instanceof PrintAsset ? $links->download($bat, $locale) : null,
+            'customer_messages' => $entityManager->getRepository(PrintJobCustomerMessage::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
         ]);
         $response->setPrivate();
         $response->headers->set('Cache-Control', 'private, no-store');
@@ -156,6 +161,28 @@ final class PrintJobController extends AbstractController
         $activity($job, 'bat_approved_by_customer', $this->activityActor());
         $entityManager->flush();
         $this->addFlash('success', $this->translator->trans('yoowii.print_flow.bat_approved', [], 'messages', $this->translationLocale($request)));
+
+        return $this->redirect($links->show($job, $this->requestLocale($request)));
+    }
+
+    #[Route('/{reference}/bat/reject', name: 'reject_bat', methods: ['POST'])]
+    public function rejectBat(string $reference, Request $request, EntityManagerInterface $entityManager, PrintJobAccessLink $links, RejectPrintJobBat $rejectBat, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
+    {
+        $job = $this->accessibleJob($reference, $request, $entityManager, $links);
+        if (!$this->isCsrfTokenValid('print_job_bat_reject_' . $reference, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid CSRF token.');
+        }
+        $reason = trim((string) $request->request->get('reason'));
+
+        try {
+            $rejectBat($job, $reason);
+            $activity($job, 'bat_rejected_by_customer', $this->activityActor(), ['reason' => $reason]);
+            $notifications->batRejectedByCustomer($job);
+            $entityManager->flush();
+            $this->addFlash('success', 'Votre refus a été transmis. Vous pouvez maintenant envoyer un fichier corrigé.');
+        } catch (\DomainException|\InvalidArgumentException $exception) {
+            $this->addFlash('danger', $exception->getMessage());
+        }
 
         return $this->redirect($links->show($job, $this->requestLocale($request)));
     }

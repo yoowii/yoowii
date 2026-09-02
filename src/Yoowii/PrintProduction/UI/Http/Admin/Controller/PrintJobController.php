@@ -12,6 +12,7 @@ use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobActivity;
+use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobNote;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
@@ -136,6 +137,7 @@ final class PrintJobController extends AbstractController
             'assets' => $assets,
             'activities' => $entityManager->getRepository(PrintJobActivity::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'notes' => $entityManager->getRepository(PrintJobNote::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
+            'customerMessages' => $entityManager->getRepository(PrintJobCustomerMessage::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'transitions' => $job->availableStatusTransitions(),
             'now' => new \DateTimeImmutable(),
         ]);

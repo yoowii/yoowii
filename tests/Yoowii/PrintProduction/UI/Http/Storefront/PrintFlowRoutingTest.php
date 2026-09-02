@@ -21,6 +21,7 @@ final class PrintFlowRoutingTest extends KernelTestCase
         ]));
         self::assertSame(['POST'], $router->getRouteCollection()->get('yoowii_shop_flow_print_job_upload')?->getMethods());
         self::assertSame(['POST'], $router->getRouteCollection()->get('yoowii_shop_flow_print_job_approve_bat')?->getMethods());
+        self::assertSame(['POST'], $router->getRouteCollection()->get('yoowii_shop_flow_print_job_reject_bat')?->getMethods());
         self::assertSame(['GET'], $router->getRouteCollection()->get('yoowii_shop_flow_print_job_download')?->getMethods());
     }
 
@@ -34,5 +35,14 @@ final class PrintFlowRoutingTest extends KernelTestCase
             '_locale' => 'fr_FR',
             'tokenValue' => 'opaque-order-token',
         ]));
+    }
+
+    public function testCustomerPrintJobHubIsProtectedByTheAccountFirewall(): void
+    {
+        self::bootKernel();
+        $router = self::getContainer()->get('router');
+
+        self::assertInstanceOf(Router::class, $router);
+        self::assertSame('/fr_FR/account/print-jobs', $router->generate('yoowii_shop_account_print_jobs', ['_locale' => 'fr_FR']));
     }
 }

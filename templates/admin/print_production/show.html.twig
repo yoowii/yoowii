@@ -54,6 +54,8 @@
                     <div class="list-group-item"><div class="d-flex justify-content-between gap-3"><strong>{{ activity.action }}</strong><small class="text-secondary text-nowrap">{{ activity.createdAt|date('d/m/Y H:i') }}</small></div><div class="small text-secondary">{{ activity.actor ?: 'Système' }}{% if activity.details %} — {{ activity.details|json_encode }}{% endif %}</div></div>
                 {% else %}<div class="list-group-item text-secondary">Aucune action opérateur enregistrée pour l’instant.</div>{% endfor %}</div>
             </div>
+
+            {% if customerMessages %}<div class="card mt-4"><div class="card-header"><h2 class="card-title">Messages client</h2></div><div class="list-group list-group-flush">{% for message in customerMessages %}<div class="list-group-item"><div class="d-flex justify-content-between gap-3"><strong>{{ message.type == 'bat_rejected' ? 'BAT refusé' : message.type }}</strong><small class="text-secondary">{{ message.createdAt|date('d/m/Y H:i') }}</small></div><div class="mt-1" style="white-space: pre-wrap">{{ message.message }}</div></div>{% endfor %}</div></div>{% endif %}
         </div>
 
         <div class="col-lg-4">

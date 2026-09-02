@@ -203,6 +203,18 @@ class PrintJob
         $this->changeStatus(PrintJobStatus::BatApproved, $at);
     }
 
+    public function rejectBat(string $reason, \DateTimeImmutable $at): void
+    {
+        if (PrintJobStatus::BatReady !== $this->status) {
+            throw new \DomainException('Only a ready BAT can be rejected.');
+        }
+        if ('' === trim($reason)) {
+            throw new \InvalidArgumentException('A BAT rejection reason is required.');
+        }
+
+        $this->changeStatus(PrintJobStatus::BatPending, $at);
+    }
+
     public function canAcceptCustomerArtwork(): bool
     {
         return in_array($this->status, [PrintJobStatus::AwaitingFiles, PrintJobStatus::FilesReceived, PrintJobStatus::BatPending], true);
@@ -258,7 +270,7 @@ class PrintJob
             PrintJobStatus::AwaitingFiles => [PrintJobStatus::FilesReceived, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
             PrintJobStatus::FilesReceived => [PrintJobStatus::BatPending, PrintJobStatus::BatReady, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
             PrintJobStatus::BatPending => [PrintJobStatus::BatReady, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
-            PrintJobStatus::BatReady => [PrintJobStatus::BatApproved, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
+            PrintJobStatus::BatReady => [PrintJobStatus::BatPending, PrintJobStatus::BatApproved, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
             PrintJobStatus::BatApproved => [PrintJobStatus::InProduction, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
             PrintJobStatus::InProduction => [PrintJobStatus::Shipped, PrintJobStatus::Blocked, PrintJobStatus::Cancelled],
             PrintJobStatus::Shipped => [PrintJobStatus::Delivered, PrintJobStatus::Blocked],

@@ -51,6 +51,16 @@ final readonly class QueuePrintJobNotification
         }
     }
 
+    public function batRejectedByCustomer(PrintJob $job): void
+    {
+        foreach ($this->productionAlertRecipients as $recipient) {
+            $recipient = trim($recipient);
+            if ('' !== $recipient && false !== filter_var($recipient, \FILTER_VALIDATE_EMAIL)) {
+                $this->queue($job, 'yoowii_print_bat_rejected', $recipient);
+            }
+        }
+    }
+
     private function queue(PrintJob $job, string $type, string $recipient): void
     {
         $fingerprint = hash('sha256', implode('|', [$job->reference(), $type, strtolower($recipient)]));

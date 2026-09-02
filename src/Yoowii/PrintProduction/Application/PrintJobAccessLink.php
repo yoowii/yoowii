@@ -37,6 +37,11 @@ final readonly class PrintJobAccessLink
         return $this->signedRoute('yoowii_shop_flow_print_job_approve_bat', $job, $locale);
     }
 
+    public function rejectBat(PrintJob $job, string $locale): string
+    {
+        return $this->signedRoute('yoowii_shop_flow_print_job_reject_bat', $job, $locale);
+    }
+
     public function download(PrintAsset $asset, string $locale): string
     {
         return $this->signedRoute('yoowii_shop_flow_print_job_download', $asset->printJob(), $locale, ['assetId' => $asset->id()]);

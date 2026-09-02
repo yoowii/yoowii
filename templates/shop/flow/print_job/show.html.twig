@@ -82,7 +82,7 @@
                                 {% endif %}
                             </div>
                             {% if job.status.value == 'bat_ready' %}
-                                <form action="{{ approve_bat_url }}" method="post">
+                                <form action="{{ approve_bat_url }}" method="post" class="mb-4">
                                     <input type="hidden" name="_token" value="{{ csrf_token('print_job_bat_' ~ job.reference) }}">
                                     <label class="form-check mb-3">
                                         <input class="form-check-input" type="checkbox" name="bat_confirmation" value="1" required>
@@ -90,11 +90,16 @@
                                     </label>
                                     <button class="btn btn-success btn-lg" type="submit">{{ 'yoowii.print_flow.approve_bat'|trans }}</button>
                                 </form>
+                                <details class="border-top pt-3"><summary class="text-danger fw-semibold">Refuser le BAT et envoyer un fichier corrigé</summary><form action="{{ reject_bat_url }}" method="post" class="mt-3"><input type="hidden" name="_token" value="{{ csrf_token('print_job_bat_reject_' ~ job.reference) }}"><label class="form-label" for="bat-rejection-reason">Motif du refus</label><textarea id="bat-rejection-reason" class="form-control" name="reason" rows="3" required placeholder="Indiquez précisément les corrections attendues."></textarea><button class="btn btn-outline-danger mt-3" type="submit">Refuser le BAT</button></form></details>
                             {% else %}
-                                <span class="badge text-bg-success">{{ 'yoowii.print_flow.bat_already_approved'|trans }}</span>
+                                <span class="badge text-bg-success">{{ job.status.value == 'bat_approved' ? 'yoowii.print_flow.bat_already_approved'|trans : 'BAT traité' }}</span>
                             {% endif %}
                         </div>
                     </section>
+                {% endif %}
+
+                {% if customer_messages %}
+                    <section class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h2 class="h4">Vos messages</h2>{% for message in customer_messages %}<div class="border-top pt-3 mt-3"><strong>{{ message.type == 'bat_rejected' ? 'Refus du BAT' : 'Message' }}</strong><div class="mt-1" style="white-space: pre-wrap">{{ message.message }}</div><small class="text-secondary">{{ message.createdAt|date('d/m/Y H:i') }}</small></div>{% endfor %}</div></section>
                 {% endif %}
             </div>
 

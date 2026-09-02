@@ -75,6 +75,18 @@ final class PrintJobTest extends TestCase
         $job->changeStatus(PrintJobStatus::InProduction, $now);
     }
 
+    public function testCustomerCanRejectAReadyBatAndUploadArtworkAgain(): void
+    {
+        $now = new \DateTimeImmutable('2026-09-02T12:00:00+02:00');
+        $job = new PrintJob(new OrderItem(), 'PJ-TEST-1', 'laboprint', 'FLYER', ['schema_version' => 1], $now);
+        $job->changeStatus(PrintJobStatus::FilesReceived, $now);
+        $job->changeStatus(PrintJobStatus::BatReady, $now);
+        $job->rejectBat('Le recto doit être corrigé.', $now);
+
+        self::assertSame(PrintJobStatus::BatPending, $job->status());
+        self::assertTrue($job->canAcceptCustomerArtwork());
+    }
+
     public function testBlockingRequiresAndKeepsAnOperationalReason(): void
     {
         $now = new \DateTimeImmutable('2026-08-30T12:00:00+02:00');
