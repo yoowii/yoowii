@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace App\Yoowii\PrintProduction\UI\Http\Admin\Controller;
 
 use App\Yoowii\PrintProduction\Application\AddPrintJobNote;
+use App\Yoowii\PrintProduction\Application\AssertArtworkPreflightIsReady;
 use App\Yoowii\PrintProduction\Application\PrintAssetStorage;
 use App\Yoowii\PrintProduction\Application\QueuePrintJobNotification;
 use App\Yoowii\PrintProduction\Application\RecordPrintJobActivity;
 use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
+use App\Yoowii\PrintProduction\Application\SchedulePrintAssetPreflight;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobActivity;
-use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobNote;
+use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
+use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
 use Doctrine\ORM\EntityManagerInterface;
@@ -131,6 +134,14 @@ final class PrintJobController extends AbstractController
     {
         $job = $this->job($entityManager, $id);
         $assets = $entityManager->getRepository(PrintAsset::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']);
+        $preflightReports = [];
+        if ([] !== $assets) {
+            foreach ($entityManager->getRepository(PrintPreflightReport::class)->findBy(['printAsset' => $assets]) as $report) {
+                if ($report instanceof PrintPreflightReport && null !== $report->printAsset()->id()) {
+                    $preflightReports[$report->printAsset()->id()] = $report;
+                }
+            }
+        }
 
         return $this->render('admin/print_production/show.html.twig', [
             'job' => $job,
@@ -138,6 +149,7 @@ final class PrintJobController extends AbstractController
             'activities' => $entityManager->getRepository(PrintJobActivity::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'notes' => $entityManager->getRepository(PrintJobNote::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'customerMessages' => $entityManager->getRepository(PrintJobCustomerMessage::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
+            'preflightReports' => $preflightReports,
             'transitions' => $job->availableStatusTransitions(),
             'now' => new \DateTimeImmutable(),
         ]);
@@ -203,7 +215,7 @@ final class PrintJobController extends AbstractController
 
     #[Route('/{id}/status', name: 'change_status', requirements: ['id' => '\\d+'], methods: ['POST'])]
     #[IsGranted('ROLE_PRINT_PRODUCTION')]
-    public function changeStatus(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
+    public function changeStatus(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications, AssertArtworkPreflightIsReady $assertPreflight): Response
     {
         $job = $this->job($entityManager, $id);
         $this->assertCsrf($csrf, $request, 'print_job_status_' . $id);
@@ -218,6 +230,9 @@ final class PrintJobController extends AbstractController
         $reason = trim((string) $request->request->get('reason')) ?: null;
 
         try {
+            if (in_array($status, [PrintJobStatus::BatPending, PrintJobStatus::BatReady, PrintJobStatus::BatApproved, PrintJobStatus::InProduction], true)) {
+                $assertPreflight($job);
+            }
             $job->changeStatus($status, new \DateTimeImmutable(), $reason);
             $activity($job, 'status_changed', $this->actor(), ['from' => $previous->value, 'to' => $status->value, 'reason' => $reason]);
             $notifications->customerStatusChanged($job);
@@ -273,13 +288,14 @@ final class PrintJobController extends AbstractController
 
     #[Route('/{id}/supplier-order', name: 'register_supplier_order', requirements: ['id' => '\\d+'], methods: ['POST'])]
     #[IsGranted('ROLE_PRINT_PRODUCTION')]
-    public function registerSupplierOrder(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
+    public function registerSupplierOrder(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications, AssertArtworkPreflightIsReady $assertPreflight): Response
     {
         $job = $this->job($entityManager, $id);
         $this->assertCsrf($csrf, $request, 'print_job_supplier_order_' . $id);
         $reference = trim((string) $request->request->get('supplier_order_reference'));
 
         try {
+            $assertPreflight($job);
             $job->registerSupplierOrder($reference, new \DateTimeImmutable());
             $activity($job, 'supplier_order_registered', $this->actor(), ['supplier_order_reference' => $reference]);
             $notifications->customerStatusChanged($job);
@@ -288,6 +304,24 @@ final class PrintJobController extends AbstractController
         } catch (\DomainException|\InvalidArgumentException $exception) {
             $this->addFlash('danger', $exception->getMessage());
         }
+
+        return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
+    }
+
+    #[Route('/{id}/assets/{assetId}/preflight', name: 'rerun_preflight', requirements: ['id' => '\\d+', 'assetId' => '\\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
+    public function rerunPreflight(int $id, int $assetId, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, SchedulePrintAssetPreflight $schedule, RecordPrintJobActivity $activity): Response
+    {
+        $job = $this->job($entityManager, $id);
+        $this->assertCsrf($csrf, $request, 'print_job_preflight_' . $assetId);
+        $asset = $entityManager->find(PrintAsset::class, $assetId);
+        if (!$asset instanceof PrintAsset || $asset->printJob() !== $job || PrintAssetType::CustomerArtwork !== $asset->type()) {
+            throw $this->createNotFoundException();
+        }
+        $schedule($asset);
+        $activity($job, 'artwork_preflight_restarted', $this->actor(), ['asset_id' => $asset->id()]);
+        $entityManager->flush();
+        $this->addFlash('success', 'Le contrôle technique a été relancé.');
 
         return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
     }

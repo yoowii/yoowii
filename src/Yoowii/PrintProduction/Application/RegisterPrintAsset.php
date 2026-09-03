@@ -14,7 +14,7 @@ final readonly class RegisterPrintAsset
 {
     private const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/tiff'];
 
-    public function __construct(private PrintAssetStorage $storage, private EntityManagerInterface $entityManager)
+    public function __construct(private PrintAssetStorage $storage, private EntityManagerInterface $entityManager, private SchedulePrintAssetPreflight $schedulePreflight, private AssertArtworkPreflightIsReady $assertPreflight)
     {
     }
 
@@ -29,6 +29,9 @@ final readonly class RegisterPrintAsset
         }
         if (PrintAssetType::Bat === $type && !$job->canRegisterBat()) {
             throw new \DomainException('A BAT can only be registered before client approval.');
+        }
+        if (PrintAssetType::Bat === $type) {
+            ($this->assertPreflight)($job);
         }
 
         $key = sprintf('%s/%s-%s', $job->reference(), $type->value, bin2hex(random_bytes(16)));
@@ -79,6 +82,9 @@ final readonly class RegisterPrintAsset
             $job->changeStatus(PrintJobStatus::BatReady, $now);
         }
         $this->entityManager->flush();
+        if (PrintAssetType::CustomerArtwork === $type) {
+            ($this->schedulePreflight)($asset);
+        }
 
         return $asset;
     }

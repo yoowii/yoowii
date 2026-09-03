@@ -8,13 +8,14 @@ use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
 use App\Yoowii\PrintProduction\Application\PrintAssetStorage;
 use App\Yoowii\PrintProduction\Application\PrintJobAccessLink;
-use App\Yoowii\PrintProduction\Application\QueuePrintJobNotification;
 use App\Yoowii\PrintProduction\Application\RecordPrintJobActivity;
 use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
 use App\Yoowii\PrintProduction\Application\RejectPrintJobBat;
+use App\Yoowii\PrintProduction\Application\QueuePrintJobNotification;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
+use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -41,11 +42,13 @@ final class PrintJobController extends AbstractController
         $locale = $this->requestLocale($request);
         $artwork = $assets[PrintAssetType::CustomerArtwork->value] ?? null;
         $bat = $assets[PrintAssetType::Bat->value] ?? null;
+        $preflightReport = $artwork instanceof PrintAsset ? $entityManager->getRepository(PrintPreflightReport::class)->findOneBy(['printAsset' => $artwork]) : null;
 
         $response = $this->render('shop/flow/print_job/show.html.twig', [
             'job' => $job,
             'artwork' => $artwork,
             'bat' => $bat,
+            'preflight_report' => $preflightReport,
             'upload_url' => $links->upload($job, $locale),
             'approve_bat_url' => $links->approveBat($job, $locale),
             'reject_bat_url' => $links->rejectBat($job, $locale),
