@@ -8,13 +8,14 @@ use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\PrintPreflightStatus;
 
 /**
- * Lightweight, dependency-free technical inspection.
- *
- * It deliberately does not claim PDF/X, font embedding or ICC conformance. Those
- * checks belong to the next preflight increment, backed by a dedicated PDF engine.
+ * Technical inspection with a lightweight first pass and an optional PDF engine.
  */
 final class InspectPrintArtwork
 {
+    public function __construct(private readonly ?AdvancedPdfPreflight $advancedPdfPreflight = null)
+    {
+    }
+
     /** @param resource $stream
      *  @return array{status: PrintPreflightStatus, report: array<string, mixed>}
      */
@@ -34,6 +35,7 @@ final class InspectPrintArtwork
             if (false === $target) {
                 throw new \RuntimeException('Unable to prepare the preflight file.');
             }
+
             try {
                 stream_copy_to_stream($stream, $target);
             } finally {
@@ -61,6 +63,7 @@ final class InspectPrintArtwork
         if (false === $handle) {
             throw new \RuntimeException('Unable to read the PDF for preflight.');
         }
+
         try {
             $header = (string) fread($handle, 8);
             if (!str_starts_with($header, '%PDF-')) {
@@ -101,6 +104,12 @@ final class InspectPrintArtwork
             }
         } finally {
             fclose($handle);
+        }
+
+        if (null !== $this->advancedPdfPreflight) {
+            $advanced = $this->advancedPdfPreflight->inspect($path);
+            $checks = array_merge($checks, $advanced['checks']);
+            $metadata = array_merge($metadata, $advanced['metadata']);
         }
 
         return ['checks' => $checks, 'metadata' => $metadata];
@@ -202,18 +211,22 @@ final class InspectPrintArtwork
 
     private function sameDimensions(float $width, float $height, float $expectedWidth, float $expectedHeight, float $tolerance): bool
     {
-        return (abs($width - $expectedWidth) <= $tolerance && abs($height - $expectedHeight) <= $tolerance)
-            || (abs($width - $expectedHeight) <= $tolerance && abs($height - $expectedWidth) <= $tolerance);
+        return (abs($width - $expectedWidth) <= $tolerance && abs($height - $expectedHeight) <= $tolerance) ||
+            (abs($width - $expectedHeight) <= $tolerance && abs($height - $expectedWidth) <= $tolerance);
     }
 
     /** @param list<array{code: string, severity: string, message: string}> $checks */
     private function statusFor(array $checks): PrintPreflightStatus
     {
         foreach ($checks as $check) {
-            if ('error' === $check['severity']) { return PrintPreflightStatus::Failed; }
+            if ('error' === $check['severity']) {
+                return PrintPreflightStatus::Failed;
+            }
         }
         foreach ($checks as $check) {
-            if ('warning' === $check['severity']) { return PrintPreflightStatus::Warning; }
+            if ('warning' === $check['severity']) {
+                return PrintPreflightStatus::Warning;
+            }
         }
 
         return PrintPreflightStatus::Passed;

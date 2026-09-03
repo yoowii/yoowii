@@ -45,7 +45,14 @@
                                     {% set preflight_class = preflight_report.status.value == 'failed' ? 'danger' : (preflight_report.status.value == 'warning' ? 'warning' : (preflight_report.status.value == 'passed' ? 'success' : 'info')) %}
                                     <div class="alert alert-{{ preflight_class }} mt-3 mb-0">
                                         <strong>Contrôle technique{% if preflight_report.status.value == 'pending' %} en cours{% elseif preflight_report.status.value == 'passed' %} validé{% elseif preflight_report.status.value == 'warning' %} à vérifier{% else %} à corriger{% endif %}.</strong>
-                                        {% if preflight_report.report.checks is defined %}<ul class="mb-0 mt-2">{% for check in preflight_report.report.checks %}<li>{{ check.message }}</li>{% endfor %}</ul>{% endif %}
+                                        {% if preflight_report.report.checks is defined %}
+                                            <ul class="mb-0 mt-2">
+                                                {% for check in preflight_report.report.checks %}
+                                                    {% set check_class = check.severity == 'passed' ? 'text-success' : (check.severity == 'warning' ? 'text-warning-emphasis' : 'text-danger') %}
+                                                    <li class="{{ check_class }}">{{ check.message }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
                                     </div>
                                 {% else %}
                                     <div class="alert alert-info mt-3 mb-0"><strong>Contrôle technique en attente.</strong> Votre fichier sera analysé avant la préparation du BAT.</div>
@@ -108,7 +115,7 @@
                 {% endif %}
 
                 {% if customer_messages %}
-                    <section class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h2 class="h4">Vos messages</h2>{% for message in customer_messages %}<div class="border-top pt-3 mt-3"><strong>{{ message.type == 'bat_rejected' ? 'Refus du BAT' : 'Message' }}</strong><div class="mt-1" style="white-space: pre-wrap">{{ message.message }}</div><small class="text-secondary">{{ message.createdAt|date('d/m/Y H:i') }}</small></div>{% endfor %}</div></section>
+                    <section class="card border-0 shadow-sm mb-4"><div class="card-body p-4"><h2 class="h4">Vos messages</h2>{% for message in customer_messages %}<div class="border-top pt-3 mt-3"><strong>{{ message.type == 'bat_rejected' ? 'Refus du BAT' : (message.type == 'preflight_correction_requested' ? 'Fichier à corriger' : 'Message') }}</strong><div class="mt-1" style="white-space: pre-wrap">{{ message.message }}</div><small class="text-secondary">{{ message.createdAt|date('d/m/Y H:i') }}</small></div>{% endfor %}</div></section>
                 {% endif %}
             </div>
 

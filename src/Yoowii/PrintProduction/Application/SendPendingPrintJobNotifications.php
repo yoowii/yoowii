@@ -37,8 +37,13 @@ final readonly class SendPendingPrintJobNotifications
 
     private function emailCode(PrintJobNotification $notification): string
     {
-        return str_starts_with($notification->type(), 'yoowii_print_late_alert_')
-            ? 'yoowii_print_late_alert'
-            : $notification->type();
+        if (str_starts_with($notification->type(), 'yoowii_print_late_alert_')) {
+            return 'yoowii_print_late_alert';
+        }
+        if (str_starts_with($notification->type(), 'yoowii_print_artwork_correction_requested_')) {
+            return 'yoowii_print_artwork_correction_requested';
+        }
+
+        return $notification->type();
     }
 }

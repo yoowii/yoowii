@@ -39,14 +39,41 @@ class PrintPreflightReport
     ) {
     }
 
-    public function id(): ?int { return $this->id; }
-    public function printAsset(): PrintAsset { return $this->printAsset; }
-    public function assetChecksum(): string { return $this->assetChecksum; }
-    public function status(): PrintPreflightStatus { return $this->status; }
+    public function id(): ?int
+    {
+        return $this->id;
+    }
+
+    public function printAsset(): PrintAsset
+    {
+        return $this->printAsset;
+    }
+
+    public function assetChecksum(): string
+    {
+        return $this->assetChecksum;
+    }
+
+    public function status(): PrintPreflightStatus
+    {
+        return $this->status;
+    }
+
     /** @return array<string, mixed> */
-    public function report(): array { return $this->report; }
-    public function analysedAt(): ?\DateTimeImmutable { return $this->analysedAt; }
-    public function createdAt(): \DateTimeImmutable { return $this->createdAt; }
+    public function report(): array
+    {
+        return $this->report;
+    }
+
+    public function analysedAt(): ?\DateTimeImmutable
+    {
+        return $this->analysedAt;
+    }
+
+    public function createdAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
 
     /** @param array<string, mixed> $report */
     public function complete(PrintPreflightStatus $status, array $report, \DateTimeImmutable $at): void

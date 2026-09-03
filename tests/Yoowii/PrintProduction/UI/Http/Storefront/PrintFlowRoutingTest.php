@@ -45,4 +45,15 @@ final class PrintFlowRoutingTest extends KernelTestCase
         self::assertInstanceOf(Router::class, $router);
         self::assertSame('/fr_FR/account/print-jobs', $router->generate('yoowii_shop_account_print_jobs', ['_locale' => 'fr_FR']));
     }
+
+    public function testPreflightCorrectionCanOnlyBeRequestedByPost(): void
+    {
+        self::bootKernel();
+        $router = self::getContainer()->get('router');
+
+        self::assertInstanceOf(Router::class, $router);
+        $route = $router->getRouteCollection()->get('yoowii_admin_print_production_request_preflight_correction');
+        self::assertSame(['POST'], $route?->getMethods());
+        self::assertSame('/admin/print-production/jobs/12/assets/34/preflight/correction', $router->generate('yoowii_admin_print_production_request_preflight_correction', ['id' => 12, 'assetId' => 34]));
+    }
 }

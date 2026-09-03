@@ -35,6 +35,7 @@ final readonly class PreflightPrintAssetHandler
 
         try {
             $stream = $this->storage->open($asset->storageKey());
+
             try {
                 $result = ($this->inspect)($asset, $stream);
             } finally {

@@ -16,3 +16,5 @@ sylius_mailer:
             template: 'email/print_production/late_alert.html.twig'
         yoowii_print_bat_rejected:
             template: 'email/print_production/bat_rejected.html.twig'
+        yoowii_print_artwork_correction_requested:
+            template: 'email/print_production/artwork_correction_requested.html.twig'

@@ -1,0 +1,8 @@
+{% block subject %}Action requise - fichier à corriger pour {{ printJob.reference }}{% endblock %}
+
+{% block body %}
+    <p>Bonjour,</p>
+    <p>Une correction est requise sur votre fichier d’impression pour la commande <strong>{{ printJob.reference }}</strong>.</p>
+    <p>Consultez le rapport technique et le message de l’équipe, puis importez un fichier corrigé depuis votre suivi.</p>
+    <p><a href="{{ printJobLink }}">Ouvrir mon dossier d’impression</a></p>
+{% endblock %}

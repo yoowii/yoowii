@@ -10,12 +10,13 @@ use App\Yoowii\PrintProduction\Application\PrintAssetStorage;
 use App\Yoowii\PrintProduction\Application\QueuePrintJobNotification;
 use App\Yoowii\PrintProduction\Application\RecordPrintJobActivity;
 use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
+use App\Yoowii\PrintProduction\Application\RequestPrintArtworkCorrection;
 use App\Yoowii\PrintProduction\Application\SchedulePrintAssetPreflight;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobActivity;
-use App\Yoowii\PrintProduction\Domain\Model\PrintJobNote;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
+use App\Yoowii\PrintProduction\Domain\Model\PrintJobNote;
 use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
@@ -322,6 +323,35 @@ final class PrintJobController extends AbstractController
         $activity($job, 'artwork_preflight_restarted', $this->actor(), ['asset_id' => $asset->id()]);
         $entityManager->flush();
         $this->addFlash('success', 'Le contrôle technique a été relancé.');
+
+        return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
+    }
+
+    #[Route('/{id}/assets/{assetId}/preflight/correction', name: 'request_preflight_correction', requirements: ['id' => '\\d+', 'assetId' => '\\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
+    public function requestPreflightCorrection(int $id, int $assetId, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RequestPrintArtworkCorrection $requestCorrection, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
+    {
+        $job = $this->job($entityManager, $id);
+        $this->assertCsrf($csrf, $request, 'print_job_preflight_correction_' . $assetId);
+        $asset = $entityManager->find(PrintAsset::class, $assetId);
+        if (!$asset instanceof PrintAsset || $asset->printJob() !== $job) {
+            throw $this->createNotFoundException();
+        }
+        $report = $entityManager->getRepository(PrintPreflightReport::class)->findOneBy(['printAsset' => $asset]);
+        if (!$report instanceof PrintPreflightReport) {
+            throw $this->createNotFoundException();
+        }
+
+        try {
+            $message = trim((string) $request->request->get('message'));
+            $requestCorrection($job, $report, $message);
+            $activity($job, 'artwork_correction_requested', $this->actor(), ['asset_id' => $asset->id(), 'preflight_status' => $report->status()->value]);
+            $notifications->customerArtworkCorrectionRequested($job);
+            $entityManager->flush();
+            $this->addFlash('success', 'La demande de correction a été envoyée au client.');
+        } catch (\DomainException|\InvalidArgumentException $exception) {
+            $this->addFlash('danger', $exception->getMessage());
+        }
 
         return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
     }
