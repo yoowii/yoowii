@@ -1,0 +1,14 @@
+parameters:
+    yoowii.realisaprint.enabled: '%env(bool:YOOWII_REALISAPRINT_ENABLED)%'
+    yoowii.realisaprint.base_url: '%env(default:yoowii.realisaprint.default_base_url:YOOWII_REALISAPRINT_BASE_URL)%'
+    yoowii.realisaprint.default_base_url: 'https://api.realisaprint.com'
+    yoowii.realisaprint.shop_id: '%env(YOOWII_REALISAPRINT_SHOP_ID)%'
+    yoowii.realisaprint.api_key: '%env(YOOWII_REALISAPRINT_API_KEY)%'
+
+services:
+    App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient:
+        arguments:
+            $shopId: '%yoowii.realisaprint.shop_id%'
+            $apiKey: '%yoowii.realisaprint.api_key%'
+            $enabled: '%yoowii.realisaprint.enabled%'
+            $baseUrl: '%yoowii.realisaprint.base_url%'

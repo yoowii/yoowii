@@ -72,6 +72,12 @@
             <div class="card mb-4"><div class="card-header"><h2 class="card-title">Notes internes</h2></div><div class="list-group list-group-flush">{% for note in notes %}<div class="list-group-item"><div class="d-flex justify-content-between gap-3"><strong>{{ note.author ?: 'Système' }}</strong><small class="text-secondary text-nowrap">{{ note.createdAt|date('d/m/Y H:i') }}</small></div><div class="mt-1" style="white-space: pre-wrap">{{ note.message }}</div></div>{% else %}<div class="list-group-item text-secondary">Aucune note interne.</div>{% endfor %}</div></div>
 
             {% if can_manage and job.status.value == 'bat_approved' %}
+                {% if job.supplierCode == 'realisaprint' %}
+                    <div class="card mb-4"><div class="card-header"><h2 class="card-title">Transmission Realisaprint</h2></div><div class="card-body">
+                        {% if supplierSubmission %}<dl class="row small mb-3"><dt class="col-5">État</dt><dd class="col-7"><code>{{ supplierSubmission.status }}</code></dd><dt class="col-5">Tentatives</dt><dd class="col-7">{{ supplierSubmission.attemptCount }}</dd>{% if supplierSubmission.lastError %}<dt class="col-5">Dernière erreur</dt><dd class="col-7 text-danger">{{ supplierSubmission.lastError }}</dd>{% endif %}</dl>{% endif %}
+                        <form method="post" action="{{ path('yoowii_admin_print_production_submit_realisaprint', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_realisaprint_submit_' ~ job.id) }}"><button class="btn btn-primary w-100" type="submit">{{ supplierSubmission ? 'Relancer la transmission' : 'Transmettre à Realisaprint' }}</button></form><div class="form-hint mt-2">En simulation, le payload est contrôlé et enregistré mais aucune commande n’est envoyée.</div>
+                    </div></div>
+                {% endif %}
                 <div class="card mb-4"><div class="card-header"><h2 class="card-title">Commande fournisseur</h2></div><div class="card-body"><form method="post" action="{{ path('yoowii_admin_print_production_register_supplier_order', {id: job.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('print_job_supplier_order_' ~ job.id) }}"><label class="form-label">Référence fournisseur</label><input class="form-control" name="supplier_order_reference" required placeholder="Ex. LABO-123456"><button class="btn btn-primary w-100 mt-3" type="submit">Passer en production</button></form></div></div>
             {% endif %}
 

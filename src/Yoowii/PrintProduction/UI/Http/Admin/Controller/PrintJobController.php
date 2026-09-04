@@ -12,11 +12,13 @@ use App\Yoowii\PrintProduction\Application\RecordPrintJobActivity;
 use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
 use App\Yoowii\PrintProduction\Application\RequestPrintArtworkCorrection;
 use App\Yoowii\PrintProduction\Application\SchedulePrintAssetPreflight;
+use App\Yoowii\PrintProduction\Application\SubmitPrintJobToRealisaprint;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobActivity;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobNote;
+use App\Yoowii\PrintProduction\Domain\Model\PrintJobSupplierSubmission;
 use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
@@ -151,9 +153,39 @@ final class PrintJobController extends AbstractController
             'notes' => $entityManager->getRepository(PrintJobNote::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'customerMessages' => $entityManager->getRepository(PrintJobCustomerMessage::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'preflightReports' => $preflightReports,
+            'supplierSubmission' => $entityManager->getRepository(PrintJobSupplierSubmission::class)->findOneBy(['printJob' => $job]),
             'transitions' => $job->availableStatusTransitions(),
             'now' => new \DateTimeImmutable(),
         ]);
+    }
+
+    #[Route('/{id}/realisaprint/submit', name: 'submit_realisaprint', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
+    public function submitToRealisaprint(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, SubmitPrintJobToRealisaprint $submit, RecordPrintJobActivity $activity, QueuePrintJobNotification $notifications): Response
+    {
+        $job = $this->job($entityManager, $id);
+        $this->assertCsrf($csrf, $request, 'print_job_realisaprint_submit_' . $id);
+
+        try {
+            $submission = $submit($job);
+            $activity($job, 'realisaprint_submission_' . $submission->status(), $this->actor(), [
+                'attempt_count' => $submission->attemptCount(),
+                'supplier_order_id' => $submission->supplierOrderId(),
+            ]);
+            if ('submitted' === $submission->status()) {
+                $notifications->customerStatusChanged($job);
+                $this->addFlash('success', 'La commande a été transmise à Realisaprint et le dossier est en production.');
+            } elseif ('simulated' === $submission->status()) {
+                $this->addFlash('info', 'Simulation Realisaprint enregistrée : aucune commande fournisseur n’a été envoyée.');
+            } else {
+                $this->addFlash('danger', 'Realisaprint n’a pas confirmé la commande. Consulte le détail de la tentative.');
+            }
+            $entityManager->flush();
+        } catch (\DomainException $exception) {
+            $this->addFlash('danger', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
     }
 
     #[Route('/{id}/assets/{assetId}', name: 'download_asset', requirements: ['id' => '\\d+', 'assetId' => '\\d+'], methods: ['GET'])]
