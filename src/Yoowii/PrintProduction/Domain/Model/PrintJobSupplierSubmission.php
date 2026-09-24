@@ -51,6 +51,7 @@ class PrintJobSupplierSubmission
     }
 
     public function id(): ?int { return $this->id; }
+    public function printJob(): PrintJob { return $this->printJob; }
     public function status(): string { return $this->status; }
     public function attemptCount(): int { return $this->attemptCount; }
     public function supplierOrderId(): ?string { return $this->supplierOrderId; }

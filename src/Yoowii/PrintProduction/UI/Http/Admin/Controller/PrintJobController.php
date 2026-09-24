@@ -13,12 +13,14 @@ use App\Yoowii\PrintProduction\Application\RegisterPrintAsset;
 use App\Yoowii\PrintProduction\Application\RequestPrintArtworkCorrection;
 use App\Yoowii\PrintProduction\Application\SchedulePrintAssetPreflight;
 use App\Yoowii\PrintProduction\Application\SubmitPrintJobToRealisaprint;
+use App\Yoowii\PrintProduction\Application\UploadPrintJobArtworkToRealisaprint;
 use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobActivity;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobNote;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobSupplierSubmission;
+use App\Yoowii\PrintProduction\Domain\Model\PrintJobSupplierFileTransfer;
 use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
@@ -146,6 +148,8 @@ final class PrintJobController extends AbstractController
             }
         }
 
+        $supplierSubmission = $entityManager->getRepository(PrintJobSupplierSubmission::class)->findOneBy(['printJob' => $job]);
+
         return $this->render('admin/print_production/show.html.twig', [
             'job' => $job,
             'assets' => $assets,
@@ -153,10 +157,26 @@ final class PrintJobController extends AbstractController
             'notes' => $entityManager->getRepository(PrintJobNote::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'customerMessages' => $entityManager->getRepository(PrintJobCustomerMessage::class)->findBy(['printJob' => $job], ['createdAt' => 'DESC']),
             'preflightReports' => $preflightReports,
-            'supplierSubmission' => $entityManager->getRepository(PrintJobSupplierSubmission::class)->findOneBy(['printJob' => $job]),
+            'supplierSubmission' => $supplierSubmission,
+            'supplierTransfers' => $supplierSubmission instanceof PrintJobSupplierSubmission ? $entityManager->getRepository(PrintJobSupplierFileTransfer::class)->findBy(['submission' => $supplierSubmission]) : [],
             'transitions' => $job->availableStatusTransitions(),
             'now' => new \DateTimeImmutable(),
         ]);
+    }
+
+    #[Route('/{id}/realisaprint/artwork', name: 'upload_realisaprint_artwork', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    #[IsGranted('ROLE_PRINT_PRODUCTION')]
+    public function uploadArtworkToRealisaprint(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, UploadPrintJobArtworkToRealisaprint $upload, RecordPrintJobActivity $activity): Response
+    {
+        $job = $this->job($entityManager, $id);
+        $this->assertCsrf($csrf, $request, 'print_job_realisaprint_artwork_' . $id);
+        try {
+            $transfer = $upload($job);
+            $activity($job, 'realisaprint_artwork_' . $transfer->status(), $this->actor(), ['remote_path' => $transfer->remotePath(), 'attempt_count' => $transfer->attemptCount()]);
+            $entityManager->flush();
+            $this->addFlash('success', 'simulated' === $transfer->status() ? 'Simulation de dépôt FTP enregistrée : aucun fichier n’a été envoyé.' : 'Le fichier a été transmis à Realisaprint.');
+        } catch (\DomainException $exception) { $this->addFlash('danger', $exception->getMessage()); }
+        return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
     }
 
     #[Route('/{id}/realisaprint/submit', name: 'submit_realisaprint', requirements: ['id' => '\\d+'], methods: ['POST'])]

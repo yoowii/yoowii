@@ -12,6 +12,11 @@ final readonly class RealisaprintClient
     {
     }
 
+    public function isEnabled(): bool
+    {
+        return $this->enabled;
+    }
+
     /** @param array<string, scalar|array<array-key, scalar>> $parameters @return array<string, mixed> */
     public function post(string $operation, array $parameters): array
     {

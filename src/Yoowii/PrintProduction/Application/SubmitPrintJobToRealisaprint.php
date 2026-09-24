@@ -10,11 +10,14 @@ use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
+use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
+use App\Yoowii\Sourcing\Domain\SupplierCapability;
+use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class SubmitPrintJobToRealisaprint
 {
-    public function __construct(private EntityManagerInterface $entityManager, private RealisaprintClient $client, private AssertArtworkPreflightIsReady $assertPreflight)
+    public function __construct(private EntityManagerInterface $entityManager, private RealisaprintClient $client, private AssertArtworkPreflightIsReady $assertPreflight, private RealisaprintConfigurationMapper $configurationMapper)
     {
     }
 
@@ -22,6 +25,13 @@ final readonly class SubmitPrintJobToRealisaprint
     {
         if ('realisaprint' !== $job->supplierCode()) {
             throw new \DomainException('This print job is not assigned to Realisaprint.');
+        }
+        $supplier = $this->entityManager->getRepository(PrintSupplier::class)->findOneBy(['code' => $job->supplierCode()]);
+        if (!$supplier instanceof PrintSupplier || !$supplier->isActive()) {
+            throw new \DomainException('The selected supplier is unavailable.');
+        }
+        if (!in_array($supplier->integrationMode(), [SupplierIntegrationMode::Api, SupplierIntegrationMode::Hybrid], true) || !$supplier->supports(SupplierCapability::OrderSubmission)) {
+            throw new \DomainException('The selected supplier is not configured for API order submission.');
         }
         if (PrintJobStatus::BatApproved !== $job->status()) {
             throw new \DomainException('A supplier order can only be transmitted after BAT approval.');
@@ -38,29 +48,45 @@ final readonly class SubmitPrintJobToRealisaprint
             return $submission;
         }
 
-        $payload = $this->payload($job, $submission);
+        $configuration = $this->configurationMapper->map($job, $now);
+        $configurationPayload = [
+            'product' => $configuration['product'],
+            'stock' => $configuration['stock'],
+            'variables' => $configuration['variables'],
+        ];
+        $orderPayload = $this->orderPayload($job);
         try {
-            $response = $this->client->post('create_order', $payload);
-            if (($response['simulation'] ?? false) === true) {
-                $submission->recordSimulation($payload, $response, $now);
+            if (!$this->client->isEnabled()) {
+                $submission->recordSimulation(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload], [
+                    'simulation' => true,
+                    'operations' => ['save_configuration', 'create_order'],
+                ], $now);
             } else {
+                $configurationResponse = $this->client->post('save_configuration', $configurationPayload);
+                $configurationCode = $configurationResponse['code'] ?? null;
+                if (!is_scalar($configurationCode) || '' === trim((string) $configurationCode)) {
+                    $submission->recordFailure(['save_configuration' => $configurationPayload], $this->error($configurationResponse, 'Realisaprint did not return a configuration code.'), $now);
+
+                    return $submission;
+                }
+                $response = $this->client->post('create_order', ['code' => (string) $configurationCode] + $orderPayload);
                 $supplierOrderId = $this->supplierOrderId($response);
                 if (null === $supplierOrderId) {
-                    $submission->recordFailure($payload, 'Realisaprint did not return a supplier order identifier.', $now);
+                    $submission->recordFailure(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload], $this->error($response, 'Realisaprint did not return a supplier order identifier.'), $now);
                 } else {
-                    $submission->recordSuccess($payload, $response, $supplierOrderId, $now);
+                    $submission->recordSuccess(['save_configuration' => $configurationPayload, 'create_order' => ['code' => (string) $configurationCode] + $orderPayload], ['save_configuration' => $configurationResponse, 'create_order' => $response], $supplierOrderId, $now);
                     $job->registerSupplierOrder($supplierOrderId, $now);
                 }
             }
         } catch (\Throwable $exception) {
-            $submission->recordFailure($payload, $exception->getMessage(), $now);
+            $submission->recordFailure(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload], $exception->getMessage(), $now);
         }
 
         return $submission;
     }
 
     /** @return array<string, scalar> */
-    private function payload(PrintJob $job, PrintJobSupplierSubmission $submission): array
+    private function orderPayload(PrintJob $job): array
     {
         $order = $job->orderItem()->getOrder();
         $address = $order?->getShippingAddress();
@@ -78,20 +104,17 @@ final readonly class SubmitPrintJobToRealisaprint
 
         return [
             'reference' => $job->reference(),
-            'idempotency_key' => $submission->idempotencyKey(),
-            'product_code' => $job->supplierProductCode(),
             'quantity' => $job->orderItem()->getQuantity(),
-            'configuration' => json_encode($job->productionSnapshot()['pricing']['configuration'] ?? [], \JSON_THROW_ON_ERROR),
-            // The file itself is transferred by FTP in lot 10.2. Keep its immutable manifest now.
-            'artwork_name' => $artwork->originalName(),
-            'artwork_checksum' => $artwork->checksum(),
-            'shipping_first_name' => $address->getFirstName(),
-            'shipping_last_name' => $address->getLastName(),
-            'shipping_company' => $address->getCompany() ?? '',
-            'shipping_street' => $address->getStreet(),
-            'shipping_postcode' => $address->getPostcode(),
-            'shipping_city' => $address->getCity(),
-            'shipping_country_code' => $address->getCountryCode(),
+            'control_file' => false,
+            'company' => $address->getCompany() ?? '',
+            'name' => $address->getLastName(),
+            'surname' => $address->getFirstName(),
+            'phone' => $address->getPhoneNumber() ?? '',
+            'email' => $order?->getCustomer()?->getEmail() ?? '',
+            'address' => $address->getStreet(),
+            'zip' => $address->getPostcode(),
+            'city' => $address->getCity(),
+            'country' => $address->getCountryCode(),
         ];
     }
 
@@ -106,5 +129,13 @@ final readonly class SubmitPrintJobToRealisaprint
         }
 
         return null;
+    }
+
+    /** @param array<string, mixed> $response */
+    private function error(array $response, string $fallback): string
+    {
+        $error = $response['error'] ?? null;
+
+        return is_string($error) && '' !== trim($error) ? $error : $fallback;
     }
 }

@@ -1,7 +1,13 @@
 parameters:
     yoowii.realisaprint.enabled: '%env(bool:YOOWII_REALISAPRINT_ENABLED)%'
     yoowii.realisaprint.base_url: '%env(default:yoowii.realisaprint.default_base_url:YOOWII_REALISAPRINT_BASE_URL)%'
-    yoowii.realisaprint.default_base_url: 'https://api.realisaprint.com'
+    yoowii.realisaprint.default_base_url: 'https://www.realisaprint.com/api'
+    yoowii.realisaprint.ftp_enabled: '%env(bool:YOOWII_REALISAPRINT_FTP_ENABLED)%'
+    yoowii.realisaprint.ftp_host: '%env(YOOWII_REALISAPRINT_FTP_HOST)%'
+    yoowii.realisaprint.ftp_port: '%env(int:YOOWII_REALISAPRINT_FTP_PORT)%'
+    yoowii.realisaprint.ftp_user: '%env(YOOWII_REALISAPRINT_FTP_USER)%'
+    yoowii.realisaprint.ftp_password: '%env(YOOWII_REALISAPRINT_FTP_PASSWORD)%'
+    yoowii.realisaprint.ftp_base_directory: '%env(YOOWII_REALISAPRINT_FTP_BASE_DIRECTORY)%'
     yoowii.realisaprint.shop_id: '%env(YOOWII_REALISAPRINT_SHOP_ID)%'
     yoowii.realisaprint.api_key: '%env(YOOWII_REALISAPRINT_API_KEY)%'
 
@@ -12,3 +18,11 @@ services:
             $apiKey: '%yoowii.realisaprint.api_key%'
             $enabled: '%yoowii.realisaprint.enabled%'
             $baseUrl: '%yoowii.realisaprint.base_url%'
+    App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintFtpTransport:
+        arguments:
+            $enabled: '%yoowii.realisaprint.ftp_enabled%'
+            $host: '%yoowii.realisaprint.ftp_host%'
+            $port: '%yoowii.realisaprint.ftp_port%'
+            $user: '%yoowii.realisaprint.ftp_user%'
+            $password: '%yoowii.realisaprint.ftp_password%'
+            $baseDirectory: '%yoowii.realisaprint.ftp_base_directory%'
