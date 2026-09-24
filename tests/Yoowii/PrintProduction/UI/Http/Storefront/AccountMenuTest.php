@@ -28,6 +28,9 @@ final class AccountMenuTest extends KernelTestCase
 
         self::assertSame(['order_history', 'yoowii_print_jobs'], array_keys($menu->getChildren()));
         self::assertSame('Mes impressions', $menu->getChild('yoowii_print_jobs')?->getLabel());
-        self::assertSame('yoowii_shop_account_print_jobs', $menu->getChild('yoowii_print_jobs')?->getExtra('routes')[0]['route'] ?? null);
+        $printJobs = $menu->getChild('yoowii_print_jobs');
+        $routes = $printJobs->getExtra('routes');
+        self::assertIsArray($routes);
+        self::assertSame('yoowii_shop_account_print_jobs', $routes[0]['route'] ?? null);
     }
 }

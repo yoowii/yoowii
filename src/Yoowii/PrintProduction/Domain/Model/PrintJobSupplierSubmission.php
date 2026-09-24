@@ -9,12 +9,12 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'yoowii_print_job_supplier_submission')]
-#[ORM\UniqueConstraint(name: 'uniq_print_supplier_submission_job', columns: ['print_job_id'])]
 class PrintJobSupplierSubmission
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (Assigned by Doctrine after persistence.) */
     private ?int $id = null;
 
     #[ORM\Column(type: Types::STRING, length: 32)]
@@ -50,23 +50,76 @@ class PrintJobSupplierSubmission
     ) {
     }
 
-    public function id(): ?int { return $this->id; }
-    public function printJob(): PrintJob { return $this->printJob; }
-    public function status(): string { return $this->status; }
-    public function attemptCount(): int { return $this->attemptCount; }
-    public function supplierOrderId(): ?string { return $this->supplierOrderId; }
-    public function idempotencyKey(): string { return $this->idempotencyKey; }
-    /** @return array<string, mixed>|null */ public function requestPayload(): ?array { return $this->requestPayload; }
-    /** @return array<string, mixed>|null */ public function responsePayload(): ?array { return $this->responsePayload; }
-    public function lastError(): ?string { return $this->lastError; }
+    public function id(): ?int
+    {
+        return $this->id;
+    }
 
-    /** @param array<string, mixed> $payload @param array<string, mixed> $response */
+    public function printJob(): PrintJob
+    {
+        return $this->printJob;
+    }
+
+    public function status(): string
+    {
+        return $this->status;
+    }
+
+    public function attemptCount(): int
+    {
+        return $this->attemptCount;
+    }
+
+    public function supplierOrderId(): ?string
+    {
+        return $this->supplierOrderId;
+    }
+
+    public function idempotencyKey(): string
+    {
+        return $this->idempotencyKey;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function requestPayload(): ?array
+    {
+        return $this->requestPayload;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function responsePayload(): ?array
+    {
+        return $this->responsePayload;
+    }
+
+    public function lastError(): ?string
+    {
+        return $this->lastError;
+    }
+
+    public function createdAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function updatedAt(): \DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $response
+     */
     public function recordSimulation(array $payload, array $response, \DateTimeImmutable $at): void
     {
         $this->record('simulated', $payload, $response, null, null, $at);
     }
 
-    /** @param array<string, mixed> $payload @param array<string, mixed> $response */
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $response
+     */
     public function recordSuccess(array $payload, array $response, string $supplierOrderId, \DateTimeImmutable $at): void
     {
         $this->record('submitted', $payload, $response, $supplierOrderId, null, $at);
@@ -78,7 +131,10 @@ class PrintJobSupplierSubmission
         $this->record('failed', $payload, null, null, mb_substr($error, 0, 4000), $at);
     }
 
-    /** @param array<string, mixed> $payload @param array<string, mixed>|null $response */
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed>|null $response
+     */
     private function record(string $status, array $payload, ?array $response, ?string $supplierOrderId, ?string $error, \DateTimeImmutable $at): void
     {
         ++$this->attemptCount;

@@ -18,20 +18,23 @@ final readonly class RealisaprintConfigurationMapper
     /** @return array{product: string, stock: string, variables: array<string, scalar>} */
     public function map(PrintJob $job, \DateTimeImmutable $at): array
     {
-        $configuration = $job->productionSnapshot()['pricing']['configuration'] ?? null;
+        $snapshot = $job->productionSnapshot();
+        $pricing = $snapshot['pricing'] ?? null;
+        $configuration = is_array($pricing) ? ($pricing['configuration'] ?? null) : null;
         $yoowiiProductCode = is_array($configuration) ? ($configuration['product_code'] ?? null) : null;
-        $options = is_array($configuration) ? ($configuration['options'] ?? null) : null;
-        if (!is_string($yoowiiProductCode) || !is_array($options)) {
+        $configurationOptions = is_array($configuration) ? ($configuration['options'] ?? null) : null;
+        if (!is_string($yoowiiProductCode) || !is_array($configurationOptions)) {
             throw new \DomainException('The production snapshot does not contain a valid print configuration.');
         }
+        /** @var array<string, mixed> $options */
+        $options = $configurationOptions;
 
         $mappings = $this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
             'yoowiiProductCode' => $yoowiiProductCode,
             'active' => true,
         ]);
         foreach ($mappings as $mapping) {
-            if (!$mapping instanceof SupplierProductMappingVersion ||
-                $mapping->supplierProduct()->supplier()->code() !== $job->supplierCode() ||
+            if ($mapping->supplierProduct()->supplier()->code() !== $job->supplierCode() ||
                 $mapping->supplierProduct()->code() !== $job->supplierProductCode() ||
                 !$mapping->isEffectiveAt($at)) {
                 continue;
@@ -42,10 +45,13 @@ final readonly class RealisaprintConfigurationMapper
             }
             $product = $provider['product'] ?? null;
             $stock = $provider['stock'] ?? null;
-            $variables = $provider['variables'] ?? null;
-            if (!is_scalar($product) || !is_scalar($stock) || !is_array($variables)) {
+            $mappingVariables = $provider['variables'] ?? null;
+            if (!is_scalar($product) || !is_scalar($stock) || !is_array($mappingVariables)) {
                 throw new \DomainException('The active Realisaprint mapping must define product, stock and variables.');
             }
+
+            /** @var array<string, mixed> $variables */
+            $variables = $mappingVariables;
 
             return ['product' => (string) $product, 'stock' => (string) $stock, 'variables' => $this->variables($variables, $options, $job)];
         }
@@ -53,16 +59,22 @@ final readonly class RealisaprintConfigurationMapper
         throw new \DomainException('No active Realisaprint configuration mapping exists for this print job.');
     }
 
-    /** @param array<string, mixed> $rules @param array<string, mixed> $options @return array<string, scalar> */
+    /**
+     * @param array<string, mixed> $rules
+     * @param array<string, mixed> $options
+     *
+     * @return array<string, bool|float|int|string>
+     */
     private function variables(array $rules, array $options, PrintJob $job): array
     {
         $variables = [];
         foreach ($rules as $variable => $rule) {
-            if (!is_string($variable) || '' === $variable) {
+            if ('' === $variable) {
                 throw new \DomainException('A Realisaprint variable identifier is invalid.');
             }
             if (is_scalar($rule)) {
                 $variables[$variable] = $rule;
+
                 continue;
             }
             if (!is_array($rule) || !isset($rule['option']) || !is_string($rule['option'])) {
@@ -70,7 +82,7 @@ final readonly class RealisaprintConfigurationMapper
             }
             $value = 'quantity' === $rule['option'] ? $job->orderItem()->getQuantity() : ($options[$rule['option']] ?? null);
             $values = $rule['values'] ?? null;
-            if (is_array($values) && null !== $value && array_key_exists((string) $value, $values)) {
+            if (is_array($values) && is_scalar($value) && array_key_exists((string) $value, $values)) {
                 $value = $values[(string) $value];
             }
             if (!is_scalar($value)) {

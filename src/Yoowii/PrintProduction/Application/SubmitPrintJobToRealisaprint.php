@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Yoowii\PrintProduction\Application;
 
+use App\Entity\Order\Order;
+use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobSupplierSubmission;
-use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
@@ -55,6 +56,7 @@ final readonly class SubmitPrintJobToRealisaprint
             'variables' => $configuration['variables'],
         ];
         $orderPayload = $this->orderPayload($job);
+
         try {
             if (!$this->client->isEnabled()) {
                 $submission->recordSimulation(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload], [
@@ -89,8 +91,7 @@ final readonly class SubmitPrintJobToRealisaprint
     private function orderPayload(PrintJob $job): array
     {
         $order = $job->orderItem()->getOrder();
-        $address = $order?->getShippingAddress();
-        if (null === $address) {
+        if (!$order instanceof Order || null === ($address = $order->getShippingAddress())) {
             throw new \DomainException('A shipping address is required before supplier transmission.');
         }
         $artwork = $this->entityManager->getRepository(PrintAsset::class)->findOneBy([
@@ -107,14 +108,14 @@ final readonly class SubmitPrintJobToRealisaprint
             'quantity' => $job->orderItem()->getQuantity(),
             'control_file' => false,
             'company' => $address->getCompany() ?? '',
-            'name' => $address->getLastName(),
-            'surname' => $address->getFirstName(),
+            'name' => $address->getLastName() ?? '',
+            'surname' => $address->getFirstName() ?? '',
             'phone' => $address->getPhoneNumber() ?? '',
-            'email' => $order?->getCustomer()?->getEmail() ?? '',
-            'address' => $address->getStreet(),
-            'zip' => $address->getPostcode(),
-            'city' => $address->getCity(),
-            'country' => $address->getCountryCode(),
+            'email' => $order->getCustomer()?->getEmail() ?? '',
+            'address' => $address->getStreet() ?? '',
+            'zip' => $address->getPostcode() ?? '',
+            'city' => $address->getCity() ?? '',
+            'country' => $address->getCountryCode() ?? '',
         ];
     }
 

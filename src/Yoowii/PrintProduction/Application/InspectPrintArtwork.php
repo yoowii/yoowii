@@ -17,7 +17,7 @@ final class InspectPrintArtwork
     }
 
     /** @param resource $stream
-     *  @return array{status: PrintPreflightStatus, report: array<string, mixed>}
+     *  @return array{status: PrintPreflightStatus, report: array{checks: list<array{code: string, severity: string, message: string}>, metadata: array<string, scalar|null>}}
      */
     public function __invoke(PrintAsset $asset, mixed $stream): array
     {
@@ -121,7 +121,7 @@ final class InspectPrintArtwork
         $checks = [];
         $metadata = ['mime_type' => $asset->mimeType(), 'size_bytes' => $asset->size()];
         $image = @getimagesize($path);
-        if (false === $image || !isset($image[0], $image[1])) {
+        if (false === $image) {
             return ['checks' => [$this->check('image_dimensions', 'error', 'Les dimensions de l’image ne peuvent pas être lues.')], 'metadata' => $metadata];
         }
         $metadata['width_px'] = (int) $image[0];
@@ -176,7 +176,10 @@ final class InspectPrintArtwork
     private function expectedDimensions(PrintAsset $asset): ?array
     {
         $snapshot = $asset->printJob()->productionSnapshot();
-        $format = $snapshot['pricing']['configuration']['options']['format'] ?? null;
+        $pricing = $snapshot['pricing'] ?? null;
+        $configuration = is_array($pricing) ? ($pricing['configuration'] ?? null) : null;
+        $options = is_array($configuration) ? ($configuration['options'] ?? null) : null;
+        $format = is_array($options) ? ($options['format'] ?? null) : null;
         if (!is_string($format)) {
             return null;
         }

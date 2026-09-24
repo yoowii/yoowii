@@ -17,7 +17,11 @@ final readonly class RealisaprintClient
         return $this->enabled;
     }
 
-    /** @param array<string, scalar|array<array-key, scalar>> $parameters @return array<string, mixed> */
+    /**
+     * @param array<string, bool|float|int|string|array<array-key, bool|float|int|string>> $parameters
+     *
+     * @return array<string, mixed>
+     */
     public function post(string $operation, array $parameters): array
     {
         if (!$this->enabled) {
@@ -34,7 +38,11 @@ final readonly class RealisaprintClient
         return is_array($decoded) ? $decoded : ['http_status' => $response->getStatusCode(), 'body' => $body];
     }
 
-    /** @param array<string, scalar|array<array-key, scalar>> $parameters @return array<string, scalar|array<array-key, scalar>> */
+    /**
+     * @param array<string, bool|float|int|string|array<array-key, bool|float|int|string>> $parameters
+     *
+     * @return array<string, bool|float|int|string|array<array-key, bool|float|int|string>>
+     */
     private function redact(array $parameters): array
     {
         unset($parameters['api_key']);

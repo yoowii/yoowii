@@ -19,8 +19,8 @@ use App\Yoowii\PrintProduction\Domain\Model\PrintJob;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobActivity;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobCustomerMessage;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobNote;
-use App\Yoowii\PrintProduction\Domain\Model\PrintJobSupplierSubmission;
 use App\Yoowii\PrintProduction\Domain\Model\PrintJobSupplierFileTransfer;
+use App\Yoowii\PrintProduction\Domain\Model\PrintJobSupplierSubmission;
 use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintJobStatus;
@@ -142,7 +142,7 @@ final class PrintJobController extends AbstractController
         $preflightReports = [];
         if ([] !== $assets) {
             foreach ($entityManager->getRepository(PrintPreflightReport::class)->findBy(['printAsset' => $assets]) as $report) {
-                if ($report instanceof PrintPreflightReport && null !== $report->printAsset()->id()) {
+                if (null !== $report->printAsset()->id()) {
                     $preflightReports[$report->printAsset()->id()] = $report;
                 }
             }
@@ -170,12 +170,16 @@ final class PrintJobController extends AbstractController
     {
         $job = $this->job($entityManager, $id);
         $this->assertCsrf($csrf, $request, 'print_job_realisaprint_artwork_' . $id);
+
         try {
             $transfer = $upload($job);
             $activity($job, 'realisaprint_artwork_' . $transfer->status(), $this->actor(), ['remote_path' => $transfer->remotePath(), 'attempt_count' => $transfer->attemptCount()]);
             $entityManager->flush();
             $this->addFlash('success', 'simulated' === $transfer->status() ? 'Simulation de dépôt FTP enregistrée : aucun fichier n’a été envoyé.' : 'Le fichier a été transmis à Realisaprint.');
-        } catch (\DomainException $exception) { $this->addFlash('danger', $exception->getMessage()); }
+        } catch (\DomainException $exception) {
+            $this->addFlash('danger', $exception->getMessage());
+        }
+
         return $this->redirectToRoute('yoowii_admin_print_production_show', ['id' => $id]);
     }
 

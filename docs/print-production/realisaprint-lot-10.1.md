@@ -33,6 +33,16 @@ YOOWII_REALISAPRINT_FTP_PASSWORD=
 
 L'URL et les paramètres définitifs doivent être validés avec l'accès revendeur avant de mettre `ENABLED=1`.
 
+## Vérification de connexion
+
+Pour un compte Realisaprint en mode test, active l'intégration dans `.env.local`, puis exécute :
+
+```bash
+docker compose run --rm php bin/console yoowii:realisaprint:check
+```
+
+Cette commande appelle uniquement `products`, une opération en lecture seule. Realisaprint limite l'API à un appel par fonction et par IP toutes les 15 secondes.
+
 ## Recette sans accès API
 
 1. Créer une commande dont le fournisseur retenu est `realisaprint`.

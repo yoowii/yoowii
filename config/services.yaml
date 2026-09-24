@@ -119,6 +119,24 @@ services:
         arguments:
             $productionAlertRecipients: '%yoowii.print_production.alert_recipients%'
 
+    # These explicit scalar arguments must be declared after the App\ resource,
+    # which otherwise replaces this definition during service discovery.
+    App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient:
+        arguments:
+            $shopId: '%yoowii.realisaprint.shop_id%'
+            $apiKey: '%yoowii.realisaprint.api_key%'
+            $enabled: '%yoowii.realisaprint.enabled%'
+            $baseUrl: '%yoowii.realisaprint.base_url%'
+
+    App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintFtpTransport:
+        arguments:
+            $enabled: '%yoowii.realisaprint.ftp_enabled%'
+            $host: '%yoowii.realisaprint.ftp_host%'
+            $port: '%yoowii.realisaprint.ftp_port%'
+            $user: '%yoowii.realisaprint.ftp_user%'
+            $password: '%yoowii.realisaprint.ftp_password%'
+            $baseDirectory: '%yoowii.realisaprint.ftp_base_directory%'
+
     App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
         alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository
 
