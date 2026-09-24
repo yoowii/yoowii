@@ -10,3 +10,5 @@ parameters:
     yoowii.realisaprint.ftp_base_directory: '%env(YOOWII_REALISAPRINT_FTP_BASE_DIRECTORY)%'
     yoowii.realisaprint.shop_id: '%env(YOOWII_REALISAPRINT_SHOP_ID)%'
     yoowii.realisaprint.api_key: '%env(YOOWII_REALISAPRINT_API_KEY)%'
+    yoowii.realisaprint.quote_enabled: '%env(bool:YOOWII_REALISAPRINT_QUOTE_ENABLED)%'
+    yoowii.realisaprint.quote_cache_ttl: '%env(int:YOOWII_REALISAPRINT_QUOTE_CACHE_TTL)%'

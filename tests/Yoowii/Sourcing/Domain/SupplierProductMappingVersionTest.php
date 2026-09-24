@@ -32,6 +32,24 @@ final class SupplierProductMappingVersionTest extends TestCase
         self::assertFalse($mapping->isEffectiveAt(new \DateTimeImmutable('2026-09-15T00:00:00+00:00')));
     }
 
+    public function testItExposesItsValidityPeriod(): void
+    {
+        $effectiveFrom = new \DateTimeImmutable('2026-09-01T00:00:00+00:00');
+        $effectiveUntil = new \DateTimeImmutable('2026-10-01T00:00:00+00:00');
+        $mapping = new SupplierProductMappingVersion(
+            self::supplierProduct(),
+            'PRINT_FLYER',
+            '2026-09-01',
+            ['format' => ['a5' => 'DIN-A5']],
+            $effectiveFrom,
+            $effectiveUntil,
+        );
+
+        self::assertNull($mapping->id());
+        self::assertSame($effectiveFrom, $mapping->effectiveFrom());
+        self::assertSame($effectiveUntil, $mapping->effectiveUntil());
+    }
+
     public function testItRejectsNonJsonMappingValues(): void
     {
         $this->expectException(\InvalidArgumentException::class);

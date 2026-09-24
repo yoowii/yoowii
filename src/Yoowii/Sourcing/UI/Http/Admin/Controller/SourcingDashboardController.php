@@ -8,6 +8,7 @@ use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
 use App\Yoowii\Sourcing\Domain\Model\SupplierPricingMatrixVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
+use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,6 +24,8 @@ final class SourcingDashboardController extends AbstractController
             'supplier_products' => $entityManager->getRepository(SupplierProduct::class)->findBy([], ['name' => 'ASC']),
             'routes' => $entityManager->getRepository(SupplierRoute::class)->findBy([], ['yoowiiProductCode' => 'ASC', 'priority' => 'ASC']),
             'matrices' => $entityManager->getRepository(SupplierPricingMatrixVersion::class)->findBy([], ['effectiveFrom' => 'DESC']),
+            'mappings' => $entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([], ['effectiveFrom' => 'DESC']),
+            'now' => new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
         ]);
     }
 }

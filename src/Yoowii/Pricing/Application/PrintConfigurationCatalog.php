@@ -6,6 +6,8 @@ namespace App\Yoowii\Pricing\Application;
 
 use App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
+use App\Yoowii\Sourcing\Domain\SupplierCapability;
+use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository;
 
@@ -14,6 +16,7 @@ final readonly class PrintConfigurationCatalog
     public function __construct(
         private SupplierRouteRepository $routeRepository,
         private SupplierPricingMatrixVersionRepository $matrixRepository,
+        private RealisaprintConfigurationMapper $realisaprintMapper,
     ) {
     }
 
@@ -34,6 +37,27 @@ final readonly class PrintConfigurationCatalog
 
         foreach ($definition->pricingAxes() as $axis) {
             $collectedOptions[$axis] = [];
+        }
+
+        foreach ($routes as $route) {
+            $supplier = $route->supplierProduct()->supplier();
+            if (
+                'realisaprint' !== $supplier->code() ||
+                !in_array($supplier->integrationMode(), [SupplierIntegrationMode::Api, SupplierIntegrationMode::Hybrid], true) ||
+                !$supplier->supports(SupplierCapability::RealtimeQuote)
+            ) {
+                continue;
+            }
+            try {
+                $apiOptions = $this->realisaprintMapper->catalogOptions($definition->productCode(), $route->supplierProduct(), $at);
+            } catch (\DomainException) {
+                continue;
+            }
+            foreach ($definition->pricingAxes() as $axis) {
+                foreach ($apiOptions[$axis] ?? [] as $value) {
+                    $collectedOptions[$axis][$this->valueKey($value)] = $value;
+                }
+            }
         }
 
         foreach ($matrices as $matrix) {

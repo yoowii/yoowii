@@ -6,6 +6,7 @@
     <div class="btn-list">
         <a href="{{ path('yoowii_admin_sourcing_preview') }}" class="btn btn-outline-primary">Prévisualiser un prix</a>
         <a href="{{ path('yoowii_admin_sourcing_matrix_import') }}" class="btn btn-primary">Importer une matrice</a>
+        <a href="{{ path('yoowii_admin_sourcing_mapping_create') }}" class="btn btn-outline-primary">Ajouter un mapping API</a>
     </div>
 {% endblock %}
 
@@ -22,6 +23,40 @@
         </div>
         <div class="col-sm-6 col-lg-3">
             <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ matrices|length }}</div><div class="text-secondary">Versions tarifaires</div></div></div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="card-title">Mappings API versionnés</h2>
+            <a href="{{ path('yoowii_admin_sourcing_mapping_create') }}" class="btn btn-sm btn-primary">Ajouter</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead><tr><th>Produit Yoowii</th><th>Fournisseur</th><th>Référence</th><th>Version</th><th>Applicable</th><th>État</th><th></th></tr></thead>
+                <tbody>
+                {% for mapping in mappings %}
+                    <tr>
+                        <td><code>{{ mapping.yoowiiProductCode }}</code></td>
+                        <td>{{ mapping.supplierProduct.supplier.name }}</td>
+                        <td><code>{{ mapping.supplierProduct.code }}</code></td>
+                        <td>{{ mapping.version }}</td>
+                        <td>{{ mapping.effectiveFrom|date('d/m/Y H:i') }}</td>
+                        <td><span class="badge {{ mapping.isEffectiveAt(now) ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ mapping.isEffectiveAt(now) ? 'Actif' : 'Inactif' }}</span></td>
+                        <td class="text-end">
+                            {% if mapping.isEffectiveAt(now) %}
+                                <form method="post" action="{{ path('yoowii_admin_sourcing_mapping_deactivate', {id: mapping.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('deactivate_mapping_' ~ mapping.id) }}">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Désactiver</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7" class="text-center text-secondary py-4">Aucun mapping API configuré.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 

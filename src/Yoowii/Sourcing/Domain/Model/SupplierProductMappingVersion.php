@@ -19,7 +19,7 @@ class SupplierProductMappingVersion
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    private ?int $id = null; // @phpstan-ignore property.unusedType, property.onlyWritten
+    private ?int $id = null; // @phpstan-ignore property.unusedType
 
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = true;
@@ -62,6 +62,11 @@ class SupplierProductMappingVersion
         return $this->supplierProduct;
     }
 
+    public function id(): ?int
+    {
+        return $this->id;
+    }
+
     public function yoowiiProductCode(): string
     {
         return $this->yoowiiProductCode;
@@ -76,6 +81,16 @@ class SupplierProductMappingVersion
     public function configurationMapping(): array
     {
         return $this->configurationMapping;
+    }
+
+    public function effectiveFrom(): \DateTimeImmutable
+    {
+        return $this->effectiveFrom;
+    }
+
+    public function effectiveUntil(): ?\DateTimeImmutable
+    {
+        return $this->effectiveUntil;
     }
 
     public function isEffectiveAt(\DateTimeImmutable $at): bool

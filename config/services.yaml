@@ -123,6 +123,7 @@ services:
     # which otherwise replaces this definition during service discovery.
     App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient:
         arguments:
+            $cache: '@cache.app'
             $shopId: '%yoowii.realisaprint.shop_id%'
             $apiKey: '%yoowii.realisaprint.api_key%'
             $enabled: '%yoowii.realisaprint.enabled%'
@@ -136,6 +137,12 @@ services:
             $user: '%yoowii.realisaprint.ftp_user%'
             $password: '%yoowii.realisaprint.ftp_password%'
             $baseDirectory: '%yoowii.realisaprint.ftp_base_directory%'
+
+    App\Yoowii\Pricing\Application\RealisaprintLiveQuoteCalculator:
+        arguments:
+            $cache: '@cache.app'
+            $cacheTtl: '%yoowii.realisaprint.quote_cache_ttl%'
+            $enabled: '%yoowii.realisaprint.quote_enabled%'
 
     App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
         alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository
