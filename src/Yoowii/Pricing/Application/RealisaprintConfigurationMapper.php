@@ -20,17 +20,30 @@ final readonly class RealisaprintConfigurationMapper
     public function map(PrintConfiguration $configuration, SupplierProduct $supplierProduct, \DateTimeImmutable $at): array
     {
         $mapping = $this->mapping($configuration->productCode(), $supplierProduct, $at);
-        $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
+
+        return $this->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
+    }
+
+    /**
+     * Maps a draft mapping without making it eligible for live orders.
+     *
+     * @param array<string, mixed> $configurationMapping
+     *
+     * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string}
+     */
+    public function mapMapping(PrintConfiguration $configuration, array $configurationMapping, string $version): array
+    {
+        $provider = $configurationMapping['realisaprint'] ?? null;
 
         if (!is_array($provider)) {
-            throw new \DomainException('The active supplier mapping does not contain a Realisaprint configuration.');
+            throw new \DomainException('The Realisaprint mapping does not contain a configuration.');
         }
 
         $product = $provider['product'] ?? null;
         $stock = $provider['stock'] ?? null;
         $rules = $provider['variables'] ?? null;
         if (!is_scalar($product) || !is_scalar($stock) || !is_array($rules)) {
-            throw new \DomainException('The active Realisaprint mapping must define product, stock and variables.');
+            throw new \DomainException('The Realisaprint mapping must define product, stock and variables.');
         }
 
         /** @var array<string, mixed> $typedRules */
@@ -39,7 +52,7 @@ final readonly class RealisaprintConfigurationMapper
         $payload = ['product' => (string) $product, 'stock' => (string) $stock, 'variables' => $variables];
 
         return $payload + [
-            'version' => $mapping->version(),
+            'version' => $version,
             'fingerprint' => hash('sha256', json_encode($payload, \JSON_THROW_ON_ERROR)),
         ];
     }

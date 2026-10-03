@@ -45,6 +45,9 @@
                         <td>{{ mapping.effectiveFrom|date('d/m/Y H:i') }}</td>
                         <td><span class="badge {{ mapping.isEffectiveAt(now) ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ mapping.isEffectiveAt(now) ? 'Actif' : 'Inactif' }}</span></td>
                         <td class="text-end">
+                            {% if mapping.supplierProduct.supplier.code == 'realisaprint' %}
+                                <a href="{{ path('yoowii_admin_realisaprint_mapping_validation', {id: mapping.id}) }}" class="btn btn-sm btn-outline-primary">Valider / publier</a>
+                            {% endif %}
                             {% if mapping.isEffectiveAt(now) %}
                                 <form method="post" action="{{ path('yoowii_admin_sourcing_mapping_deactivate', {id: mapping.id}) }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('deactivate_mapping_' ~ mapping.id) }}">
@@ -132,6 +135,9 @@
                         <td>{{ route.effectiveFrom|date('d/m/Y H:i') }} → {{ route.effectiveUntil ? route.effectiveUntil|date('d/m/Y H:i') : 'sans fin' }}</td>
                         <td><span class="badge {{ route.active ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ route.active ? 'Active' : 'Inactive' }}</span></td>
                         <td class="text-end">
+                            {% if route.supplierProduct.supplier.code == 'realisaprint' %}
+                                <a href="{{ path('yoowii_admin_realisaprint_mapping', {routeId: route.id}) }}" class="btn btn-sm btn-outline-primary">Mapping</a>
+                            {% endif %}
                             <form method="post" action="{{ path('yoowii_admin_sourcing_route_toggle', {id: route.id}) }}">
                                 <input type="hidden" name="_token" value="{{ csrf_token('toggle_route_' ~ route.id) }}">
                                 <button class="btn btn-sm btn-outline-secondary" type="submit">{{ route.active ? 'Désactiver' : 'Activer' }}</button>

@@ -1,0 +1,7 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+{% set page_title = 'Mapping visuel Realisaprint — ' ~ route.yoowiiProductCode %}
+{% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_sourcing_dashboard') }}">Retour sourcing</a>{% endblock %}
+{% block sourcing_content %}
+<div class="alert alert-info">Chaque ligne relie une option canonique Yoowii à une variable Realisaprint. La version créée est inactive : elle ne peut ni coter ni rendre le produit visible.</div>
+<div class="row row-cards"><div class="col-lg-8"><div class="card"><div class="card-body">{{ form_start(form) }}{{ form_widget(form) }}<button class="btn btn-primary mt-3">Enregistrer le mapping brouillon</button>{{ form_end(form) }}</div></div></div><div class="col-lg-4"><div class="card"><div class="card-header"><h2 class="card-title">Référence fournisseur</h2></div><div class="card-body"><p><code>{{ route.supplierProduct.code }}</code></p><p class="text-secondary mb-0">Les stocks, variables et valeurs API restent visibles ci-dessous : aucune donnée fournisseur n’est écrasée.</p></div></div>{% if catalog_product and catalog_product.configuration %}<div class="card mt-3"><div class="card-header"><h2 class="card-title">Configuration API lue</h2></div><div class="card-body"><pre class="small mb-0">{{ catalog_product.configuration|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre></div></div>{% endif %}</div></div>
+{% endblock %}

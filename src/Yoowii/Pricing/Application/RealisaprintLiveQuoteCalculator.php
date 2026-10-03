@@ -75,6 +75,36 @@ final readonly class RealisaprintLiveQuoteCalculator
 
             throw new RealisaprintQuoteException($reason, 'The active Realisaprint mapping cannot resolve this configuration.');
         }
+
+        return $this->quoteMapped($route, $configuration, $pricingPolicy, $currencyCode, $at, $correlationId, $mapped);
+    }
+
+    /**
+     * Quotes an inactive mapping during controlled publication. It never changes its eligibility.
+     *
+     * @param array<string, mixed> $mapping
+     */
+    public function quoteDraftMapping(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, array $mapping, string $version): PrintQuote
+    {
+        if (!$this->supports($route)) {
+            throw new RealisaprintQuoteException(QuoteFallbackReason::SupplierNotEligible, 'The Realisaprint supplier is not eligible for a live quote.');
+        }
+        if ('EUR' !== $currencyCode) {
+            throw new RealisaprintQuoteException(QuoteFallbackReason::SupplierNotEligible, 'Realisaprint quotation is only available in EUR.');
+        }
+
+        try {
+            $mapped = $this->configurationMapper->mapMapping($configuration, $mapping, $version);
+        } catch (\DomainException $exception) {
+            throw new RealisaprintQuoteException(QuoteFallbackReason::MappingIncompatible, 'The draft Realisaprint mapping cannot resolve this configuration.');
+        }
+
+        return $this->quoteMapped($route, $configuration, $pricingPolicy, $currencyCode, $at, bin2hex(random_bytes(16)), $mapped);
+    }
+
+    /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped */
+    private function quoteMapped(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, string $correlationId, array $mapped): PrintQuote
+    {
         $key = 'yoowii.realisaprint.quote.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version'], $currencyCode]));
         $cacheMiss = false;
 

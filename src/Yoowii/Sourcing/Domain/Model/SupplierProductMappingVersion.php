@@ -105,6 +105,11 @@ class SupplierProductMappingVersion
         $this->active = false;
     }
 
+    public function activate(): void
+    {
+        $this->active = true;
+    }
+
     /** @param array<array-key, mixed> $value */
     private static function assertJsonCompatible(array $value, string $path): void
     {

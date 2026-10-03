@@ -1,0 +1,7 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+{% set page_title = 'Créer un brouillon Yoowii — ' ~ catalog_product.name %}
+{% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog_product.id}) }}">Retour au produit fournisseur</a>{% endblock %}
+{% block sourcing_content %}
+<div class="alert alert-warning">Ce parcours crée un produit Sylius, sa variante par défaut, sa définition de configurateur et une route Realisaprint tous désactivés. Il ne publie aucun prix, mapping ni produit en vitrine.</div>
+<div class="card"><div class="card-body">{{ form_start(form) }}{{ form_widget(form) }}<button class="btn btn-primary mt-3">Créer le brouillon désactivé</button>{{ form_end(form) }}</div></div>
+{% endblock %}
