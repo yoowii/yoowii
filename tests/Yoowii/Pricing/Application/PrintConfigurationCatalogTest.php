@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Yoowii\Pricing\Application;
 
 use App\Yoowii\Pricing\Application\PrintConfigurationCatalog;
+use App\Yoowii\Pricing\Application\RealisaprintConfigurationMapper;
 use App\Yoowii\Pricing\Domain\Print\Definition\BuiltInPrintProductDefinitions;
 use App\Yoowii\Sourcing\Application\Import\PrintPricingMatrixCsvImporter;
 use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
@@ -14,6 +15,7 @@ use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository;
 use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 
 final class PrintConfigurationCatalogTest extends TestCase
@@ -70,6 +72,7 @@ CSV,
                     return $this->matrices;
                 }
             },
+            new RealisaprintConfigurationMapper($this->createMock(EntityManagerInterface::class)),
         );
 
         $options = $catalog->availableOptions(

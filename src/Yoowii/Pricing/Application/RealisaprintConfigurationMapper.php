@@ -40,7 +40,7 @@ final readonly class RealisaprintConfigurationMapper
 
         return $payload + [
             'version' => $mapping->version(),
-            'fingerprint' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR)),
+            'fingerprint' => hash('sha256', json_encode($payload, \JSON_THROW_ON_ERROR)),
         ];
     }
 
@@ -95,12 +95,17 @@ final readonly class RealisaprintConfigurationMapper
         throw new \DomainException('No active Realisaprint configuration mapping exists for this supplier product.');
     }
 
-    /** @param array<string, mixed> $rules @param array<string, string|int> $options @return array<string, bool|float|int|string> */
+    /**
+     * @param array<string, mixed>      $rules
+     * @param array<string, string|int> $options
+     *
+     * @return array<string, bool|float|int|string>
+     */
     private function variables(array $rules, array $options): array
     {
         $variables = [];
         foreach ($rules as $variable => $rule) {
-            if (!is_string($variable) || '' === $variable) {
+            if ('' === $variable) {
                 throw new \DomainException('A Realisaprint variable identifier is invalid.');
             }
             if (is_scalar($rule)) {

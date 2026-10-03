@@ -11,8 +11,8 @@ use App\Yoowii\Pricing\Domain\Print\PrintQuote;
 use App\Yoowii\Pricing\Domain\Quote\QuoteFallbackReason;
 use App\Yoowii\Pricing\Domain\Quote\QuoteSource;
 use App\Yoowii\Pricing\Domain\Quote\QuoteTrace;
-use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use App\Yoowii\Sourcing\Domain\FixedSupplierRouter;
+use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository;
 use Psr\Log\LoggerInterface;
@@ -57,16 +57,19 @@ final readonly class PrintQuoteService
             if (null !== $reason) {
                 $fallbackReason = $reason;
                 $safeDetail = 'Realisaprint real-time quotation is unavailable for this route.';
+
                 break;
             }
             if (!$this->realisaprintCalculator->supports($route)) {
                 continue;
             }
+
             try {
                 return $this->realisaprintCalculator->quote($route, $configuration, $pricingPolicy, $currencyCode, $calculatedAt, $correlationId);
             } catch (RealisaprintQuoteException $exception) {
                 $fallbackReason = $exception->reason();
                 $safeDetail = $exception->safeDetail();
+
                 break;
             }
         }

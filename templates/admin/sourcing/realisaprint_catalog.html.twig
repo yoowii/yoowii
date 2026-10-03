@@ -1,0 +1,11 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+{% set page_title = 'Catalogue Realisaprint' %}
+{% block sourcing_actions %}
+<form method="post" action="{{ path('yoowii_admin_realisaprint_catalog_synchronize') }}"><input type="hidden" name="_token" value="{{ csrf_token('realisaprint_catalog_sync') }}"><button class="btn btn-primary">Synchroniser les produits</button></form>
+{% endblock %}
+{% block sourcing_content %}
+<div class="alert alert-info">Catalogue fournisseur en lecture seule. La synchronisation n’active ni produit Yoowii, ni route, ni mapping.</div>
+<div class="card"><div class="table-responsive"><table class="table card-table table-vcenter"><thead><tr><th>Identifiant API</th><th>Produit Realisaprint</th><th>Configuration</th><th>Vu le</th><th></th></tr></thead><tbody>
+{% for product in products %}<tr class="{{ product.archived ? 'text-secondary' }}"><td><code>{{ product.providerProductId }}</code></td><td>{{ product.name }}</td><td>{{ product.configurationSyncedAt ? product.configurationSyncedAt|date('d/m/Y H:i') : 'Non chargée' }}</td><td>{{ product.lastSeenAt|date('d/m/Y H:i') }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: product.id}) }}">Consulter</a></td></tr>{% else %}<tr><td colspan="5" class="text-center text-secondary py-4">Aucun catalogue local. Lance la synchronisation.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

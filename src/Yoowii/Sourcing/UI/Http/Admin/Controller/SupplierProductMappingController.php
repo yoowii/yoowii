@@ -28,10 +28,12 @@ final class SupplierProductMappingController extends AbstractController
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             try {
-                $mapping = json_decode($data->configurationMapping, true, 512, JSON_THROW_ON_ERROR);
+                $mapping = json_decode($data->configurationMapping, true, 512, \JSON_THROW_ON_ERROR);
                 if (!is_array($mapping)) {
                     throw new \InvalidArgumentException('Le mapping JSON doit être un objet.');
                 }
+                /** @var array<string, mixed> $mapping */
+                $mapping = $mapping;
                 $entityManager->persist(new SupplierProductMappingVersion(
                     $data->supplierProduct ?? throw new \LogicException('Missing supplier product.'),
                     $data->yoowiiProductCode,

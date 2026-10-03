@@ -34,8 +34,10 @@ final class PricingSnapshotTest extends TestCase
         );
 
         $payload = $snapshot->toArray();
-        self::assertSame('realisaprint_api', $payload['quote_trace']['source']);
-        self::assertArrayNotHasKey('api_key', $payload['quote_trace']);
+        $quoteTrace = $payload['quote_trace'] ?? null;
+        self::assertIsArray($quoteTrace);
+        self::assertSame('realisaprint_api', $quoteTrace['source']);
+        self::assertArrayNotHasKey('api_key', $quoteTrace);
         self::assertSame('correlation-123', PricingSnapshot::fromArray($payload)->quoteTrace()?->correlationId());
     }
 

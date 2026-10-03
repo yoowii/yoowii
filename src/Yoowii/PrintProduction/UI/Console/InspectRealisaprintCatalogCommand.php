@@ -32,6 +32,7 @@ final class InspectRealisaprintCatalogCommand extends Command
             return Command::FAILURE;
         }
         $product = $input->getArgument('product');
+
         try {
             $response = $this->client->post(is_string($product) && '' !== $product ? 'configurations' : 'products', is_string($product) && '' !== $product ? ['product' => $product] : []);
         } catch (\Throwable $exception) {
@@ -39,7 +40,7 @@ final class InspectRealisaprintCatalogCommand extends Command
 
             return Command::FAILURE;
         }
-        $output->writeln(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $output->writeln(json_encode($response, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR));
 
         return Command::SUCCESS;
     }

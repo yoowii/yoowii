@@ -37,11 +37,12 @@ final class DiagnoseRealisaprintQuoteCommand extends Command
             if (!is_string($options) || !is_string($productCode)) {
                 throw new \InvalidArgumentException('Product code and options are required.');
             }
-            $decoded = json_decode($options, true, 512, JSON_THROW_ON_ERROR);
+            $decoded = json_decode($options, true, 512, \JSON_THROW_ON_ERROR);
             if (!is_array($decoded) || array_is_list($decoded)) {
                 throw new \InvalidArgumentException('Options must be a JSON object.');
             }
             /** @var array<string, mixed> $decoded */
+            $decoded = $decoded;
             $definition = $this->definitions->get($productCode);
             $configuration = $definition->configure($decoded);
             if ((bool) $input->getOption('no-network')) {

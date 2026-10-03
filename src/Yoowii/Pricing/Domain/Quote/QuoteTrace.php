@@ -34,10 +34,25 @@ final readonly class QuoteTrace
         }
     }
 
-    public function source(): QuoteSource { return $this->source; }
-    public function fallbackReason(): ?QuoteFallbackReason { return $this->fallbackReason; }
-    public function correlationId(): string { return $this->correlationId; }
-    public function technicalDetail(): ?string { return $this->technicalDetail; }
+    public function source(): QuoteSource
+    {
+        return $this->source;
+    }
+
+    public function fallbackReason(): ?QuoteFallbackReason
+    {
+        return $this->fallbackReason;
+    }
+
+    public function correlationId(): string
+    {
+        return $this->correlationId;
+    }
+
+    public function technicalDetail(): ?string
+    {
+        return $this->technicalDetail;
+    }
 
     /** @return array<string, string|null> */
     public function toArray(): array
@@ -64,6 +79,7 @@ final readonly class QuoteTrace
         if (null === $source || false === $at || !is_string($data['supplier_code'] ?? null) || !is_string($data['supplier_product_code'] ?? null) || !is_string($data['correlation_id'] ?? null)) {
             throw new \InvalidArgumentException('The quote trace payload is malformed.');
         }
+
         return new self($source, $data['supplier_code'], $data['supplier_product_code'], is_string($data['mapping_version'] ?? null) ? $data['mapping_version'] : null, is_string($data['provider_configuration_code'] ?? null) ? $data['provider_configuration_code'] : null, $data['correlation_id'], $at, $reason, is_string($data['technical_detail'] ?? null) ? $data['technical_detail'] : null);
     }
 }

@@ -13,6 +13,13 @@ final class RealisaprintQuoteException extends \RuntimeException
         parent::__construct($safeDetail);
     }
 
-    public function reason(): QuoteFallbackReason { return $this->reason; }
-    public function safeDetail(): string { return $this->safeDetail; }
+    public function reason(): QuoteFallbackReason
+    {
+        return $this->reason;
+    }
+
+    public function safeDetail(): string
+    {
+        return $this->safeDetail;
+    }
 }

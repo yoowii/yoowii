@@ -83,7 +83,8 @@ final readonly class PricingSnapshot
      *     price_breakdown: array<string, int>,
      *     unit_price: int,
      *     currency_code: string,
-     *     calculated_at: string
+     *     calculated_at: string,
+     *     quote_trace?: array<string, string|null>
      * }
      */
     public function toArray(): array
@@ -145,9 +146,8 @@ final readonly class PricingSnapshot
         if (null !== $quoteTrace && !is_array($quoteTrace)) {
             throw new \InvalidArgumentException('The pricing snapshot quote trace is malformed.');
         }
-        if (is_array($quoteTrace)) {
-            /** @var array<string, mixed> $quoteTrace */
-        }
+        /** @var array<string, mixed>|null $quoteTrace */
+        $quoteTrace = $quoteTrace;
 
         return new self(
             $calculator,

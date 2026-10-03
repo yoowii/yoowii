@@ -6,10 +6,10 @@ namespace App\Yoowii\Pricing\Application;
 
 use App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
-use App\Yoowii\Sourcing\Domain\SupplierCapability;
-use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository;
 use App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository;
+use App\Yoowii\Sourcing\Domain\SupplierCapability;
+use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
 
 final readonly class PrintConfigurationCatalog
 {
@@ -48,6 +48,7 @@ final readonly class PrintConfigurationCatalog
             ) {
                 continue;
             }
+
             try {
                 $apiOptions = $this->realisaprintMapper->catalogOptions($definition->productCode(), $route->supplierProduct(), $at);
             } catch (\DomainException) {
