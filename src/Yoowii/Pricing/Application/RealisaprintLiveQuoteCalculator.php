@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Yoowii\Pricing\Application;
 
 use App\Yoowii\Pricing\Domain\PricingSnapshot;
+use App\Yoowii\Pricing\Domain\Quote\QuoteFallbackReason;
+use App\Yoowii\Pricing\Domain\Quote\QuoteSource;
+use App\Yoowii\Pricing\Domain\Quote\QuoteTrace;
 use App\Yoowii\Pricing\Domain\Print\PrintConfiguration;
 use App\Yoowii\Pricing\Domain\Print\PrintPricingPolicy;
 use App\Yoowii\Pricing\Domain\Print\PrintQuote;
@@ -39,14 +42,42 @@ final readonly class RealisaprintLiveQuoteCalculator
             $supplier->supports(SupplierCapability::RealtimeQuote);
     }
 
-    public function quote(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at): PrintQuote
+    public function fallbackReason(SupplierRoute $route): ?QuoteFallbackReason
     {
-        if ('EUR' !== $currencyCode) {
-            throw new \DomainException('Realisaprint API quotation is only available in EUR.');
+        $supplier = $route->supplierProduct()->supplier();
+        if ('realisaprint' !== $supplier->code()) {
+            return null;
         }
-        $mapped = $this->configurationMapper->map($configuration, $route->supplierProduct(), $at);
+        if (!$this->enabled) {
+            return QuoteFallbackReason::QuoteDisabled;
+        }
+        if (!$this->client->isEnabled()) {
+            return QuoteFallbackReason::RealisaprintDisabled;
+        }
+        if (!in_array($supplier->integrationMode(), [SupplierIntegrationMode::Api, SupplierIntegrationMode::Hybrid], true) || !$supplier->supports(SupplierCapability::RealtimeQuote)) {
+            return QuoteFallbackReason::SupplierNotEligible;
+        }
+
+        return null;
+    }
+
+    public function quote(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, ?string $correlationId = null): PrintQuote
+    {
+        $correlationId ??= bin2hex(random_bytes(16));
+        if ('EUR' !== $currencyCode) {
+            throw new RealisaprintQuoteException(QuoteFallbackReason::SupplierNotEligible, 'Realisaprint quotation is only available in EUR.');
+        }
+        try {
+            $mapped = $this->configurationMapper->map($configuration, $route->supplierProduct(), $at);
+        } catch (\DomainException $exception) {
+            $reason = str_contains($exception->getMessage(), 'No active') ? QuoteFallbackReason::MappingMissing : QuoteFallbackReason::MappingIncompatible;
+            throw new RealisaprintQuoteException($reason, 'The active Realisaprint mapping cannot resolve this configuration.');
+        }
         $key = 'yoowii.realisaprint.quote.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version'], $currencyCode]));
-        $response = $this->cache->get($key, function (ItemInterface $item) use ($mapped): array {
+        $cacheMiss = false;
+        try {
+            $response = $this->cache->get($key, function (ItemInterface $item) use ($mapped, &$cacheMiss): array {
+            $cacheMiss = true;
             $item->expiresAfter($this->cacheTtl);
             $saved = $this->client->post('save_configuration', [
                 'product' => $mapped['product'],
@@ -55,26 +86,39 @@ final readonly class RealisaprintLiveQuoteCalculator
             ]);
             $code = $saved['code'] ?? null;
             if (!is_scalar($code) || '' === trim((string) $code)) {
-                throw new \DomainException($this->error($saved, 'Realisaprint did not return a configuration code.'));
+                throw new RealisaprintQuoteException(QuoteFallbackReason::ApiRejectedConfiguration, 'Realisaprint did not return a configuration code.');
             }
             $price = $this->client->post('get_price', ['code' => (string) $code, 'quantity' => 1, 'country' => 'FR']);
             if (isset($price['error'])) {
-                throw new \DomainException($this->error($price, 'Realisaprint did not return a price.'));
+                throw new RealisaprintQuoteException(QuoteFallbackReason::ApiPriceMissing, 'Realisaprint did not return a price.');
             }
 
             return ['configuration' => $saved, 'price' => $price];
-        });
-
-        $priceResponse = $response['price'] ?? null;
-        if (!is_array($priceResponse)) {
-            throw new \DomainException('Realisaprint returned a malformed price response.');
+            });
+        } catch (\Throwable $exception) {
+            if ($exception instanceof RealisaprintQuoteException) {
+                throw $exception;
+            }
+            $message = strtolower($exception->getMessage());
+            $reason = str_contains($message, 'rate limit') ? QuoteFallbackReason::RateLimited : (str_contains($message, 'timeout') ? QuoteFallbackReason::ApiTimeout : QuoteFallbackReason::ApiTransportError);
+            throw new RealisaprintQuoteException($reason, 'Realisaprint API transport failed.');
         }
-        $productionCost = $this->cents($priceResponse['price'] ?? null, 'price');
+
+        $priceResponse = $response['price'];
+        try {
+            $productionCost = $this->cents($priceResponse['price'] ?? null, 'price');
         $optionsCost = 0;
-        foreach (($priceResponse['options'] ?? []) as $option) {
+            $options = $priceResponse['options'] ?? [];
+            if (!is_array($options)) {
+                throw new \DomainException('Invalid options.');
+            }
+            foreach ($options as $option) {
             if (is_array($option) && array_key_exists('price', $option)) {
                 $optionsCost += $this->cents($option['price'], 'option price');
             }
+            }
+        } catch (\DomainException) {
+            throw new RealisaprintQuoteException(QuoteFallbackReason::ApiResponseInvalid, 'Realisaprint returned an invalid price response.');
         }
         $supplierCost = $productionCost + $optionsCost;
         $margin = $pricingPolicy->calculateMargin($supplierCost);
@@ -87,7 +131,7 @@ final readonly class RealisaprintLiveQuoteCalculator
                 'supplier_product_code' => $route->supplierProduct()->code(),
                 'mapping_version' => $mapped['version'],
                 'configuration_fingerprint' => $mapped['fingerprint'],
-                'provider_configuration_code' => (string) (($response['configuration']['code'] ?? '')),
+                'provider_configuration_code' => is_scalar($response['configuration']['code'] ?? null) ? (string) $response['configuration']['code'] : '',
                 'provider_price' => $productionCost,
                 'provider_options_cost' => $optionsCost,
                 'quote_cache_ttl' => $this->cacheTtl,
@@ -96,6 +140,7 @@ final readonly class RealisaprintLiveQuoteCalculator
             $total,
             $currencyCode,
             $at,
+            new QuoteTrace($cacheMiss ? QuoteSource::RealisaprintApi : QuoteSource::RealisaprintCache, $route->supplierProduct()->supplier()->code(), $route->supplierProduct()->code(), $mapped['version'], is_scalar($response['configuration']['code'] ?? null) ? (string) $response['configuration']['code'] : null, $correlationId, $at),
         );
 
         return new PrintQuote($snapshot, 'realisaprint', $route->supplierProduct()->code(), 'api:' . $mapped['version'], $mapped['fingerprint'], $productionCost, $optionsCost, $margin, $pricingPolicy->handlingFee());
@@ -114,9 +159,4 @@ final readonly class RealisaprintLiveQuoteCalculator
         return (int) round(((float) $normalized) * 100, 0, PHP_ROUND_HALF_UP);
     }
 
-    /** @param array<string, mixed> $response */
-    private function error(array $response, string $fallback): string
-    {
-        return is_string($response['error'] ?? null) && '' !== trim($response['error']) ? $response['error'] : $fallback;
-    }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Pricing\Domain;
 
+use App\Yoowii\Pricing\Domain\Quote\QuoteTrace;
+
 final readonly class PricingSnapshot
 {
     public const SCHEMA_VERSION = 1;
@@ -20,6 +22,7 @@ final readonly class PricingSnapshot
         private int $unitPrice,
         private string $currencyCode,
         private \DateTimeImmutable $calculatedAt,
+        private ?QuoteTrace $quoteTrace = null,
     ) {
         if ('' === trim($this->calculator)) {
             throw new \InvalidArgumentException('The calculator code must not be empty.');
@@ -60,6 +63,11 @@ final readonly class PricingSnapshot
         return $this->currencyCode;
     }
 
+    public function quoteTrace(): ?QuoteTrace
+    {
+        return $this->quoteTrace;
+    }
+
     /** @return array<string, mixed> */
     public function configuration(): array
     {
@@ -80,7 +88,7 @@ final readonly class PricingSnapshot
      */
     public function toArray(): array
     {
-        return [
+        $snapshot = [
             'schema_version' => self::SCHEMA_VERSION,
             'calculator' => $this->calculator,
             'pricing_version' => $this->pricingVersion,
@@ -90,6 +98,11 @@ final readonly class PricingSnapshot
             'currency_code' => $this->currencyCode,
             'calculated_at' => $this->calculatedAt->format(\DateTimeInterface::ATOM),
         ];
+        if (null !== $this->quoteTrace) {
+            $snapshot['quote_trace'] = $this->quoteTrace->toArray();
+        }
+
+        return $snapshot;
     }
 
     /** @param array<string, mixed> $data */
@@ -106,6 +119,7 @@ final readonly class PricingSnapshot
         $unitPrice = $data['unit_price'] ?? null;
         $currencyCode = $data['currency_code'] ?? null;
         $calculatedAt = $data['calculated_at'] ?? null;
+        $quoteTrace = $data['quote_trace'] ?? null;
 
         if (
             !is_string($calculator) ||
@@ -128,6 +142,13 @@ final readonly class PricingSnapshot
             throw new \InvalidArgumentException('The pricing snapshot calculation date is invalid.');
         }
 
+        if (null !== $quoteTrace && !is_array($quoteTrace)) {
+            throw new \InvalidArgumentException('The pricing snapshot quote trace is malformed.');
+        }
+        if (is_array($quoteTrace)) {
+            /** @var array<string, mixed> $quoteTrace */
+        }
+
         return new self(
             $calculator,
             $pricingVersion,
@@ -136,6 +157,7 @@ final readonly class PricingSnapshot
             $unitPrice,
             $currencyCode,
             $calculatedAtDate,
+            is_array($quoteTrace) ? QuoteTrace::fromArray($quoteTrace) : null,
         );
     }
 

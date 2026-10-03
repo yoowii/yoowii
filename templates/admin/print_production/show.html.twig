@@ -26,6 +26,19 @@
 
             {% if job.statusReason %}<div class="alert alert-warning mb-4"><strong>Motif opérationnel :</strong> {{ job.statusReason }}</div>{% endif %}
 
+            {% set quote_trace = job.productionSnapshot.pricing.quote_trace|default(null) %}
+            {% if quote_trace %}
+                <div class="card mb-4"><div class="card-header"><h2 class="card-title">Source de cotation</h2></div><div class="card-body"><dl class="row mb-0">
+                    <dt class="col-sm-4">Statut</dt><dd class="col-sm-8"><span class="badge {{ quote_trace.source == 'matrix_fallback' ? 'bg-warning-lt' : 'bg-success-lt' }}">{{ quote_trace.source == 'realisaprint_api' ? 'API Realisaprint' : (quote_trace.source == 'realisaprint_cache' ? 'Cache API Realisaprint' : 'Matrice de secours') }}</span></dd>
+                    <dt class="col-sm-4">Fournisseur</dt><dd class="col-sm-8"><code>{{ quote_trace.supplier_code }}</code> — <code>{{ quote_trace.supplier_product_code }}</code></dd>
+                    <dt class="col-sm-4">Mapping</dt><dd class="col-sm-8">{{ quote_trace.mapping_version|default('—') }}</dd>
+                    <dt class="col-sm-4">Calculée le</dt><dd class="col-sm-8">{{ quote_trace.calculated_at|date('d/m/Y H:i') }}</dd>
+                    {% if quote_trace.fallback_reason %}<dt class="col-sm-4">Raison du secours</dt><dd class="col-sm-8"><code>{{ quote_trace.fallback_reason }}</code></dd>{% endif %}
+                    {% if can_manage %}<dt class="col-sm-4">Corrélation</dt><dd class="col-sm-8"><code>{{ quote_trace.correlation_id }}</code></dd>{% endif %}
+                    {% if can_manage and quote_trace.technical_detail %}<dt class="col-sm-4">Détail technique</dt><dd class="col-sm-8 small text-secondary">{{ quote_trace.technical_detail }}</dd>{% endif %}
+                </dl></div></div>
+            {% endif %}
+
             <div class="card mb-4">
                 <div class="card-header"><h2 class="card-title">Fichiers</h2></div>
                 <div class="table-responsive"><table class="table table-vcenter card-table">

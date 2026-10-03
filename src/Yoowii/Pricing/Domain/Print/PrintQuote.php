@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Pricing\Domain\Print;
 
 use App\Yoowii\Pricing\Domain\PricingSnapshot;
+use App\Yoowii\Pricing\Domain\Quote\QuoteTrace;
 
 final readonly class PrintQuote
 {
@@ -69,5 +70,13 @@ final readonly class PrintQuote
     public function handlingFee(): int
     {
         return $this->handlingFee;
+    }
+
+    public function withQuoteTrace(QuoteTrace $trace): self
+    {
+        $snapshot = $this->pricingSnapshot->toArray();
+        $snapshot['quote_trace'] = $trace->toArray();
+
+        return new self(PricingSnapshot::fromArray($snapshot), $this->supplierCode, $this->supplierProductCode, $this->matrixVersion, $this->matrixChecksum, $this->productionCost, $this->shippingCost, $this->margin, $this->handlingFee);
     }
 }

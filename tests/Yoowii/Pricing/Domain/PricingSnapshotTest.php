@@ -5,10 +5,46 @@ declare(strict_types=1);
 namespace App\Tests\Yoowii\Pricing\Domain;
 
 use App\Yoowii\Pricing\Domain\PricingSnapshot;
+use App\Yoowii\Pricing\Domain\Quote\QuoteSource;
+use App\Yoowii\Pricing\Domain\Quote\QuoteTrace;
 use PHPUnit\Framework\TestCase;
 
 final class PricingSnapshotTest extends TestCase
 {
+    public function testItKeepsLegacySnapshotsCompatibleWhenNoQuoteTraceExists(): void
+    {
+        $snapshot = self::createSnapshot();
+        $payload = $snapshot->toArray();
+
+        self::assertArrayNotHasKey('quote_trace', $payload);
+        self::assertNull(PricingSnapshot::fromArray($payload)->quoteTrace());
+    }
+
+    public function testItPersistsASecretFreeQuoteTrace(): void
+    {
+        $snapshot = new PricingSnapshot(
+            'print.realisaprint_api',
+            'v1@mapping-v2',
+            ['product_code' => 'PRINT_FLYER'],
+            ['total' => 1200],
+            1200,
+            'EUR',
+            new \DateTimeImmutable('2026-09-01T00:00:00+00:00'),
+            new QuoteTrace(QuoteSource::RealisaprintApi, 'realisaprint', 'FLYER_STANDARD', 'mapping-v2', 'cfg-123', 'correlation-123', new \DateTimeImmutable('2026-09-01T00:00:00+00:00')),
+        );
+
+        $payload = $snapshot->toArray();
+        self::assertSame('realisaprint_api', $payload['quote_trace']['source']);
+        self::assertArrayNotHasKey('api_key', $payload['quote_trace']);
+        self::assertSame('correlation-123', PricingSnapshot::fromArray($payload)->quoteTrace()?->correlationId());
+    }
+
+    public function testItRejectsSecretsInTechnicalQuoteTraceDetail(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new QuoteTrace(QuoteSource::RealisaprintApi, 'realisaprint', 'FLYER_STANDARD', null, null, 'correlation-123', new \DateTimeImmutable(), null, 'api_key=must-not-be-stored');
+    }
     public function testItRoundTripsThroughItsPersistedRepresentation(): void
     {
         $snapshot = self::createSnapshot();

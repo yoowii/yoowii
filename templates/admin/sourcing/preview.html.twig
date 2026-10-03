@@ -28,6 +28,7 @@
                             <dt class="col-7">Fournisseur retenu</dt><dd class="col-5 text-end">{{ quote.supplierCode }}</dd>
                             <dt class="col-7">Référence</dt><dd class="col-5 text-end">{{ quote.supplierProductCode }}</dd>
                             <dt class="col-7">Version matrice</dt><dd class="col-5 text-end">{{ quote.matrixVersion }}</dd>
+                            {% if quote.pricingSnapshot.quoteTrace %}<dt class="col-7">Source de cotation</dt><dd class="col-5 text-end"><code>{{ quote.pricingSnapshot.quoteTrace.source.value }}</code></dd>{% endif %}
                             <dt class="col-7">Production</dt><dd class="col-5 text-end">{{ (quote.productionCost / 100)|number_format(2, ',', ' ') }}</dd>
                             <dt class="col-7">Livraison</dt><dd class="col-5 text-end">{{ (quote.shippingCost / 100)|number_format(2, ',', ' ') }}</dd>
                             <dt class="col-7">Marge</dt><dd class="col-5 text-end">{{ (quote.margin / 100)|number_format(2, ',', ' ') }}</dd>
