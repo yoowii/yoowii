@@ -28,6 +28,7 @@ final class RealisaprintDraftController extends AbstractController
         $data = new RealisaprintDraftData();
         $data->productCode = $this->suggestedCode($catalogProduct);
         $data->name = $catalogProduct->name();
+        $this->prefillConfiguration($data, $catalogProduct);
         $form = $this->createForm(RealisaprintDraftType::class, $data);
         $form->handleRequest($request);
 
@@ -39,9 +40,7 @@ final class RealisaprintDraftController extends AbstractController
                     throw new \InvalidArgumentException('Les options doivent être un objet et les axes de prix une liste non vide.');
                 }
                 /** @var array<string, array{type: string, required?: bool, allowed_values?: list<string|int>, minimum?: int|null, maximum?: int|null}> $options */
-                $options = $options;
                 /** @var non-empty-list<string> $axes */
-                $axes = $axes;
                 $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), $options, $axes);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
@@ -59,5 +58,97 @@ final class RealisaprintDraftController extends AbstractController
         $code = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '_', $catalogProduct->name()) ?? 'PRODUCT');
 
         return 'PRINT_' . trim($code, '_');
+    }
+
+    private function prefillConfiguration(RealisaprintDraftData $data, RealisaprintCatalogProduct $catalogProduct): void
+    {
+        $configuration = $catalogProduct->configuration();
+        if (!is_array($configuration)) {
+            return;
+        }
+
+        $providerVariables = $this->providerVariables($configuration);
+        $options = [];
+        foreach ($providerVariables as $providerVariable => $providerValues) {
+            $optionCode = $this->canonicalOptionCode($providerVariable, array_keys($options));
+            $allowedValues = $this->allowedValues($providerValues);
+            $integerOption = $this->isIntegerOption($optionCode);
+            if ($integerOption) {
+                $allowedValues = array_map(static fn (string $value): int => (int) $value, $allowedValues);
+            }
+            $options[$optionCode] = [
+                'type' => $integerOption ? 'integer' : 'code',
+                'required' => true,
+                'allowed_values' => $allowedValues,
+            ];
+        }
+        if ([] === $options) {
+            return;
+        }
+
+        $data->options = json_encode($options, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
+        $data->pricingAxes = json_encode(array_keys($options), \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
+    }
+
+    /** @param array<string, mixed> $configuration @return array<string, mixed> */
+    private function providerVariables(array $configuration): array
+    {
+        $variables = [];
+        $walk = static function (array $value) use (&$variables, &$walk): void {
+            foreach ($value as $key => $item) {
+                if (is_string($key) && str_starts_with(strtoupper($key), 'VARTICLE_')) {
+                    $variables[$key] = $item;
+                }
+                if (is_array($item)) {
+                    $walk($item);
+                }
+            }
+        };
+        $walk($configuration);
+
+        return $variables;
+    }
+
+    /** @param list<string> $existing */
+    private function canonicalOptionCode(string $providerVariable, array $existing): string
+    {
+        $code = strtolower($providerVariable);
+        $code = preg_replace('/^varticle_/', '', $code) ?? $code;
+        $code = trim($code, '_');
+        $code = preg_replace('/[^a-z0-9]+/', '_', $code) ?? $code;
+        $code = '' === $code ? 'option' : $code;
+        $candidate = $code;
+        $suffix = 2;
+        while (in_array($candidate, $existing, true)) {
+            $candidate = $code . '_' . $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    /** @return list<string> */
+    private function allowedValues(mixed $providerValues): array
+    {
+        if (!is_array($providerValues)) {
+            return [];
+        }
+        $values = $providerValues['values'] ?? $providerValues;
+        if (!is_array($values)) {
+            return [];
+        }
+        $allowed = [];
+        foreach ($values as $key => $value) {
+            $candidate = is_string($key) || is_int($key) ? $key : $value;
+            if (is_string($candidate) || is_int($candidate)) {
+                $allowed[] = (string) $candidate;
+            }
+        }
+
+        return array_values(array_unique($allowed));
+    }
+
+    private function isIntegerOption(string $optionCode): bool
+    {
+        return in_array($optionCode, ['quantity', 'grammage'], true);
     }
 }
