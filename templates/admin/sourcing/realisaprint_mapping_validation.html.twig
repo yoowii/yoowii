@@ -1,6 +1,69 @@
 {% extends 'admin/sourcing/base.html.twig' %}
-{% set page_title = 'Validation avant publication — ' ~ mapping.yoowiiProductCode %}
+{% set page_title = 'Contrôle avant publication — ' ~ mapping.yoowiiProductCode %}
 {% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_sourcing_dashboard') }}">Retour sourcing</a>{% endblock %}
 {% block sourcing_content %}
-<div class="card"><div class="card-body">{% if validation %}<dl class="row"><dt class="col-sm-4">Contrôle</dt><dd class="col-sm-8">{{ validation.checkedAt|date('d/m/Y H:i') }}</dd><dt class="col-sm-4">Couverture</dt><dd class="col-sm-8">{{ validation.coverageComplete ? 'Complète' : 'Incomplète' }}</dd><dt class="col-sm-4">Cotation API</dt><dd class="col-sm-8">{{ validation.quotePassed ? 'Réussie' : 'Non validée' }}</dd>{% if validation.supplierCost is not null %}<dt class="col-sm-4">Coût fournisseur échantillon</dt><dd class="col-sm-8">{{ (validation.supplierCost / 100)|number_format(2, ',', ' ') }} EUR</dd>{% endif %}</dl>{% for error in validation.coverageErrors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}{% if validation.technicalDetail %}<div class="alert alert-warning">{{ validation.technicalDetail }}</div>{% endif %}{% else %}<p class="text-secondary">Aucune validation enregistrée.</p>{% endif %}<div class="btn-list"><form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: mapping.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ mapping.id) }}"><button class="btn btn-primary">Valider couverture et prix API</button></form>{% if validation and validation.coverageComplete and validation.quotePassed %}<form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_publish', {id: mapping.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('publish_realisaprint_mapping_' ~ mapping.id) }}"><button class="btn btn-success">Publier de manière contrôlée</button></form>{% endif %}</div></div></div>
+<div class="alert alert-info">
+    Ce contrôle compare toutes les valeurs du configurateur au catalogue synchronisé, puis demande à Realisaprint
+    le prix d'une seule configuration d'essai. Il ne teste pas toutes les combinaisons et n'actualise pas le catalogue.
+</div>
+<div class="card">
+    <div class="card-header"><h2 class="card-title">Configuration envoyée pour le prix d'essai</h2></div>
+    <div class="card-body">
+        <p class="mb-2"><strong>Stock :</strong> {{ preview.stock }} — {{ preview.stock_label }}
+            <span class="badge {{ preview.stock_valid ? 'bg-success-lt' : 'bg-danger-lt' }}">{{ preview.stock_valid ? 'Reconnu' : 'Invalide' }}</span>
+        </p>
+        <p class="text-secondary small mb-0">Chaque ligne montre la valeur d'essai, son code envoyé à Realisaprint et la couverture de tous les choix de cette option.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+            <thead><tr><th>Option Yoowii</th><th>Valeur d'essai</th><th>Correspondance Realisaprint</th><th>Couverture</th></tr></thead>
+            <tbody>
+            {% for row in preview.rows %}
+                <tr>
+                    <td><strong>{{ row.label }}</strong><br><small class="text-secondary">{{ row.option }}</small></td>
+                    <td>{{ row.sample }}</td>
+                    <td><small>{{ row.provider_label ?: row.variable }}</small><br><code>{{ row.variable ?: 'Variable absente' }} = {{ row.provider_value }}</code></td>
+                    <td><span class="badge {{ row.covered ? 'bg-success-lt' : 'bg-danger-lt' }}">{{ row.covered ? 'OK' : 'À corriger' }}</span>
+                        <small class="text-secondary">{{ row.total > 0 ? row.mapped ~ '/' ~ row.total ~ ' valeurs' : 'Valeur libre' }}</small>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="card mt-4">
+    <div class="card-header"><h2 class="card-title">Résultat du contrôle</h2></div>
+    <div class="card-body">
+        {% if validation %}
+            <dl class="row">
+                <dt class="col-sm-4">Contrôlé le</dt><dd class="col-sm-8">{{ validation.checkedAt|date('d/m/Y H:i') }}</dd>
+                <dt class="col-sm-4">Couverture</dt><dd class="col-sm-8">{{ validation.coverageComplete and preview.covered ? 'Complète' : 'Incomplète' }}</dd>
+                <dt class="col-sm-4">Cotation API</dt><dd class="col-sm-8">{{ validation.quotePassed ? 'Réussie' : 'Non validée' }}</dd>
+                {% if validation.supplierCost is not null %}
+                    <dt class="col-sm-4">Coût fournisseur de l'essai</dt><dd class="col-sm-8">{{ (validation.supplierCost / 100)|number_format(2, ',', ' ') }} EUR</dd>
+                {% endif %}
+            </dl>
+            {% if not can_publish and validation.quotePassed and validation.coverageComplete %}
+                <div class="alert alert-warning">Le contrôle a expiré ou le catalogue a changé. Relance-le avant la publication.</div>
+            {% endif %}
+            {% for error in validation.coverageErrors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+            {% if validation.technicalDetail %}<div class="alert alert-warning">{{ validation.technicalDetail }}</div>{% endif %}
+        {% else %}
+            <p class="text-secondary">Aucun contrôle API enregistré pour ce mapping. La table ci-dessus présente la configuration qui sera testée.</p>
+        {% endif %}
+        <div class="btn-list">
+            <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: mapping.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ mapping.id) }}">
+                <button class="btn btn-primary">Lancer le contrôle du prix API</button>
+            </form>
+            {% if can_publish %}
+                <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_publish', {id: mapping.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('publish_realisaprint_mapping_' ~ mapping.id) }}">
+                    <button class="btn btn-success">Activer le produit Yoowii</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -7,19 +7,36 @@ namespace App\Yoowii\Sourcing\Application;
 use App\Yoowii\Pricing\Application\RealisaprintLiveQuoteCalculator;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
+use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class RealisaprintMappingValidator
 {
-    public function __construct(private RealisaprintLiveQuoteCalculator $quotes, private RetailPrintPricingPolicyProvider $pricingPolicy)
+    public function __construct(
+        private RealisaprintLiveQuoteCalculator $quotes,
+        private RetailPrintPricingPolicyProvider $pricingPolicy,
+        private RealisaprintMappingCompleteness $completeness,
+        private EntityManagerInterface $entityManager,
+    )
     {
     }
 
     public function validate(SupplierRoute $route, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, \DateTimeImmutable $at): RealisaprintMappingValidation
     {
         $errors = $this->coverageErrors($mapping, $definition);
+        $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
+        $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
+        try {
+            if (!$catalog instanceof RealisaprintCatalogProduct || !is_array($catalog->configuration()) || !is_array($provider)) {
+                throw new \InvalidArgumentException('Configuration fournisseur synchronisée introuvable.');
+            }
+            $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
+        } catch (\InvalidArgumentException $exception) {
+            $errors[] = $exception->getMessage();
+        }
         if ([] !== $errors) {
             return new RealisaprintMappingValidation($mapping, false, false, null, $errors, null, $at);
         }
@@ -70,7 +87,7 @@ final readonly class RealisaprintMappingValidator
     }
 
     /** @return array<string, string|int> */
-    private function sample(PersistedPrintProductDefinition $definition): array
+    public function sample(PersistedPrintProductDefinition $definition): array
     {
         $sample = [];
         foreach ($definition->options() as $code => $option) {

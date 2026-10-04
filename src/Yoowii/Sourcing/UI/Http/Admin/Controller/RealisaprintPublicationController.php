@@ -6,7 +6,9 @@ namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingValidator;
+use App\Yoowii\Sourcing\Application\RealisaprintValidationPreview;
 use App\Yoowii\Sourcing\Application\RealisaprintPublicationService;
+use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
@@ -35,12 +37,25 @@ final class RealisaprintPublicationController extends AbstractController
     }
 
     #[Route('/realisaprint-publications/mappings/{id}/validation', name: 'yoowii_admin_realisaprint_mapping_validation', requirements: ['id' => '\\d+'], methods: ['GET'])]
-    public function validation(int $id, EntityManagerInterface $entityManager): Response
+    public function validation(int $id, EntityManagerInterface $entityManager, RealisaprintValidationPreview $previewBuilder, RealisaprintMappingValidator $validator): Response
     {
         $mapping = $this->mapping($id, $entityManager);
         $validation = $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
+        $catalog = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $mapping->supplierProduct()->code()]);
+        $definition = $this->definition($mapping, $entityManager);
+        $preview = $previewBuilder->build($definition, $mapping, $catalog instanceof RealisaprintCatalogProduct ? ($catalog->configuration() ?? []) : [], $validator->sample($definition));
+        $validUntil = $validation instanceof RealisaprintMappingValidation ? $validation->checkedAt()->modify('+30 minutes') : null;
+        $canPublish = $validation instanceof RealisaprintMappingValidation
+            && $validation->coverageComplete() && $validation->quotePassed() && $preview['covered']
+            && $validUntil >= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
-        return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', ['mapping' => $mapping, 'validation' => $validation]);
+        return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', [
+            'mapping' => $mapping,
+            'validation' => $validation,
+            'preview' => $preview,
+            'can_publish' => $canPublish,
+            'valid_until' => $validUntil,
+        ]);
     }
 
     #[Route('/realisaprint-publications/mappings/{id}/publish', name: 'yoowii_admin_realisaprint_mapping_publish', requirements: ['id' => '\\d+'], methods: ['POST'])]

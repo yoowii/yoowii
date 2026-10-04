@@ -35,7 +35,10 @@
                     <td>
                         <div class="btn-list">
                             {% if item.mapping %}
-                                <a class="btn btn-sm btn-outline-primary" href="{{ path('yoowii_admin_realisaprint_mapping_validation', {id: item.mapping.id}) }}">Vérifier la configuration et le prix</a>
+                                <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: item.mapping.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ item.mapping.id) }}">
+                                    <button class="btn btn-sm btn-outline-primary">Vérifier la configuration et le prix</button>
+                                </form>
                                 {% if item.configuration_status != 'Compatible' %}
                                     <a class="btn btn-sm btn-outline-warning" href="{{ path('yoowii_admin_realisaprint_mapping', {routeId: item.route.id}) }}">Corriger les correspondances</a>
                                 {% endif %}
