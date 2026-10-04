@@ -12,7 +12,7 @@ Le catalogue Realisaprint reste une copie locale en lecture seule. Il ne crée a
 
 ## Configurateur dynamique Realisaprint
 
-La définition publiée conserve les codes canoniques Yoowii, les libellés français, les valeurs visibles, le type Realisaprint, la zone et la position. Les identifiants `VARTICLE_*`, les valeurs numériques fournisseur, `shop_id` et `api_key` ne quittent jamais le serveur.
+La définition publiée conserve les codes canoniques Yoowii, les libellés français, les valeurs visibles, le type Realisaprint, la zone et la position. Les identifiants `VARTICLE_*`, les valeurs numériques fournisseur, `shop_id` et `api_key` ne quittent jamais le serveur. Les libellés de choix entièrement numériques reçoivent un code Yoowii textuel, par exemple `25` devient `value_25`, tout en conservant le code fournisseur `25` dans le mapping.
 
 Après une sélection complète, le storefront appelle le relais Symfony `print-configuration/refresh`. Celui-ci traduit les valeurs canoniques vers le mapping actif, appelle `show_variables` avec `retry=1`, puis retourne seulement la visibilité, les valeurs autorisées, les corrections et les messages normalisés. Les listes et champs non compatibles sont ainsi masqués ou actualisés avant la cotation.
 

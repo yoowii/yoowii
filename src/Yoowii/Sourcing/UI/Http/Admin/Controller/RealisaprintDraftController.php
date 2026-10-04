@@ -41,11 +41,15 @@ final class RealisaprintDraftController extends AbstractController
 
         if ($form->isSubmitted() && [] !== $stocks && $form->isValid()) {
             try {
-                $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
-                $axes = json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR);
-                if (!is_array($options) || !is_array($axes) || [] === $axes) {
+                $decodedOptions = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+                $decodedAxes = json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR);
+                if (!is_array($decodedOptions) || !is_array($decodedAxes) || [] === $decodedAxes) {
                     throw new \InvalidArgumentException('Les options doivent être un objet et les axes de prix une liste non vide.');
                 }
+                /** @var array<string, array<string, mixed>> $options */
+                $options = $decodedOptions;
+                /** @var non-empty-list<string> $axes */
+                $axes = $decodedAxes;
                 $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $options, $axes);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
@@ -77,7 +81,8 @@ final class RealisaprintDraftController extends AbstractController
         foreach ($providerVariables as $providerVariable) {
             $name = is_string($providerVariable['name'] ?? null) ? $providerVariable['name'] : 'Option';
             $integerOption = true === ($providerVariable['quantity'] ?? false) || 'float' === ($providerVariable['type'] ?? null);
-            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $integerOption, (string) ($providerVariable['type'] ?? ''));
+            $providerType = is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : '';
+            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $integerOption, $providerType);
             $valueLabels = $this->providerValues($providerVariable['values'] ?? null);
             $providerValueMap = $this->providerValueMap($providerVariable['values'] ?? null);
             $allowedValues = $integerOption ? [] : array_keys($valueLabels);
@@ -90,8 +95,8 @@ final class RealisaprintDraftController extends AbstractController
                 'provider_type' => is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : 'select',
                 'value_labels' => $valueLabels,
                 'provider_values' => $providerValueMap,
-                'area' => (int) ($providerVariable['area'] ?? 1),
-                'position' => (int) ($providerVariable['position'] ?? 0),
+                'area' => is_scalar($providerVariable['area'] ?? null) ? (int) $providerVariable['area'] : 1,
+                'position' => is_scalar($providerVariable['position'] ?? null) ? (int) $providerVariable['position'] : 0,
                 'readonly' => (bool) ($providerVariable['readonly'] ?? false),
                 'default' => $this->canonicalDefault($providerVariable, $providerValueMap, $integerOption),
             ];
@@ -138,7 +143,11 @@ final class RealisaprintDraftController extends AbstractController
         return is_array($stocks) ? $stocks : [];
     }
 
-    /** @param array<string, mixed> $configuration @return list<array<string, mixed>> */
+    /**
+     * @param array<string, mixed> $configuration
+     *
+     * @return list<array<string, mixed>>
+     */
     private function providerVariables(array $configuration): array
     {
         $variables = $configuration['variables'] ?? [];
@@ -187,6 +196,7 @@ final class RealisaprintDraftController extends AbstractController
                 continue;
             }
             $canonical = $this->slug((string) $label);
+            $canonical = ctype_digit($canonical) ? 'value_' . $canonical : $canonical;
             $canonical = '' === $canonical ? 'option' : $canonical;
             $mapped[$canonical] = (string) $label;
         }
@@ -206,13 +216,17 @@ final class RealisaprintDraftController extends AbstractController
                 continue;
             }
             $canonical = $this->slug((string) $label);
+            $canonical = ctype_digit($canonical) ? 'value_' . $canonical : $canonical;
             $mapped['' === $canonical ? 'option' : $canonical] = (string) $key;
         }
 
         return $mapped;
     }
 
-    /** @param array<string, mixed> $providerVariable @param array<string, string> $providerValues */
+    /**
+     * @param array<string, mixed> $providerVariable
+     * @param array<string, string> $providerValues
+     */
     private function canonicalDefault(array $providerVariable, array $providerValues, bool $integerOption): string|int|null
     {
         $default = $providerVariable['default'] ?? null;
