@@ -229,11 +229,11 @@ final class RealisaprintDraftController extends AbstractController
     }
 
     /** @param array<string, mixed> $providerVariable @param array<string, string> $providerValues */
-    private function canonicalDefault(array $providerVariable, array $providerValues, bool $numericOption): string|int|null
+    private function canonicalDefault(array $providerVariable, array $providerValues, bool $numericOption): string|int|float|null
     {
         $default = $providerVariable['default'] ?? null;
-        if ($numericOption && (is_int($default) || (is_string($default) && ctype_digit($default)))) {
-            return (int) $default;
+        if ($numericOption && (is_int($default) || is_float($default) || (is_string($default) && 1 === preg_match('/^\d+(?:[.,]\d+)?$/D', trim($default))))) {
+            return 'float' === ($providerVariable['type'] ?? null) && true !== ($providerVariable['quantity'] ?? false) ? (float) str_replace(',', '.', (string) $default) : (int) $default;
         }
         if (!is_string($default) && !is_int($default)) {
             return null;

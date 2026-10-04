@@ -49,7 +49,10 @@ final class RealisaprintPublicationController extends AbstractController
         $validation = $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
         $catalog = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $mapping->supplierProduct()->code()]);
         $definition = $this->definition($mapping, $entityManager);
-        $sample = $validation instanceof RealisaprintMappingValidation ? $validation->testConfiguration() : $validator->sample($definition);
+        $sample = $validator->sample($definition);
+        if ($validation instanceof RealisaprintMappingValidation) {
+            $sample = array_replace($sample, $validation->testConfiguration());
+        }
         $preview = $previewBuilder->build($definition, $mapping, $catalog instanceof RealisaprintCatalogProduct ? ($catalog->configuration() ?? []) : [], $sample);
         $validUntil = $validation instanceof RealisaprintMappingValidation ? $validation->checkedAt()->modify('+30 minutes') : null;
         $canPublish = $validation instanceof RealisaprintMappingValidation
