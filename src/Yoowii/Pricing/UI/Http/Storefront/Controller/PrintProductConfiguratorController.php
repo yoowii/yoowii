@@ -44,7 +44,8 @@ final class PrintProductConfiguratorController extends AbstractController
             if (!is_array($values)) {
                 throw new \InvalidArgumentException('La configuration à rafraîchir est invalide.');
             }
-            $configuration = $definitions->get($this->definitionCode($product))->configure($values);
+            $schema = $definitions->storefrontSchema($this->definitionCode($product));
+            $configuration = $definitions->get($this->definitionCode($product))->configure($this->injectFixedValues($values, $schema));
 
             return new JsonResponse($refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC'))), Response::HTTP_OK, ['Cache-Control' => 'no-store']);
         } catch (\Throwable $exception) {
@@ -98,8 +99,7 @@ final class PrintProductConfiguratorController extends AbstractController
             if (!is_array($formData)) {
                 throw new \InvalidArgumentException('La configuration reçue est invalide.');
             }
-
-            $values = $formData;
+            $values = $this->injectFixedValues($formData, $definitions->storefrontSchema($definitionCode));
             /** @var array<string, mixed> $values */
             $configuration = $definition->configure($values);
             $quote = $quoteService->quote(
@@ -161,14 +161,14 @@ final class PrintProductConfiguratorController extends AbstractController
         );
         $storedQuote = $this->matchingQuote($quoteToken, $product, $definitionCode, $quoteStore, $now);
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
+        $configuration = $this->injectFixedValues(is_array($configuration) ? $configuration : [], $definitions->storefrontSchema($definitionCode));
         $form = $this->createConfiguratorForm(
             $productCode,
             $availableOptions,
             $request,
-            is_array($configuration) ? $configuration : [],
+            $configuration,
             $definitions->storefrontSchema($definitionCode),
         );
-
         return $this->render('shop/product/show/print_configurator.html.twig', [
             'product' => $product,
             'form' => $form->createView(),
@@ -177,6 +177,7 @@ final class PrintProductConfiguratorController extends AbstractController
             'quote_token' => null !== $storedQuote ? $quoteToken : null,
             'configuration' => is_array($configuration) ? $configuration : [],
             'refresh_url' => $this->generateUrl('yoowii_shop_print_product_configuration_refresh', ['productCode' => $productCode, '_locale' => $request->getLocale()]),
+            'fixed_fields' => array_values(array_filter($definitions->storefrontSchema($definitionCode), static fn (array $schema): bool => true === ($schema['fixed'] ?? false))),
         ]);
     }
 
@@ -231,7 +232,6 @@ final class PrintProductConfiguratorController extends AbstractController
         ChannelContextInterface $channelContext,
     ): Product {
         $channel = $channelContext->getChannel();
-
         if (!$channel instanceof CoreChannelInterface) {
             throw new \LogicException('The configured channel must be a Sylius core channel.');
         }
@@ -265,6 +265,18 @@ final class PrintProductConfiguratorController extends AbstractController
         }
 
         return $variant;
+    }
+
+    /** @param array<string, mixed> $values @param list<array<string, mixed>> $schemas @return array<string, mixed> */
+    private function injectFixedValues(array $values, array $schemas): array
+    {
+        foreach ($schemas as $schema) {
+            if (true === ($schema['fixed'] ?? false) && is_string($schema['code'] ?? null) && (is_string($schema['default'] ?? null) || is_int($schema['default'] ?? null))) {
+                $values[$schema['code']] = $schema['default'];
+            }
+        }
+
+        return $values;
     }
 
     private function matchingQuote(

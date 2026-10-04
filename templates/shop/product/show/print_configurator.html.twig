@@ -45,6 +45,9 @@
                     {% for choice in field %}
                         {% if choice.vars.checked %}
                             {% set selected_label = choice.vars.label %}
+                {% for fixed in fixed_fields|default([]) %}
+                    <p class="text-secondary mb-2"><strong>{{ fixed.label }} :</strong> {{ fixed.values[fixed.default]|default(fixed.default) }} · valeur imposée par Realisaprint</p>
+                {% endfor %}
                         {% endif %}
                     {% endfor %}
                     {% if selected_label is null and field.vars.value is not empty %}{% set selected_label = field.vars.value %}{% endif %}

@@ -76,6 +76,7 @@ class PersistedPrintProductDefinition
                 'area' => isset($option['area']) ? (int) $option['area'] : 1,
                 'position' => isset($option['position']) ? (int) $option['position'] : 0,
                 'readonly' => (bool) ($option['readonly'] ?? false),
+                'fixed' => is_string($option['fixed_value'] ?? null),
                 'default' => is_string($option['default'] ?? null) || is_int($option['default'] ?? null) ? $option['default'] : null,
             ];
         }

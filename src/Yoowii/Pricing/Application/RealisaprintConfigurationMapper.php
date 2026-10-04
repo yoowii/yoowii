@@ -71,6 +71,10 @@ final readonly class RealisaprintConfigurationMapper
             if (!is_array($rule) || !isset($rule['option']) || !is_string($rule['option'])) {
                 continue;
             }
+            if (is_string($rule['fixed_value'] ?? null)) {
+                $options[$rule['option']]['string:' . $rule['fixed_value']] = $rule['fixed_value'];
+                continue;
+            }
             $values = $rule['catalog_values'] ?? ($rule['values'] ?? null);
             if (!is_array($values)) {
                 continue;
@@ -127,6 +131,11 @@ final readonly class RealisaprintConfigurationMapper
             }
             if (!is_array($rule) || !isset($rule['option']) || !is_string($rule['option'])) {
                 throw new \DomainException(sprintf('The mapping for Realisaprint variable "%s" is invalid.', $variable));
+            }
+            if (is_scalar($rule['fixed_value'] ?? null)) {
+                $variables[$variable] = $rule['fixed_value'];
+
+                continue;
             }
             $value = $options[$rule['option']] ?? null;
             $values = $rule['values'] ?? null;

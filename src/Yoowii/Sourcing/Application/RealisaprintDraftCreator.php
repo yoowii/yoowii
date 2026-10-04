@@ -91,10 +91,14 @@ final readonly class RealisaprintDraftCreator
             if (!is_string($code) || !is_string($option['provider_variable'] ?? null)) {
                 continue;
             }
-            $variables[$option['provider_variable']] = [
+            $rule = [
                 'option' => $code,
                 'values' => is_array($option['provider_values'] ?? null) ? $option['provider_values'] : [],
             ];
+            if (is_string($option['provider_fixed_value'] ?? null)) {
+                $rule['fixed_value'] = $option['provider_fixed_value'];
+            }
+            $variables[$option['provider_variable']] = $rule;
         }
         $configurationMapping = ['realisaprint' => ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'variables' => $variables]];
         (new RealisaprintMappingCompleteness())->assertComplete($definition, $catalogProduct->configuration(), $configurationMapping['realisaprint']);

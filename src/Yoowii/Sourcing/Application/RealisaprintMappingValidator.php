@@ -70,6 +70,13 @@ final readonly class RealisaprintMappingValidator
                 $errors[] = sprintf('L’axe obligatoire « %s » n’est pas mappé.', $option);
                 continue;
             }
+            $fixed = $definition->options()[$option]['fixed_value'] ?? null;
+            if (is_string($fixed)) {
+                if (($mappedOptions[$option]['fixed_value'] ?? null) !== ($definition->options()[$option]['provider_fixed_value'] ?? null)) {
+                    $errors[] = sprintf('La valeur fixe de l’axe « %s » n’est pas couverte.', $option);
+                }
+                continue;
+            }
             $allowed = $definition->options()[$option]['allowed_values'] ?? [];
             $values = $mappedOptions[$option]['values'] ?? null;
             if (!is_array($values)) {

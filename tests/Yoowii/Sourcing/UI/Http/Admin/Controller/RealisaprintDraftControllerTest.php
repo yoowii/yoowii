@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Pricing\Application\RealisaprintConfigurationMapper;
+use Doctrine\ORM\EntityManagerInterface;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingCompleteness;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\UI\Http\Admin\Controller\RealisaprintDraftController;
@@ -46,4 +48,39 @@ final class RealisaprintDraftControllerTest extends TestCase
         }
         (new RealisaprintMappingCompleteness())->assertComplete($definition, $configuration, ['stock' => '1073', 'variables' => $rules]);
     }
+
+    public function testReadonlyTextDefaultBecomesFixedProviderValue(): void
+    {
+        $catalog = new RealisaprintCatalogProduct('70', 'Produit', new \DateTimeImmutable());
+        $catalog->refreshConfiguration(['stocks' => ['1' => 'Stock'], 'variables' => [
+            'VARTICLE_28779_' => ['name' => 'Face imprimée', 'type' => 'text', 'values' => false, 'default' => 'Recto', 'readonly' => true],
+            'COMMENTAIRE_' => ['name' => 'Commentaire', 'type' => 'text', 'values' => false, 'readonly' => false],
+        ]], new \DateTimeImmutable());
+        $data = new RealisaprintDraftData();
+        (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), $data, $catalog);
+        $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+
+        self::assertSame('recto', $options['face_imprimee']['fixed_value']);
+        self::assertSame('Recto', $options['face_imprimee']['provider_fixed_value']);
+        self::assertArrayNotHasKey('fixed_value', $options['commentaire']);
+
+        $definition = new PersistedPrintProductDefinition('PRINT_PRODUIT', 'v1', $options, array_keys($options));
+        $configuration = $definition->definition()->configure(['face_imprimee' => 'recto', 'commentaire' => 'texte']);
+        $payload = (new RealisaprintConfigurationMapper($this->createMock(EntityManagerInterface::class)))->mapMapping($configuration, ['realisaprint' => ['product' => '70', 'stock' => '1', 'variables' => [
+            'VARTICLE_28779_' => ['option' => 'face_imprimee', 'values' => [], 'fixed_value' => 'Recto'],
+            'COMMENTAIRE_' => ['option' => 'commentaire', 'values' => []],
+        ]]], 'v1');
+
+        self::assertSame('Recto', $payload['variables']['VARTICLE_28779_']);
+    }
+
+    public function testReadonlyValueWithoutUsableDefaultIsRejected(): void
+    {
+        $catalog = new RealisaprintCatalogProduct('70', 'Produit', new \DateTimeImmutable());
+        $catalog->refreshConfiguration(['stocks' => ['1' => 'Stock'], 'variables' => ['V' => ['name' => 'Face', 'values' => false, 'readonly' => true]]], new \DateTimeImmutable());
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('valeur par défaut exploitable');
+        (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), new RealisaprintDraftData(), $catalog);
+    }
+
 }

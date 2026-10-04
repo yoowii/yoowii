@@ -80,6 +80,11 @@ final readonly class RealisaprintConfigurationMapper
             if (!is_array($rule) || !isset($rule['option']) || !is_string($rule['option'])) {
                 throw new \DomainException(sprintf('The mapping for Realisaprint variable "%s" is invalid.', $variable));
             }
+            if (is_scalar($rule['fixed_value'] ?? null)) {
+                $variables[$variable] = $rule['fixed_value'];
+
+                continue;
+            }
             $value = 'quantity' === $rule['option'] ? $job->orderItem()->getQuantity() : ($options[$rule['option']] ?? null);
             $values = $rule['values'] ?? null;
             if (is_array($values) && is_scalar($value) && array_key_exists((string) $value, $values)) {
