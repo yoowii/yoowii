@@ -7,13 +7,14 @@ namespace App\Yoowii\Sourcing\Application;
 use App\Entity\Product\Product;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
+use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class RealisaprintPublicationService
 {
-    public function __construct(private EntityManagerInterface $entityManager)
+    public function __construct(private EntityManagerInterface $entityManager, private RealisaprintMappingCompleteness $completeness)
     {
     }
 
@@ -36,6 +37,26 @@ final readonly class RealisaprintPublicationService
         }
         if ($route->supplierProduct() !== $mapping->supplierProduct() || $route->yoowiiProductCode() !== $mapping->yoowiiProductCode()) {
             throw new \DomainException('La route ne correspond pas au mapping à publier.');
+        }
+
+        $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
+        if (!$catalog instanceof RealisaprintCatalogProduct || !is_array($catalog->configuration())) {
+            throw new \DomainException('Publication refusée : configuration fournisseur synchronisée introuvable.');
+        }
+        $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
+        if (!is_array($provider)) {
+            throw new \DomainException('Publication refusée : correspondances fournisseur introuvables.');
+        }
+        $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
+
+        foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
+            'supplierProduct' => $route->supplierProduct(),
+            'yoowiiProductCode' => $mapping->yoowiiProductCode(),
+            'active' => true,
+        ]) as $previous) {
+            if ($previous !== $mapping) {
+                $previous->deactivate();
+            }
         }
 
         $route->supplierProduct()->activate();

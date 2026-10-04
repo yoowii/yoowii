@@ -6,6 +6,8 @@ namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Entity\Product\Product;
 use App\Yoowii\Sourcing\Application\RealisaprintCatalogSynchronizer;
+use App\Yoowii\Sourcing\Application\RealisaprintMappingCompleteness;
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
 use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
@@ -46,7 +48,7 @@ final class RealisaprintCatalogController extends AbstractController
     }
 
     #[Route('/realisaprint-catalog/{id}', name: 'yoowii_admin_realisaprint_catalog_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
-    public function show(int $id, EntityManagerInterface $entityManager): Response
+    public function show(int $id, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness): Response
     {
         $product = $entityManager->find(RealisaprintCatalogProduct::class, $id);
         if (!$product instanceof RealisaprintCatalogProduct) {
@@ -55,7 +57,7 @@ final class RealisaprintCatalogController extends AbstractController
 
         return $this->render('admin/sourcing/realisaprint_catalog_show.html.twig', [
             'product' => $product,
-            'generated_products' => $this->generatedProducts($product, $entityManager),
+            'generated_products' => $this->generatedProducts($product, $entityManager, $completeness),
         ]);
     }
 
@@ -79,7 +81,7 @@ final class RealisaprintCatalogController extends AbstractController
     }
 
     /**  list<array{product: Product, stock: string, mapping_status: string, route_status: string, mapping: SupplierProductMappingVersion|null, route: SupplierRoute}> */
-    private function generatedProducts(RealisaprintCatalogProduct $catalogProduct, EntityManagerInterface $entityManager): array
+    private function generatedProducts(RealisaprintCatalogProduct $catalogProduct, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness): array
     {
         $supplier = $entityManager->getRepository(PrintSupplier::class)->findOneBy(['code' => 'realisaprint']);
         if (!$supplier instanceof PrintSupplier) {
@@ -100,7 +102,7 @@ final class RealisaprintCatalogController extends AbstractController
             if (!$product instanceof Product) {
                 continue;
             }
-            $mapping = $entityManager->getRepository(SupplierProductMappingVersion::class)->findOneBy(['supplierProduct' => $supplierProduct, 'yoowiiProductCode' => $route->yoowiiProductCode()], ['effectiveFrom' => 'DESC']);
+            $mapping = $entityManager->getRepository(SupplierProductMappingVersion::class)->findOneBy(['supplierProduct' => $supplierProduct, 'yoowiiProductCode' => $route->yoowiiProductCode()], ['id' => 'DESC']);
             $validation = $mapping instanceof SupplierProductMappingVersion ? $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']) : null;
             $mappingConfiguration = $mapping instanceof SupplierProductMappingVersion ? $mapping->configurationMapping() : [];
             $providerMapping = is_array($mappingConfiguration['realisaprint'] ?? null) ? $mappingConfiguration['realisaprint'] : [];
@@ -108,10 +110,22 @@ final class RealisaprintCatalogController extends AbstractController
             $stock = is_string($stock) ? $stock : '—';
             $stockLabel = is_scalar($stocks[$stock] ?? null) ? (string) $stocks[$stock] : 'Stock inconnu';
             $mappingStatus = 'absent';
+            $configurationStatus = 'À vérifier';
+            if ($mapping instanceof SupplierProductMappingVersion) {
+                $definition = $entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $route->yoowiiProductCode()]);
+                if ($definition instanceof PersistedPrintProductDefinition) {
+                    try {
+                        $completeness->assertComplete($definition, $configuration, $providerMapping);
+                        $configurationStatus = 'Compatible';
+                    } catch (\InvalidArgumentException $exception) {
+                        $configurationStatus = 'Intervention nécessaire';
+                    }
+                }
+            }
             if ($mapping instanceof SupplierProductMappingVersion) {
                 $mappingStatus = $route->isActive() && $mapping->isEffectiveAt(new \DateTimeImmutable('now', new \DateTimeZone('UTC'))) ? 'actif' : ($validation instanceof RealisaprintMappingValidation && $validation->coverageComplete() && $validation->quotePassed() ? 'validé' : 'brouillon');
             }
-            $items[$route->yoowiiProductCode()] = ['product' => $product, 'stock' => $stock . ' — ' . $stockLabel, 'mapping_status' => $mappingStatus, 'route_status' => $route->isActive() ? 'publiée' : 'brouillon', 'mapping' => $mapping instanceof SupplierProductMappingVersion ? $mapping : null, 'route' => $route];
+            $items[$route->yoowiiProductCode()] = ['product' => $product, 'stock' => $stock . ' — ' . $stockLabel, 'mapping_status' => $mappingStatus, 'route_status' => $route->isActive() ? 'publiée' : 'brouillon', 'configuration_status' => $configurationStatus, 'mapping' => $mapping instanceof SupplierProductMappingVersion ? $mapping : null, 'route' => $route];
         }
         return array_values($items);
     }

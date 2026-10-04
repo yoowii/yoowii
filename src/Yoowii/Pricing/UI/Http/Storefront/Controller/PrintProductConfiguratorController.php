@@ -75,7 +75,7 @@ final class PrintProductConfiguratorController extends AbstractController
         $form = $this->createConfiguratorForm($productCode, $availableOptions, $request, [], $definitions->storefrontSchema($definitionCode));
         $form->handleRequest($request);
 
-        if ([] === $availableOptions || in_array([], $availableOptions, true)) {
+        if (!$this->hasAvailableConfiguration($definition->pricingAxes(), $availableOptions, $definitions->storefrontSchema($definitionCode))) {
             return $this->quoteError(
                 $request,
                 $product,
@@ -172,7 +172,7 @@ final class PrintProductConfiguratorController extends AbstractController
         return $this->render('shop/product/show/print_configurator.html.twig', [
             'product' => $product,
             'form' => $form->createView(),
-            'available' => [] !== $availableOptions && !in_array([], $availableOptions, true),
+            'available' => $this->hasAvailableConfiguration($definition->pricingAxes(), $availableOptions, $definitions->storefrontSchema($definitionCode)),
             'stored_quote' => $storedQuote,
             'quote_token' => null !== $storedQuote ? $quoteToken : null,
             'configuration' => is_array($configuration) ? $configuration : [],
@@ -202,6 +202,26 @@ final class PrintProductConfiguratorController extends AbstractController
             'field_schemas' => $fieldSchemas,
             'product_code' => $productCode,
         ]);
+    }
+
+    /** @param list<string> $axes @param array<string, list<string|int>> $availableOptions @param list<array<string, mixed>> $fieldSchemas */
+    private function hasAvailableConfiguration(array $axes, array $availableOptions, array $fieldSchemas): bool
+    {
+        $schemas = [];
+        foreach ($fieldSchemas as $schema) {
+            $schemas[$schema['code']] = $schema;
+        }
+        foreach ($axes as $axis) {
+            if ([] !== ($availableOptions[$axis] ?? [])) {
+                continue;
+            }
+            // Free numeric/text values do not have a finite supplier catalogue of choices.
+            if (!in_array($schemas[$axis]['type'] ?? null, ['float', 'text'], true)) {
+                return false;
+            }
+        }
+
+        return [] !== $axes;
     }
 
     /** @param ProductRepositoryInterface<Product> $productRepository */

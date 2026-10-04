@@ -43,7 +43,11 @@ final class RealisaprintMappingController extends AbstractController
         }
         $data = new RealisaprintMappingData();
         $data->version = $this->nextVersion($entityManager, $route);
-        $this->prefill($data, $definition, $catalogProduct->configuration());
+        $previous = $entityManager->getRepository(SupplierProductMappingVersion::class)->findOneBy(
+            ['supplierProduct' => $route->supplierProduct(), 'yoowiiProductCode' => $route->yoowiiProductCode()],
+            ['id' => 'DESC'],
+        );
+        $this->prefill($data, $definition, $catalogProduct->configuration(), $previous instanceof SupplierProductMappingVersion ? $previous : null);
         $choices = array_combine(array_keys($definition->options()), array_keys($definition->options())) ?: [];
         $form = $this->createForm(RealisaprintMappingType::class, $data, ['yoowii_options' => $choices]);
         $form->handleRequest($request);
@@ -90,54 +94,46 @@ final class RealisaprintMappingController extends AbstractController
     }
 
     /** @param array<string, mixed> $configuration */
-    private function prefill(RealisaprintMappingData $data, PersistedPrintProductDefinition $definition, array $configuration): void
+    private function prefill(RealisaprintMappingData $data, PersistedPrintProductDefinition $definition, array $configuration, ?SupplierProductMappingVersion $previous): void
     {
+        $provider = $previous?->configurationMapping()['realisaprint'] ?? [];
         $stocks = $configuration['stocks'] ?? [];
-        if (is_array($stocks) && [] !== $stocks) {
+        $previousStock = is_array($provider) ? ($provider['stock'] ?? null) : null;
+        if (is_scalar($previousStock) && is_array($stocks) && array_key_exists((string) $previousStock, $stocks)) {
+            $data->stock = (string) $previousStock;
+        } elseif (is_array($stocks) && [] !== $stocks) {
             $data->stock = (string) array_key_first($stocks);
         }
-        $optionsByVariable = [];
+
+        // Existing canonical codes are authoritative. Never slug provider labels again:
+        // "-----" is "sans" in the product definition, not "option".
         foreach ($definition->options() as $option => $definitionOption) {
-            /** @var array<string, mixed> $definitionOption */
-            if (is_string($definitionOption['provider_variable'] ?? null)) {
-                $optionsByVariable[$definitionOption['provider_variable']] = $option;
-            }
-        }
-        $variables = $configuration['variables'] ?? [];
-        if (!is_array($variables)) {
-            return;
-        }
-        /** @var array<string, mixed> $variables */
-        foreach ($variables as $providerVariable => $providerDefinition) {
-            /** @var mixed $providerDefinition */
-            if (!is_string($providerVariable) || !is_array($providerDefinition) || !isset($optionsByVariable[$providerVariable])) {
+            if (!is_string($option) || !is_array($definitionOption)) {
                 continue;
+            }
+            $id = $definitionOption['provider_variable'] ?? null;
+            if (!is_string($id) || !isset($configuration['variables'][$id])) {
+                continue;
+            }
+            $previousRule = is_array($provider) ? ($provider['variables'][$id] ?? null) : null;
+            $values = $definitionOption['provider_values'] ?? [];
+            if (is_array($previousRule) && ($previousRule['option'] ?? null) === $option && is_array($previousRule['values'] ?? null)) {
+                $candidate = $previousRule['values'];
+                $allowed = $definitionOption['allowed_values'] ?? [];
+                $providerValues = $configuration['variables'][$id]['values'] ?? false;
+                if (is_array($allowed) && is_array($providerValues) &&
+                    array_diff(array_map('strval', $allowed), array_keys($candidate)) === [] &&
+                    array_diff(array_keys($candidate), array_map('strval', $allowed)) === [] &&
+                    array_diff(array_map('strval', array_values($candidate)), array_map('strval', array_keys($providerValues))) === []) {
+                    $values = $candidate;
+                }
             }
             $row = new RealisaprintMappingVariableData();
-            $row->providerVariable = $providerVariable;
-            $row->option = $optionsByVariable[$providerVariable];
-            $row->values = json_encode($this->providerValues($providerDefinition['values'] ?? false), \JSON_THROW_ON_ERROR);
+            $row->providerVariable = $id;
+            $row->option = $option;
+            $row->values = json_encode((object) (is_array($values) ? $values : []), \JSON_THROW_ON_ERROR);
             $data->variables[] = $row;
         }
-    }
-
-    /** @return array<string, string> */
-    private function providerValues(mixed $values): array
-    {
-        if (!is_array($values)) {
-            return [];
-        }
-        $mapped = [];
-        foreach ($values as $providerValue => $label) {
-            if (!is_scalar($label)) {
-                continue;
-            }
-            $canonical = (new AsciiSlugger('fr'))->slug((string) $label)->lower()->toString();
-            $canonical = trim(str_replace('-', '_', $canonical), '_');
-            $mapped['' === $canonical ? 'option' : $canonical] = (string) $providerValue;
-        }
-
-        return $mapped;
     }
 
     /** @return array<string, array{option: string, values: array<string, bool|float|int|string>}> */

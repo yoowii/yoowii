@@ -75,12 +75,13 @@ final readonly class RealisaprintMappingValidator
         $sample = [];
         foreach ($definition->options() as $code => $option) {
             $allowed = $option['allowed_values'] ?? [];
+            $default = $option['default'] ?? null;
             if ([] !== $allowed) {
-                $sample[$code] = $allowed[0];
+                $sample[$code] = (is_string($default) || is_int($default)) && in_array($default, $allowed, true) ? $default : $allowed[0];
                 continue;
             }
-            if ('integer' === ($option['type'] ?? null) && isset($option['minimum'])) {
-                $sample[$code] = (int) $option['minimum'];
+            if ('integer' === ($option['type'] ?? null)) {
+                $sample[$code] = is_int($default) ? $default : (int) ($option['minimum'] ?? 1);
             }
         }
 

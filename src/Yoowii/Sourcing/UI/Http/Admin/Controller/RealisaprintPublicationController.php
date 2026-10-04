@@ -51,7 +51,7 @@ final class RealisaprintPublicationController extends AbstractController
         try {
             $publication->publish($mapping, $this->route($mapping, $entityManager), new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
             $this->addFlash('success', 'Publication contrôlée terminée : produit, configurateur, mapping et route sont activés.');
-        } catch (\DomainException $exception) {
+        } catch (\DomainException|\InvalidArgumentException $exception) {
             $this->addFlash('error', $exception->getMessage());
         }
 
