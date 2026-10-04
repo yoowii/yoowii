@@ -31,6 +31,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Yoowii/PrintProduction/Domain/Model'
                 prefix: 'App\Yoowii\PrintProduction\Domain\Model'
                 alias: YoowiiPrintProduction
+            YoowiiPricing:
+                is_bundle: false
+                type: attribute
+                dir: '%kernel.project_dir%/src/Yoowii/Pricing/Domain/Print/Definition'
+                prefix: 'App\Yoowii\Pricing\Domain\Print\Definition'
+                alias: YoowiiPricing
 
 when@prod: &doctrine_prod
     doctrine:

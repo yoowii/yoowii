@@ -23,7 +23,7 @@ final readonly class RealisaprintDraftCreator
     }
 
     /**
-     * @param array<string, array{type: string, required?: bool, allowed_values?: list<string|int>, minimum?: int|null, maximum?: int|null}> $options
+     * @param array<string, array<string, mixed>> $options
      * @param non-empty-list<string> $pricingAxes
      */
     public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, array $options, array $pricingAxes): Product
@@ -34,8 +34,13 @@ final readonly class RealisaprintDraftCreator
         if (!$this->isValidPrintCode($productCode)) {
             throw new \InvalidArgumentException('Le code produit doit respecter le format PRINT_MAJUSCULES.');
         }
-        if ('' === $stock) {
-            throw new \InvalidArgumentException('Le stock Realisaprint est obligatoire.');
+        $stock = trim($stock);
+        $availableStocks = $this->availableStockIds($catalogProduct);
+        if ([] === $availableStocks) {
+            throw new \DomainException('Aucun stock Realisaprint n’est disponible. Synchronisez ou consultez la configuration Realisaprint avant de créer le brouillon.');
+        }
+        if ('' === $stock || !in_array($stock, $availableStocks, true)) {
+            throw new \InvalidArgumentException('Le stock Realisaprint sélectionné n’appartient pas à la configuration synchronisée du produit fournisseur.');
         }
         if (null !== $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $productCode])) {
             throw new \DomainException('Un produit Sylius utilise déjà ce code.');
@@ -69,6 +74,7 @@ final readonly class RealisaprintDraftCreator
         $product->setCurrentLocale('fr_FR');
         $product->setFallbackLocale('fr_FR');
         $product->setName($name);
+        $product->setSlug(strtolower(str_replace('_', '-', $productCode)));
         $product->setEnabled(false);
         $product->setFulfillmentType(FulfillmentType::Print);
         $product->setPrintDefinitionCode($productCode);
@@ -82,7 +88,7 @@ final readonly class RealisaprintDraftCreator
         $route->deactivate();
         $variables = [];
         foreach ($options as $code => $option) {
-            if (!is_string($code) || !is_array($option) || !is_string($option['provider_variable'] ?? null)) {
+            if (!is_string($code) || !is_string($option['provider_variable'] ?? null)) {
                 continue;
             }
             $variables[$option['provider_variable']] = [
@@ -106,6 +112,24 @@ final readonly class RealisaprintDraftCreator
         $this->entityManager->flush();
 
         return $product;
+    }
+
+    /** @return list<string> */
+    private function availableStockIds(RealisaprintCatalogProduct $catalogProduct): array
+    {
+        $stocks = $catalogProduct->configuration()['stocks'] ?? [];
+        if (!is_array($stocks)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($stocks as $id => $label) {
+            if (is_scalar($label) && '' !== trim((string) $id)) {
+                $ids[] = (string) $id;
+            }
+        }
+
+        return $ids;
     }
 
     private function isValidPrintCode(string $productCode): bool

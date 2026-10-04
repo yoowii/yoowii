@@ -6,8 +6,9 @@ namespace App\Yoowii\Sourcing\UI\Http\Admin\Form;
 
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -21,7 +22,12 @@ final class RealisaprintDraftType extends AbstractType
                 'help' => 'Doit commencer par PRINT_. Il devient aussi le code du configurateur.',
             ])
             ->add('name', TextType::class, ['label' => 'Nom commercial'])
-            ->add('stock', TextType::class, ['label' => 'Stock Realisaprint'])
+            ->add('stock', ChoiceType::class, [
+                'label' => 'Stock Realisaprint',
+                'choices' => $options['stock_choices'],
+                'required' => true,
+                'placeholder' => false,
+            ])
             ->add('options', TextareaType::class, [
                 'label' => 'Options du configurateur',
                 'attr' => ['rows' => 14, 'class' => 'font-monospace'],
@@ -37,6 +43,10 @@ final class RealisaprintDraftType extends AbstractType
 
     public function configureOptions(OptionsResolver $resolver): void
     {
-        $resolver->setDefaults(['data_class' => RealisaprintDraftData::class]);
+        $resolver->setDefaults([
+            'data_class' => RealisaprintDraftData::class,
+            'stock_choices' => [],
+        ]);
+        $resolver->setAllowedTypes('stock_choices', 'array');
     }
 }

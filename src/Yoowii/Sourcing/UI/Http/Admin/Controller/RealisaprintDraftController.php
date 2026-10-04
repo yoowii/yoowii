@@ -31,18 +31,21 @@ final class RealisaprintDraftController extends AbstractController
         $data->name = $catalogProduct->name();
         $data->stock = $this->defaultStock($catalogProduct);
         $this->prefillConfiguration($data, $catalogProduct);
-        $form = $this->createForm(RealisaprintDraftType::class, $data);
+        $stocks = $this->stockChoices($catalogProduct);
+        $form = $this->createForm(RealisaprintDraftType::class, $data, ['stock_choices' => $stocks]);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
+        if ([] === $stocks) {
+            $form->addError(new FormError('Aucun stock Realisaprint n’est disponible. Synchronisez ou consultez la configuration Realisaprint avant de créer le brouillon.'));
+        }
+
+        if ($form->isSubmitted() && [] !== $stocks && $form->isValid()) {
             try {
                 $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
                 $axes = json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR);
                 if (!is_array($options) || !is_array($axes) || [] === $axes) {
                     throw new \InvalidArgumentException('Les options doivent être un objet et les axes de prix une liste non vide.');
                 }
-                /** @var array<string, array{type: string, required?: bool, allowed_values?: list<string|int>, minimum?: int|null, maximum?: int|null}> $options */
-                /** @var non-empty-list<string> $axes */
                 $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $options, $axes);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
@@ -106,9 +109,33 @@ final class RealisaprintDraftController extends AbstractController
 
     private function defaultStock(RealisaprintCatalogProduct $catalogProduct): string
     {
+        $stocks = $this->stockChoices($catalogProduct);
+
+        return [] !== $stocks ? (string) reset($stocks) : '';
+    }
+
+    /** @return array<string, string> displayed label => technical stock identifier */
+    private function stockChoices(RealisaprintCatalogProduct $catalogProduct): array
+    {
+        $choices = [];
+        foreach ($this->stocks($catalogProduct) as $id => $label) {
+            if (!is_scalar($label) || '' === trim((string) $id)) {
+                continue;
+            }
+
+            $stockId = (string) $id;
+            $choices[sprintf('%s — %s', $stockId, (string) $label)] = $stockId;
+        }
+
+        return $choices;
+    }
+
+    /** @return array<array-key, mixed> */
+    private function stocks(RealisaprintCatalogProduct $catalogProduct): array
+    {
         $stocks = $catalogProduct->configuration()['stocks'] ?? [];
 
-        return is_array($stocks) && [] !== $stocks ? (string) array_key_first($stocks) : '';
+        return is_array($stocks) ? $stocks : [];
     }
 
     /** @param array<string, mixed> $configuration @return list<array<string, mixed>> */
