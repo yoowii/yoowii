@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Sourcing\Application\RealisaprintMappingCompleteness;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
@@ -18,11 +19,12 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 
 final class RealisaprintMappingController extends AbstractController
 {
     #[Route('/realisaprint-publications/{routeId}/mapping', name: 'yoowii_admin_realisaprint_mapping', requirements: ['routeId' => '\\d+'], methods: ['GET', 'POST'])]
-    public function create(int $routeId, Request $request, EntityManagerInterface $entityManager): Response
+    public function create(int $routeId, Request $request, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness): Response
     {
         $route = $entityManager->find(SupplierRoute::class, $routeId);
         if (!$route instanceof SupplierRoute || 'realisaprint' !== $route->supplierProduct()->supplier()->code()) {
@@ -36,8 +38,12 @@ final class RealisaprintMappingController extends AbstractController
         /** @var RealisaprintCatalogProduct|null $catalogProduct */
         $catalogProduct = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
 
+        if (!$catalogProduct instanceof RealisaprintCatalogProduct || !is_array($catalogProduct->configuration())) {
+            throw $this->createNotFoundException('Configuration Realisaprint synchronisée introuvable.');
+        }
         $data = new RealisaprintMappingData();
-        $this->prefill($data, $definition);
+        $data->version = $this->nextVersion($entityManager, $route);
+        $this->prefill($data, $definition, $catalogProduct->configuration());
         $choices = array_combine(array_keys($definition->options()), array_keys($definition->options())) ?: [];
         $form = $this->createForm(RealisaprintMappingType::class, $data, ['yoowii_options' => $choices]);
         $form->handleRequest($request);
@@ -45,6 +51,8 @@ final class RealisaprintMappingController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             try {
                 $variables = $this->variables($data);
+                $configuration = $catalogProduct->configuration();
+                $completeness->assertComplete($definition, $configuration, ['stock' => trim($data->stock), 'variables' => $variables]);
                 $mapping = new SupplierProductMappingVersion(
                     $route->supplierProduct(),
                     $route->yoowiiProductCode(),
@@ -68,19 +76,68 @@ final class RealisaprintMappingController extends AbstractController
         return $this->render('admin/sourcing/realisaprint_mapping.html.twig', ['route' => $route, 'definition' => $definition, 'catalog_product' => $catalogProduct, 'form' => $form]);
     }
 
-    private function prefill(RealisaprintMappingData $data, PersistedPrintProductDefinition $definition): void
+    private function nextVersion(EntityManagerInterface $entityManager, SupplierRoute $route): string
     {
-        foreach (array_keys($definition->options()) as $option) {
-            $row = new RealisaprintMappingVariableData();
-            $row->option = $option;
-            $allowedValues = $definition->options()[$option]['allowed_values'] ?? [];
-            $identityValues = [];
-            foreach ($allowedValues as $value) {
-                $identityValues[(string) $value] = $value;
+        $versions = $entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['supplierProduct' => $route->supplierProduct(), 'yoowiiProductCode' => $route->yoowiiProductCode()]);
+        $highest = 0;
+        foreach ($versions as $mapping) {
+            if (1 === preg_match("/^v(\d+)$/D", $mapping->version(), $matches)) {
+                $highest = max($highest, (int) $matches[1]);
             }
-            $row->values = json_encode($identityValues, \JSON_THROW_ON_ERROR);
+        }
+
+        return 'v' . ($highest + 1);
+    }
+
+    /** @param array<string, mixed> $configuration */
+    private function prefill(RealisaprintMappingData $data, PersistedPrintProductDefinition $definition, array $configuration): void
+    {
+        $stocks = $configuration['stocks'] ?? [];
+        if (is_array($stocks) && [] !== $stocks) {
+            $data->stock = (string) array_key_first($stocks);
+        }
+        $optionsByVariable = [];
+        foreach ($definition->options() as $option => $definitionOption) {
+            /** @var array<string, mixed> $definitionOption */
+            if (is_string($definitionOption['provider_variable'] ?? null)) {
+                $optionsByVariable[$definitionOption['provider_variable']] = $option;
+            }
+        }
+        $variables = $configuration['variables'] ?? [];
+        if (!is_array($variables)) {
+            return;
+        }
+        /** @var array<string, mixed> $variables */
+        foreach ($variables as $providerVariable => $providerDefinition) {
+            /** @var mixed $providerDefinition */
+            if (!is_string($providerVariable) || !is_array($providerDefinition) || !isset($optionsByVariable[$providerVariable])) {
+                continue;
+            }
+            $row = new RealisaprintMappingVariableData();
+            $row->providerVariable = $providerVariable;
+            $row->option = $optionsByVariable[$providerVariable];
+            $row->values = json_encode($this->providerValues($providerDefinition['values'] ?? false), \JSON_THROW_ON_ERROR);
             $data->variables[] = $row;
         }
+    }
+
+    /** @return array<string, string> */
+    private function providerValues(mixed $values): array
+    {
+        if (!is_array($values)) {
+            return [];
+        }
+        $mapped = [];
+        foreach ($values as $providerValue => $label) {
+            if (!is_scalar($label)) {
+                continue;
+            }
+            $canonical = (new AsciiSlugger('fr'))->slug((string) $label)->lower()->toString();
+            $canonical = trim(str_replace('-', '_', $canonical), '_');
+            $mapped['' === $canonical ? 'option' : $canonical] = (string) $providerValue;
+        }
+
+        return $mapped;
     }
 
     /** @return array<string, array{option: string, values: array<string, bool|float|int|string>}> */
@@ -95,7 +152,7 @@ final class RealisaprintMappingController extends AbstractController
                 throw new \InvalidArgumentException('Chaque ligne doit désigner une variable fournisseur et une option Yoowii.');
             }
             $values = json_decode($row->values, true, 512, \JSON_THROW_ON_ERROR);
-            if (!is_array($values) || array_is_list($values)) {
+            if (!is_array($values) || ([] !== $values && array_is_list($values))) {
                 throw new \InvalidArgumentException(sprintf('Les valeurs de %s doivent être un objet JSON.', $row->providerVariable));
             }
             foreach ($values as $canonical => $provider) {

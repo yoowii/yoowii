@@ -6,7 +6,7 @@ Le catalogue Realisaprint reste une copie locale en lecture seule. Il ne crée a
 
 1. Dans **Production print → Catalogue Realisaprint**, synchroniser le catalogue puis charger la configuration du produit fournisseur.
 2. Choisir **Créer un brouillon Yoowii**. Le code et le nom sont proposés et les options/axes sont préremplis depuis les variables `VARTICLE_*` reçues de Realisaprint. Contrôler seulement le code et le nom ; la section technique avancée reste modifiable si la lecture fournisseur doit être ajustée. Le produit Sylius, sa variante par défaut, la définition de configurateur et la route Realisaprint sont créés désactivés.
-3. Depuis la route Realisaprint, ouvrir **Mapping** et enregistrer une version immuable. Chaque ligne relie une variable API à une option Yoowii et à ses valeurs fournisseur. Le mapping est aussi créé désactivé.
+3. Depuis la route Realisaprint, ouvrir **Mapping** et enregistrer une version immuable. Le stock, les identifiants `VARTICLE_*` et les codes de valeurs sont préremplis exclusivement depuis la configuration synchronisée ; une quantité libre conserve `{}`. Toutes les variables synchronisées et leurs valeurs doivent être couvertes avant enregistrement. Le mapping est aussi créé désactivé.
 4. Ouvrir **Valider / publier**. La validation vérifie la couverture de tous les axes tarifaires et envoie une seule configuration d’échantillon à l’API Realisaprint. Le mapping reste inactif pendant cette cotation.
 5. Publier seulement après un contrôle réussi. La publication active ensemble le produit, sa variante, le configurateur, la référence fournisseur, le mapping et la route.
 

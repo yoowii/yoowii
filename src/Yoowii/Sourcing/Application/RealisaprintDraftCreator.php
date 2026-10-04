@@ -96,11 +96,13 @@ final readonly class RealisaprintDraftCreator
                 'values' => is_array($option['provider_values'] ?? null) ? $option['provider_values'] : [],
             ];
         }
+        $configurationMapping = ['realisaprint' => ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'variables' => $variables]];
+        (new RealisaprintMappingCompleteness())->assertComplete($definition, $catalogProduct->configuration(), $configurationMapping['realisaprint']);
         $mapping = new SupplierProductMappingVersion(
             $supplierProduct,
             $productCode,
             'v1',
-            ['realisaprint' => ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'variables' => $variables]],
+            $configurationMapping,
             new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
         );
         $mapping->deactivate();
