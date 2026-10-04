@@ -7,7 +7,7 @@ namespace App\Yoowii\Pricing\Domain\Print;
 final readonly class PrintConfiguration
 {
     /**
-     * @param array<string, string|int> $options
+     * @param array<string, string|int|float> $options
      * @param non-empty-list<string> $pricingAxes
      *
      * @internal Construct through PrintProductDefinition::configure().
@@ -30,7 +30,7 @@ final readonly class PrintConfiguration
         return $this->schemaVersion;
     }
 
-    /** @return array<string, string|int> */
+    /** @return array<string, string|int|float> */
     public function toArray(): array
     {
         return $this->options;
@@ -40,7 +40,7 @@ final readonly class PrintConfiguration
      * @return array{
      *     product_code: string,
      *     schema_version: string,
-     *     options: array<string, string|int>
+     *     options: array<string, string|int|float>
      * }
      */
     public function snapshotData(): array

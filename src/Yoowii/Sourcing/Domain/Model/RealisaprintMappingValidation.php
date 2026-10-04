@@ -28,6 +28,14 @@ class RealisaprintMappingValidation
         private readonly bool $quotePassed,
         #[ORM\Column(name: 'supplier_cost', type: Types::INTEGER, nullable: true)]
         private readonly ?int $supplierCost,
+        #[ORM\Column(name: 'supplier_base_cost', type: Types::INTEGER, nullable: true)]
+        private readonly ?int $supplierBaseCost,
+        #[ORM\Column(name: 'supplier_options_cost', type: Types::INTEGER, nullable: true)]
+        private readonly ?int $supplierOptionsCost,
+        #[ORM\Column(name: 'test_configuration', type: Types::JSON)]
+        private readonly array $testConfiguration,
+        #[ORM\Column(name: 'test_fingerprint', type: Types::STRING, length: 64)]
+        private readonly string $testFingerprint,
         #[ORM\Column(name: 'coverage_errors', type: Types::JSON)]
         private readonly array $coverageErrors,
         #[ORM\Column(name: 'technical_detail', type: Types::STRING, length: 280, nullable: true)]
@@ -37,12 +45,65 @@ class RealisaprintMappingValidation
     ) {
     }
 
-    public function id(): ?int { return $this->id; }
-    public function mapping(): SupplierProductMappingVersion { return $this->mapping; }
-    public function coverageComplete(): bool { return $this->coverageComplete; }
-    public function quotePassed(): bool { return $this->quotePassed; }
-    public function supplierCost(): ?int { return $this->supplierCost; }
-    /** @return list<string> */ public function coverageErrors(): array { return $this->coverageErrors; }
-    public function technicalDetail(): ?string { return $this->technicalDetail; }
-    public function checkedAt(): \DateTimeImmutable { return $this->checkedAt; }
+    public function id(): ?int
+    {
+        return $this->id;
+    }
+
+    public function mapping(): SupplierProductMappingVersion
+    {
+        return $this->mapping;
+    }
+
+    public function coverageComplete(): bool
+    {
+        return $this->coverageComplete;
+    }
+
+    public function quotePassed(): bool
+    {
+        return $this->quotePassed;
+    }
+
+    public function supplierCost(): ?int
+    {
+        return $this->supplierCost;
+    }
+
+    public function supplierBaseCost(): ?int
+    {
+        return $this->supplierBaseCost;
+    }
+
+    public function supplierOptionsCost(): ?int
+    {
+        return $this->supplierOptionsCost;
+    }
+
+    /**  array<string, string|int|float> */
+    public function testConfiguration(): array
+    {
+        return $this->testConfiguration;
+    }
+
+    public function testFingerprint(): string
+    {
+        return $this->testFingerprint;
+    }
+
+    /** @return list<string> */
+    public function coverageErrors(): array
+    {
+        return $this->coverageErrors;
+    }
+
+    public function technicalDetail(): ?string
+    {
+        return $this->technicalDetail;
+    }
+
+    public function checkedAt(): \DateTimeImmutable
+    {
+        return $this->checkedAt;
+    }
 }

@@ -76,11 +76,12 @@ final class RealisaprintDraftController extends AbstractController
         $options = [];
         foreach ($providerVariables as $providerVariable) {
             $name = is_string($providerVariable['name'] ?? null) ? $providerVariable['name'] : 'Option';
-            $integerOption = true === ($providerVariable['quantity'] ?? false) || 'float' === ($providerVariable['type'] ?? null);
-            $fixedText = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false)
-                && false === ($providerVariable['values'] ?? null) && is_string($providerVariable['default'] ?? null)
-                && '' !== trim($providerVariable['default']);
-            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $integerOption, (string) ($providerVariable['type'] ?? ''));
+            $numericOption = true === ($providerVariable['quantity'] ?? false) || 'float' === ($providerVariable['type'] ?? null);
+            $floatOption = 'float' === ($providerVariable['type'] ?? null) && true !== ($providerVariable['quantity'] ?? false);
+            $fixedText = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false) &&
+                false === ($providerVariable['values'] ?? null) && is_string($providerVariable['default'] ?? null) &&
+                '' !== trim($providerVariable['default']);
+            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $numericOption, (string) ($providerVariable['type'] ?? ''));
             $valueLabels = $this->providerValues($providerVariable['values'] ?? null);
             $providerValueMap = $this->providerValueMap($providerVariable['values'] ?? null);
             $fixedCode = $fixedText ? $this->slug($providerVariable['default']) : '';
@@ -91,9 +92,9 @@ final class RealisaprintDraftController extends AbstractController
                 $valueLabels = [$fixedCode => $providerVariable['default']];
                 $providerValueMap = [$fixedCode => $providerVariable['default']];
             }
-            $allowedValues = $integerOption ? [] : array_keys($valueLabels);
+            $allowedValues = $numericOption ? [] : array_keys($valueLabels);
             $options[$optionCode] = [
-                'type' => $integerOption ? 'integer' : ($fixedText ? 'code' : ('text' === ($providerVariable['type'] ?? null) ? 'text' : 'code')),
+                'type' => $numericOption ? ($floatOption ? 'float' : 'integer') : ($fixedText ? 'code' : ('text' === ($providerVariable['type'] ?? null) ? 'text' : 'code')),
                 'required' => true,
                 'allowed_values' => $allowedValues,
                 'label' => $name,
@@ -105,12 +106,12 @@ final class RealisaprintDraftController extends AbstractController
                 'position' => (int) ($providerVariable['position'] ?? 0),
                 'readonly' => $fixedText ? false : (bool) ($providerVariable['readonly'] ?? false),
                 'default' => $fixedText ? $fixedCode : ('text' === ($providerVariable['type'] ?? null) && is_string($providerVariable['default'] ?? null)
-                    ? $providerVariable['default'] : $this->canonicalDefault($providerVariable, $providerValueMap, $integerOption)),
+                    ? $providerVariable['default'] : $this->canonicalDefault($providerVariable, $providerValueMap, $numericOption)),
             ];
             if ($fixedText) {
                 $options[$optionCode]['fixed'] = true;
             }
-            if ($integerOption) {
+            if ($numericOption) {
                 $options[$optionCode]['minimum'] = 1;
             }
         }
@@ -172,13 +173,13 @@ final class RealisaprintDraftController extends AbstractController
     }
 
     /** @param list<string> $existing */
-    private function canonicalOptionCode(string $name, array $existing, bool $integerOption, string $providerType): string
+    private function canonicalOptionCode(string $name, array $existing, bool $numericOption, string $providerType): string
     {
         $code = $this->slug($name);
         $code = '' === $code ? 'option' : $code;
         if (in_array($code, $existing, true) && 'checkbox' === $providerType) {
             $code .= '_active';
-        } elseif (in_array($code, $existing, true) && !$integerOption) {
+        } elseif (in_array($code, $existing, true) && !$numericOption) {
             $code .= '_zone';
         }
         $candidate = $code;
@@ -228,10 +229,10 @@ final class RealisaprintDraftController extends AbstractController
     }
 
     /** @param array<string, mixed> $providerVariable @param array<string, string> $providerValues */
-    private function canonicalDefault(array $providerVariable, array $providerValues, bool $integerOption): string|int|null
+    private function canonicalDefault(array $providerVariable, array $providerValues, bool $numericOption): string|int|null
     {
         $default = $providerVariable['default'] ?? null;
-        if ($integerOption && (is_int($default) || (is_string($default) && ctype_digit($default)))) {
+        if ($numericOption && (is_int($default) || (is_string($default) && ctype_digit($default)))) {
             return (int) $default;
         }
         if (!is_string($default) && !is_int($default)) {
@@ -255,6 +256,13 @@ final class RealisaprintDraftController extends AbstractController
         $value = (new AsciiSlugger('fr'))->slug($value)->lower()->toString();
         $value = str_replace('-', '_', $value);
 
-        return trim($value, '_');
+        return $this->canonicalSlug($value);
+    }
+
+    private function canonicalSlug(string $value): string
+    {
+        $value = trim($value, '_');
+
+        return ctype_digit($value) ? 'value_' . $value : $value;
     }
 }

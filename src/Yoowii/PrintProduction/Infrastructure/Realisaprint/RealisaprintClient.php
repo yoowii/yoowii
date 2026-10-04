@@ -39,7 +39,12 @@ final readonly class RealisaprintClient
         $body = $response->getContent(false);
         $decoded = json_decode($body, true);
 
-        return is_array($decoded) ? $decoded : ['http_status' => $response->getStatusCode(), 'body' => $body];
+        if (!is_array($decoded)) {
+            return ['_http_status' => $response->getStatusCode(), '_malformed_response' => true];
+        }
+        $decoded['_http_status'] = $response->getStatusCode();
+
+        return $decoded;
     }
 
     /**

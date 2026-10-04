@@ -20,15 +20,15 @@ final readonly class RealisaprintMappingValidator
         private RetailPrintPricingPolicyProvider $pricingPolicy,
         private RealisaprintMappingCompleteness $completeness,
         private EntityManagerInterface $entityManager,
-    )
-    {
+    ) {
     }
 
-    public function validate(SupplierRoute $route, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, \DateTimeImmutable $at): RealisaprintMappingValidation
+    public function validate(SupplierRoute $route, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, array $sample, \DateTimeImmutable $at): RealisaprintMappingValidation
     {
         $errors = $this->coverageErrors($mapping, $definition);
         $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
         $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
+
         try {
             if (!$catalog instanceof RealisaprintCatalogProduct || !is_array($catalog->configuration()) || !is_array($provider)) {
                 throw new \InvalidArgumentException('Configuration fournisseur synchronisée introuvable.');
@@ -38,15 +38,16 @@ final readonly class RealisaprintMappingValidator
             $errors[] = $exception->getMessage();
         }
         if ([] !== $errors) {
-            return new RealisaprintMappingValidation($mapping, false, false, null, $errors, null, $at);
+            return new RealisaprintMappingValidation($mapping, false, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), $errors, null, $at);
         }
+
         try {
-            $configuration = $definition->definition()->configure($this->sample($definition));
+            $configuration = $definition->definition()->configure($sample);
             $quote = $this->quotes->quoteDraftMapping($route, $configuration, $this->pricingPolicy->get(), 'EUR', $at, $mapping->configurationMapping(), $mapping->version());
 
-            return new RealisaprintMappingValidation($mapping, true, true, $quote->supplierCost(), [], null, $at);
+            return new RealisaprintMappingValidation($mapping, true, true, $quote->supplierCost(), $quote->productionCost(), $quote->shippingCost(), $configuration->toArray(), $this->fingerprint($mapping, $configuration->toArray()), [], null, $at);
         } catch (\Throwable $exception) {
-            return new RealisaprintMappingValidation($mapping, true, false, null, [], $this->safeDetail($exception->getMessage()), $at);
+            return new RealisaprintMappingValidation($mapping, true, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), [], $this->safeDetail($exception->getMessage()), $at);
         }
     }
 
@@ -68,12 +69,14 @@ final readonly class RealisaprintMappingValidator
         foreach ($definition->pricingAxes() as $option) {
             if (!isset($mappedOptions[$option])) {
                 $errors[] = sprintf('L’axe obligatoire « %s » n’est pas mappé.', $option);
+
                 continue;
             }
             $allowed = $definition->options()[$option]['allowed_values'] ?? [];
             $values = $mappedOptions[$option]['values'] ?? null;
             if (!is_array($values)) {
                 $errors[] = sprintf('Les valeurs de l’axe « %s » ne sont pas mappées.', $option);
+
                 continue;
             }
             foreach ($allowed as $value) {
@@ -86,7 +89,7 @@ final readonly class RealisaprintMappingValidator
         return $errors;
     }
 
-    /** @return array<string, string|int> */
+    /** @return array<string, string|int|float> */
     public function sample(PersistedPrintProductDefinition $definition): array
     {
         $sample = [];
@@ -95,10 +98,14 @@ final readonly class RealisaprintMappingValidator
             $default = $option['default'] ?? null;
             if ([] !== $allowed) {
                 $sample[$code] = (is_string($default) || is_int($default)) && in_array($default, $allowed, true) ? $default : $allowed[0];
+
                 continue;
             }
             if ('integer' === ($option['type'] ?? null)) {
                 $sample[$code] = is_int($default) ? $default : (int) ($option['minimum'] ?? 1);
+            }
+            if ('float' === ($option['type'] ?? null)) {
+                $sample[$code] = is_numeric($default) && (float) $default > 0 ? (float) $default : (float) ($option['minimum'] ?? 1);
             }
             if ('text' === ($option['type'] ?? null) && is_string($default) && '' !== trim($default)) {
                 $sample[$code] = $default;
@@ -106,6 +113,12 @@ final readonly class RealisaprintMappingValidator
         }
 
         return $sample;
+    }
+
+    /**  array<string, string|int|float> $sample */
+    public function fingerprint(SupplierProductMappingVersion $mapping, array $sample): string
+    {
+        return hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $sample], JSON_THROW_ON_ERROR));
     }
 
     private function safeDetail(string $message): string

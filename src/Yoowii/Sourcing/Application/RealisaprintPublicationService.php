@@ -25,6 +25,9 @@ final readonly class RealisaprintPublicationService
         if (!$validation instanceof RealisaprintMappingValidation || !$validation->coverageComplete() || !$validation->quotePassed()) {
             throw new \DomainException('Publication refusée : une validation de couverture et une cotation API réussies sont requises.');
         }
+        if ($validation->testFingerprint() !== hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $validation->testConfiguration()], JSON_THROW_ON_ERROR))) {
+            throw new \DomainException('Publication refusée : la configuration d’essai ou le mapping a changé, relancez le contrôle.');
+        }
         if ($validation->checkedAt() < $now->modify('-30 minutes')) {
             throw new \DomainException('Publication refusée : la validation API a expiré, relance-la.');
         }

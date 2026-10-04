@@ -20,7 +20,7 @@ class PersistedPrintProductDefinition
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = false;
 
-    /** @param array<string, array{type: string, required?: bool, allowed_values?: list<string|int>, minimum?: int|null, maximum?: int|null}> $options @param non-empty-list<string> $pricingAxes */
+    /** @param array<string, array{type: string, required?: bool, allowed_values?: list<string|int|float>, minimum?: int|float|null, maximum?: int|float|null}> $options @param non-empty-list<string> $pricingAxes */
     public function __construct(
         #[ORM\Column(name: 'product_code', type: Types::STRING, length: 64, unique: true)] private readonly string $productCode,
         #[ORM\Column(name: 'schema_version', type: Types::STRING, length: 32)] private readonly string $schemaVersion,
@@ -38,7 +38,7 @@ class PersistedPrintProductDefinition
         return $this->productCode;
     }
 
-    /** @return array<string, array{type: string, required?: bool, allowed_values?: list<string|int>, minimum?: int|null, maximum?: int|null}> */
+    /** @return array<string, array{type: string, required?: bool, allowed_values?: list<string|int|float>, minimum?: int|float|null, maximum?: int|float|null}> */
     public function options(): array
     {
         return $this->options;
@@ -92,7 +92,7 @@ class PersistedPrintProductDefinition
                 'area' => isset($option['area']) ? (int) $option['area'] : 1,
                 'position' => isset($option['position']) ? (int) $option['position'] : 0,
                 'readonly' => (bool) ($option['readonly'] ?? false),
-                'default' => is_string($option['default'] ?? null) || is_int($option['default'] ?? null) ? $option['default'] : null,
+                'default' => is_string($option['default'] ?? null) || is_int($option['default'] ?? null) || is_float($option['default'] ?? null) ? $option['default'] : null,
             ];
         }
         usort($schema, static fn (array $left, array $right): int => [$left['area'], $left['position'], $left['code']] <=> [$right['area'], $right['position'], $right['code']]);
@@ -130,7 +130,7 @@ class PersistedPrintProductDefinition
             if (!is_array($allowed)) {
                 throw new \DomainException('Invalid allowed values.');
             }
-            $options[$code] = new PrintOptionDefinition($code, $type, (bool) ($item['required'] ?? true), $allowed, isset($item['minimum']) ? (int) $item['minimum'] : null, isset($item['maximum']) ? (int) $item['maximum'] : null);
+            $options[$code] = new PrintOptionDefinition($code, $type, (bool) ($item['required'] ?? true), $allowed, PrintOptionType::Float === $type && isset($item['minimum']) ? (float) $item['minimum'] : (isset($item['minimum']) ? (int) $item['minimum'] : null), PrintOptionType::Float === $type && isset($item['maximum']) ? (float) $item['maximum'] : (isset($item['maximum']) ? (int) $item['maximum'] : null));
         }
         return new PrintProductDefinition($this->productCode, $this->schemaVersion, 'matrix_exact', $options, $this->pricingAxes);
     }

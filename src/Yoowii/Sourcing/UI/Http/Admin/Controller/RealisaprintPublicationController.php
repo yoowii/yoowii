@@ -29,7 +29,13 @@ final class RealisaprintPublicationController extends AbstractController
         $this->token($request, $csrf, 'validate_realisaprint_mapping_' . $id);
         $route = $this->route($mapping, $entityManager);
         $definition = $this->definition($mapping, $entityManager);
-        $validation = $validator->validate($route, $mapping, $definition, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+        try {
+            $sample = $this->testSample($definition, $validator, $request);
+        } catch (\InvalidArgumentException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+            return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
+        }
+        $validation = $validator->validate($route, $mapping, $definition, $sample, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
         $entityManager->persist($validation);
         $entityManager->flush();
 
@@ -43,10 +49,12 @@ final class RealisaprintPublicationController extends AbstractController
         $validation = $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
         $catalog = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $mapping->supplierProduct()->code()]);
         $definition = $this->definition($mapping, $entityManager);
-        $preview = $previewBuilder->build($definition, $mapping, $catalog instanceof RealisaprintCatalogProduct ? ($catalog->configuration() ?? []) : [], $validator->sample($definition));
+        $sample = $validation instanceof RealisaprintMappingValidation ? $validation->testConfiguration() : $validator->sample($definition);
+        $preview = $previewBuilder->build($definition, $mapping, $catalog instanceof RealisaprintCatalogProduct ? ($catalog->configuration() ?? []) : [], $sample);
         $validUntil = $validation instanceof RealisaprintMappingValidation ? $validation->checkedAt()->modify('+30 minutes') : null;
         $canPublish = $validation instanceof RealisaprintMappingValidation
             && $validation->coverageComplete() && $validation->quotePassed() && $preview['covered']
+            && hash_equals($validation->testFingerprint(), $validator->fingerprint($mapping, $validation->testConfiguration()))
             && $validUntil >= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', [
@@ -56,6 +64,8 @@ final class RealisaprintPublicationController extends AbstractController
             'preview' => $preview,
             'can_publish' => $canPublish,
             'valid_until' => $validUntil,
+            'sample' => $sample,
+            'numeric_test_fields' => $this->numericTestFields($definition),
         ]);
     }
 
@@ -72,6 +82,40 @@ final class RealisaprintPublicationController extends AbstractController
         }
 
         return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
+    }
+
+    /**  array<string, string|int|float> */
+    private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request): array
+    {
+        $sample = $validator->sample($definition);
+        $submitted = $request->request->all('test_values');
+        if (!is_array($submitted)) {
+            throw new \InvalidArgumentException('Les valeurs d’essai sont requises.');
+        }
+        foreach ($this->numericTestFields($definition) as $code => $field) {
+            $value = $submitted[$code] ?? null;
+            if (!is_string($value) || '' === trim($value)) {
+                throw new \InvalidArgumentException(sprintf('La valeur d’essai « %s » est requise.', $field['label']));
+            }
+            $sample[$code] = $value;
+        }
+        $configuration = $definition->definition()->configure($sample);
+
+        return $configuration->toArray();
+    }
+
+    /**  array<string, array{label: string, type: string, suggestion: bool}> */
+    private function numericTestFields(PersistedPrintProductDefinition $definition): array
+    {
+        $fields = [];
+        foreach ($definition->options() as $code => $option) {
+            if (!is_array($option) || [] !== ($option['allowed_values'] ?? []) || !in_array($option['type'] ?? null, ['integer', 'float'], true)) {
+                continue;
+            }
+            $fields[$code] = ['label' => is_string($option['label'] ?? null) ? $option['label'] : $code, 'type' => $option['type'], 'suggestion' => !isset($option['default'])];
+        }
+
+        return $fields;
     }
 
     private function mapping(int $id, EntityManagerInterface $entityManager): SupplierProductMappingVersion
