@@ -24,7 +24,7 @@ class PersistedPrintProductDefinition
     public function __construct(
         #[ORM\Column(name: 'product_code', type: Types::STRING, length: 64, unique: true)] private readonly string $productCode,
         #[ORM\Column(name: 'schema_version', type: Types::STRING, length: 32)] private readonly string $schemaVersion,
-        #[ORM\Column(type: Types::JSON)] private readonly array $options,
+        #[ORM\Column(type: Types::JSON)] private array $options,
         #[ORM\Column(name: 'pricing_axes', type: Types::JSON)] private readonly array $pricingAxes,
     ) {}
 
@@ -42,6 +42,22 @@ class PersistedPrintProductDefinition
     public function options(): array
     {
         return $this->options;
+    }
+
+    /** @param array<string, array<string, mixed>> $options */
+    public function replaceDraftOptions(array $options): void
+    {
+        if ($this->active) {
+            throw new \DomainException('Une définition publiée ne peut pas être modifiée en place.');
+        }
+        $previous = $this->options;
+        $this->options = $options;
+        try {
+            $this->definition();
+        } catch (\Throwable $exception) {
+            $this->options = $previous;
+            throw $exception;
+        }
     }
 
     /** @return non-empty-list<string> */
@@ -76,7 +92,6 @@ class PersistedPrintProductDefinition
                 'area' => isset($option['area']) ? (int) $option['area'] : 1,
                 'position' => isset($option['position']) ? (int) $option['position'] : 0,
                 'readonly' => (bool) ($option['readonly'] ?? false),
-                'fixed' => is_string($option['fixed_value'] ?? null),
                 'default' => is_string($option['default'] ?? null) || is_int($option['default'] ?? null) ? $option['default'] : null,
             ];
         }

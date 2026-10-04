@@ -6,6 +6,9 @@
     Ce contrôle compare toutes les valeurs du configurateur au catalogue synchronisé, puis demande à Realisaprint
     le prix d'une seule configuration d'essai. Il ne teste pas toutes les combinaisons et n'actualise pas le catalogue.
 </div>
+{% if not route.isActive %}
+    <a class="btn btn-outline-primary mb-3" href="{{ path('yoowii_admin_realisaprint_draft_repair', {routeId: route.id}) }}">Prévisualiser / corriger la définition du brouillon</a>
+{% endif %}
 <div class="card">
     <div class="card-header"><h2 class="card-title">Configuration envoyée pour le prix d'essai</h2></div>
     <div class="card-body">

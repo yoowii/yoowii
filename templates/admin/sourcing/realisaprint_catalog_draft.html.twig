@@ -3,5 +3,5 @@
 {% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog_product.id}) }}">Retour au produit fournisseur</a>{% endblock %}
 {% block sourcing_content %}
 <div class="alert alert-warning">Choisis le stock et vérifie le nom commercial. Les options et leurs correspondances fournisseur sont créées automatiquement ; le produit restera désactivé jusqu'au contrôle du prix et à sa publication.</div>
-<div class="card"><div class="card-body">{{ form_start(form) }}{{ form_errors(form) }}{{ form_row(form.productCode) }}{{ form_row(form.name) }}{{ form_row(form.stock) }}<details class="mt-3"><summary>Configuration technique proposée (avancé)</summary><div class="mt-3">{{ form_row(form.options) }}{{ form_row(form.pricingAxes) }}</div></details><button class="btn btn-primary mt-3">Créer le brouillon désactivé</button>{{ form_end(form) }}</div></div>
+<div class="card"><div class="card-body">{{ form_start(form) }}{{ form_row(form.productCode) }}{{ form_row(form.name) }}{{ form_row(form.stock) }}<details class="mt-3"><summary>Configuration technique proposée (avancé)</summary><div class="mt-3">{{ form_row(form.options) }}{{ form_row(form.pricingAxes) }}</div></details><button class="btn btn-primary mt-3">Créer le brouillon désactivé</button>{{ form_end(form) }}</div></div>
 {% endblock %}

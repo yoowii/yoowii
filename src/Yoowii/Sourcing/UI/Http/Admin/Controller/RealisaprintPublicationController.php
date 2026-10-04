@@ -51,6 +51,7 @@ final class RealisaprintPublicationController extends AbstractController
 
         return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', [
             'mapping' => $mapping,
+            'route' => $this->route($mapping, $entityManager),
             'validation' => $validation,
             'preview' => $preview,
             'can_publish' => $canPublish,

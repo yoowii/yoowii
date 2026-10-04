@@ -57,27 +57,22 @@ final class RealisaprintMappingCompleteness
                 throw new \InvalidArgumentException(sprintf('La variable Realisaprint « %s » ne correspond pas à l’option Yoowii sélectionnée.', $id));
             }
 
-            $fixed = $options[$optionCode]['fixed_value'] ?? null;
-            if (is_string($fixed)) {
-                $providerFixed = $rule['fixed_value'] ?? null;
-                $expected = $options[$optionCode]['provider_fixed_value'] ?? null;
-                if (!is_string($providerFixed) || !is_string($expected) || $providerFixed !== $expected) {
-                    throw new \InvalidArgumentException(sprintf('La valeur fixe de « %s » doit être « %s ».', $id, (string) $expected));
-                }
-                if (true !== ($providerVariable['readonly'] ?? false) || false !== ($providerVariable['values'] ?? null) || $expected !== ($providerVariable['default'] ?? null)) {
-                    throw new \InvalidArgumentException(sprintf('La valeur fixe de « %s » a changé dans la configuration Realisaprint synchronisée.', $id));
-                }
-
-                continue;
-            }
             $values = $rule['values'] ?? null;
             if (!is_array($values) || ([] !== $values && array_is_list($values))) {
                 throw new \InvalidArgumentException(sprintf('Les valeurs de « %s » doivent être un objet JSON.', $id));
             }
             $sourceValues = $providerVariable['values'] ?? false;
             if (false === $sourceValues || null === $sourceValues) {
-                if ([] !== $values) {
-                    throw new \InvalidArgumentException(sprintf('« %s » est une valeur numérique libre : ses correspondances doivent être {}.', $id));
+                $fixed = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false)
+                    && is_string($providerVariable['default'] ?? null) && '' !== trim($providerVariable['default']);
+                if ($fixed) {
+                    $allowed = $options[$optionCode]['allowed_values'] ?? [];
+                    if (!is_array($allowed) || 1 !== count($allowed) || count($values) !== 1 ||
+                        ($values[(string) $allowed[0]] ?? null) !== (string) $providerVariable['default']) {
+                        throw new \InvalidArgumentException(sprintf('La valeur fixe de « %s » doit correspondre exactement au défaut Realisaprint.', $id));
+                    }
+                } elseif ([] !== $values) {
+                    throw new \InvalidArgumentException(sprintf('« %s » est une valeur libre : ses correspondances doivent être {}.', $id));
                 }
                 continue;
             }

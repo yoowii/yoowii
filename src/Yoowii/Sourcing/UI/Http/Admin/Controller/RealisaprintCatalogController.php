@@ -6,6 +6,7 @@ namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Entity\Product\Product;
 use App\Yoowii\Sourcing\Application\RealisaprintCatalogSynchronizer;
+use App\Yoowii\Sourcing\Application\RealisaprintDraftRepair;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingCompleteness;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
@@ -48,7 +49,7 @@ final class RealisaprintCatalogController extends AbstractController
     }
 
     #[Route('/realisaprint-catalog/{id}', name: 'yoowii_admin_realisaprint_catalog_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
-    public function show(int $id, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness): Response
+    public function show(int $id, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness, RealisaprintDraftRepair $repair): Response
     {
         $product = $entityManager->find(RealisaprintCatalogProduct::class, $id);
         if (!$product instanceof RealisaprintCatalogProduct) {
@@ -57,7 +58,7 @@ final class RealisaprintCatalogController extends AbstractController
 
         return $this->render('admin/sourcing/realisaprint_catalog_show.html.twig', [
             'product' => $product,
-            'generated_products' => $this->generatedProducts($product, $entityManager, $completeness),
+            'generated_products' => $this->generatedProducts($product, $entityManager, $completeness, $repair),
         ]);
     }
 
@@ -81,7 +82,7 @@ final class RealisaprintCatalogController extends AbstractController
     }
 
     /**  list<array{product: Product, stock: string, mapping_status: string, route_status: string, mapping: SupplierProductMappingVersion|null, route: SupplierRoute}> */
-    private function generatedProducts(RealisaprintCatalogProduct $catalogProduct, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness): array
+    private function generatedProducts(RealisaprintCatalogProduct $catalogProduct, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness, RealisaprintDraftRepair $repair): array
     {
         $supplier = $entityManager->getRepository(PrintSupplier::class)->findOneBy(['code' => 'realisaprint']);
         if (!$supplier instanceof PrintSupplier) {
@@ -117,7 +118,10 @@ final class RealisaprintCatalogController extends AbstractController
                     try {
                         $completeness->assertComplete($definition, $configuration, $providerMapping);
                         $configurationStatus = 'Compatible';
-                    } catch (\InvalidArgumentException $exception) {
+                        if (!$product->isEnabled() && [] !== $repair->preview($route, $catalogProduct, $definition)) {
+                            $configurationStatus = 'À compléter';
+                        }
+                    } catch (\InvalidArgumentException|\DomainException $exception) {
                         $configurationStatus = 'Intervention nécessaire';
                     }
                 }

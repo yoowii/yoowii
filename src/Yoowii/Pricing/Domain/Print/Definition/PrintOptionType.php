@@ -8,4 +8,5 @@ enum PrintOptionType: string
 {
     case Code = 'code';
     case Integer = 'integer';
+    case Text = 'text';
 }

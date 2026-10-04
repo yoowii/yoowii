@@ -45,6 +45,7 @@ final readonly class PrintOptionDefinition
         $normalizedValue = match ($this->type) {
             PrintOptionType::Code => $this->normalizeCode($value),
             PrintOptionType::Integer => $this->normalizeInteger($value),
+            PrintOptionType::Text => $this->normalizeText($value),
         };
 
         if ([] !== $this->allowedValues && !in_array($normalizedValue, $this->allowedValues, true)) {
@@ -106,6 +107,19 @@ final readonly class PrintOptionDefinition
         }
 
         return $integer;
+    }
+
+    private function normalizeText(mixed $value): string
+    {
+        if (!is_string($value)) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" must be text.', $this->code));
+        }
+        $value = trim($value);
+        if ('' === $value || mb_strlen($value) > 255 || preg_match('/[\x00-\x1F\x7F]/u', $value)) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" contains invalid text.', $this->code));
+        }
+
+        return $value;
     }
 
     private function assertValueType(string|int $value): void

@@ -30,18 +30,10 @@ final class RealisaprintDraftController extends AbstractController
         $data->productCode = $this->suggestedCode($catalogProduct);
         $data->name = $catalogProduct->name();
         $data->stock = $this->defaultStock($catalogProduct);
-        try {
-            $this->prefillConfiguration($data, $catalogProduct);
-        } catch (\DomainException $exception) {
-            $prefillError = $exception->getMessage();
-        }
+        $this->prefillConfiguration($data, $catalogProduct);
         $stocks = $this->stockChoices($catalogProduct);
         $form = $this->createForm(RealisaprintDraftType::class, $data, ['stock_choices' => $stocks]);
         $form->handleRequest($request);
-
-        if (isset($prefillError)) {
-            $form->addError(new FormError($prefillError));
-        }
 
         if ([] === $stocks) {
             $form->addError(new FormError('Aucun stock Realisaprint n’est disponible. Synchronisez ou consultez la configuration Realisaprint avant de créer le brouillon.'));
@@ -49,15 +41,11 @@ final class RealisaprintDraftController extends AbstractController
 
         if ($form->isSubmitted() && [] !== $stocks && $form->isValid()) {
             try {
-                $decodedOptions = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
-                $decodedAxes = json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR);
-                if (!is_array($decodedOptions) || !is_array($decodedAxes) || [] === $decodedAxes) {
+                $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+                $axes = json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR);
+                if (!is_array($options) || !is_array($axes) || [] === $axes) {
                     throw new \InvalidArgumentException('Les options doivent être un objet et les axes de prix une liste non vide.');
                 }
-                /** @var array<string, array<string, mixed>> $options */
-                $options = $decodedOptions;
-                /** @var non-empty-list<string> $axes */
-                $axes = $decodedAxes;
                 $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $options, $axes);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
@@ -89,33 +77,38 @@ final class RealisaprintDraftController extends AbstractController
         foreach ($providerVariables as $providerVariable) {
             $name = is_string($providerVariable['name'] ?? null) ? $providerVariable['name'] : 'Option';
             $integerOption = true === ($providerVariable['quantity'] ?? false) || 'float' === ($providerVariable['type'] ?? null);
-            $fixed = $this->isFixedValue($providerVariable, $integerOption);
-            $providerType = is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : '';
-            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $integerOption, $providerType);
+            $fixedText = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false)
+                && false === ($providerVariable['values'] ?? null) && is_string($providerVariable['default'] ?? null)
+                && '' !== trim($providerVariable['default']);
+            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $integerOption, (string) ($providerVariable['type'] ?? ''));
             $valueLabels = $this->providerValues($providerVariable['values'] ?? null);
             $providerValueMap = $this->providerValueMap($providerVariable['values'] ?? null);
-            $fixedDefault = $fixed ? $this->fixedDefault($providerVariable) : null;
-            $fixedCanonical = null !== $fixedDefault ? $this->canonicalValue($fixedDefault) : null;
-            $allowedValues = $integerOption ? [] : ($fixed ? [$fixedCanonical] : array_keys($valueLabels));
+            $fixedCode = $fixedText ? $this->slug($providerVariable['default']) : '';
+            if ($fixedText && '' === $fixedCode) {
+                throw new \DomainException(sprintf('Valeur fixe invalide pour %s.', $name));
+            }
+            if ($fixedText) {
+                $valueLabels = [$fixedCode => $providerVariable['default']];
+                $providerValueMap = [$fixedCode => $providerVariable['default']];
+            }
+            $allowedValues = $integerOption ? [] : array_keys($valueLabels);
             $options[$optionCode] = [
-                'type' => $integerOption ? 'integer' : 'code',
+                'type' => $integerOption ? 'integer' : ($fixedText ? 'code' : ('text' === ($providerVariable['type'] ?? null) ? 'text' : 'code')),
                 'required' => true,
                 'allowed_values' => $allowedValues,
                 'label' => $name,
                 'provider_variable' => is_string($providerVariable['id'] ?? null) ? $providerVariable['id'] : null,
-                'provider_type' => is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : 'select',
+                'provider_type' => $fixedText ? 'select' : (is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : 'select'),
                 'value_labels' => $valueLabels,
                 'provider_values' => $providerValueMap,
-                'area' => is_scalar($providerVariable['area'] ?? null) ? (int) $providerVariable['area'] : 1,
-                'position' => is_scalar($providerVariable['position'] ?? null) ? (int) $providerVariable['position'] : 0,
-                'readonly' => (bool) ($providerVariable['readonly'] ?? false),
-                'default' => $fixed ? $fixedCanonical : $this->canonicalDefault($providerVariable, $providerValueMap, $integerOption),
+                'area' => (int) ($providerVariable['area'] ?? 1),
+                'position' => (int) ($providerVariable['position'] ?? 0),
+                'readonly' => $fixedText ? false : (bool) ($providerVariable['readonly'] ?? false),
+                'default' => $fixedText ? $fixedCode : ('text' === ($providerVariable['type'] ?? null) && is_string($providerVariable['default'] ?? null)
+                    ? $providerVariable['default'] : $this->canonicalDefault($providerVariable, $providerValueMap, $integerOption)),
             ];
-            if ($fixed) {
-                $options[$optionCode]['fixed_value'] = $fixedCanonical;
-                $options[$optionCode]['provider_fixed_value'] = $fixedDefault;
-                $options[$optionCode]['value_labels'] = [$fixedCanonical => $fixedDefault];
-                $options[$optionCode]['provider_values'] = [];
+            if ($fixedText) {
+                $options[$optionCode]['fixed'] = true;
             }
             if ($integerOption) {
                 $options[$optionCode]['minimum'] = 1;
@@ -160,11 +153,7 @@ final class RealisaprintDraftController extends AbstractController
         return is_array($stocks) ? $stocks : [];
     }
 
-    /**
-     * @param array<string, mixed> $configuration
-     *
-     * @return list<array<string, mixed>>
-     */
+    /** @param array<string, mixed> $configuration @return list<array<string, mixed>> */
     private function providerVariables(array $configuration): array
     {
         $variables = $configuration['variables'] ?? [];
@@ -213,7 +202,6 @@ final class RealisaprintDraftController extends AbstractController
                 continue;
             }
             $canonical = $this->slug((string) $label);
-            $canonical = ctype_digit($canonical) ? 'value_' . $canonical : $canonical;
             $canonical = '' === $canonical ? 'option' : $canonical;
             $mapped[$canonical] = (string) $label;
         }
@@ -233,17 +221,13 @@ final class RealisaprintDraftController extends AbstractController
                 continue;
             }
             $canonical = $this->slug((string) $label);
-            $canonical = ctype_digit($canonical) ? 'value_' . $canonical : $canonical;
             $mapped['' === $canonical ? 'option' : $canonical] = (string) $key;
         }
 
         return $mapped;
     }
 
-    /**
-     * @param array<string, mixed> $providerVariable
-     * @param array<string, string> $providerValues
-     */
+    /** @param array<string, mixed> $providerVariable @param array<string, string> $providerValues */
     private function canonicalDefault(array $providerVariable, array $providerValues, bool $integerOption): string|int|null
     {
         $default = $providerVariable['default'] ?? null;
@@ -272,44 +256,5 @@ final class RealisaprintDraftController extends AbstractController
         $value = str_replace('-', '_', $value);
 
         return trim($value, '_');
-    }
-
-    /** @param array<string, mixed> $providerVariable */
-    private function isFixedValue(array $providerVariable, bool $integerOption): bool
-    {
-        return !$integerOption
-            && true === ($providerVariable['readonly'] ?? false)
-            && false === ($providerVariable['values'] ?? null)
-            && null !== $this->fixedDefault($providerVariable);
-    }
-
-    /** @param array<string, mixed> $providerVariable */
-    private function fixedDefault(array $providerVariable): ?string
-    {
-        $default = $providerVariable['default'] ?? null;
-        if (!is_string($default) && !is_int($default)) {
-            if (true === ($providerVariable['readonly'] ?? false) && false === ($providerVariable['values'] ?? null)) {
-                throw new \DomainException(sprintf('La variable Realisaprint « %s » est en lecture seule mais ne fournit aucune valeur par défaut exploitable.', (string) ($providerVariable['name'] ?? 'sans nom')));
-            }
-
-            return null;
-        }
-        $default = trim((string) $default);
-        if ('' === $default) {
-            if (true === ($providerVariable['readonly'] ?? false) && false === ($providerVariable['values'] ?? null)) {
-                throw new \DomainException(sprintf('La variable Realisaprint « %s » est en lecture seule mais ne fournit aucune valeur par défaut exploitable.', (string) ($providerVariable['name'] ?? 'sans nom')));
-            }
-
-            return null;
-        }
-
-        return $default;
-    }
-
-    private function canonicalValue(string $value): string
-    {
-        $canonical = $this->slug($value);
-
-        return ctype_digit($canonical) ? 'value_' . $canonical : ('' === $canonical ? 'option' : $canonical);
     }
 }

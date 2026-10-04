@@ -1,0 +1,38 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+{% set page_title = 'Corriger le brouillon — ' ~ route.yoowiiProductCode %}
+{% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog.id}) }}">Retour au produit fournisseur</a>{% endblock %}
+{% block sourcing_content %}
+<div class="alert alert-info">Les valeurs imposées par Realisaprint sont reprises automatiquement. Pour un texte libre sans défaut, renseigne seulement une valeur d'essai pour le contrôle API ; le client pourra choisir son texte. Le produit Yoowii reste inactif jusqu'à publication.</div>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<div class="card">
+    <div class="card-header"><h2 class="card-title">Modifications proposées</h2></div>
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+            <thead><tr><th>Option Yoowii</th><th>Variable fournisseur</th><th>Défaut actuel</th><th>Correction proposée</th></tr></thead>
+            <tbody>
+            {% for change in changes %}
+                <tr><td>{{ change.label }}</td><td><code>{{ change.variable }}</code></td><td>{{ change.old }}</td><td>
+                    {% if change.kind == 'sample' %}Valeur d'essai à renseigner ci-dessous{% else %}<strong>Valeur fixe : {{ change.new }}</strong>{% endif %}
+                </td></tr>
+            {% else %}
+                <tr><td colspan="4" class="text-secondary">Aucune valeur fixe à corriger automatiquement. Les autres erreurs nécessitent une correction spécifique.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if changes is not empty and not error %}
+        <div class="card-body">
+            <form method="post">
+                <input type="hidden" name="_token" value="{{ csrf_token('repair_realisaprint_draft_' ~ route.id) }}">
+                {% for change in changes %}
+                    {% if change.kind == 'sample' %}
+                        <label class="form-label" for="sample-{{ loop.index }}">{{ change.label }} — valeur d'essai pour l'API</label>
+                        <input class="form-control mb-3" id="sample-{{ loop.index }}" name="sample[{{ change.variable }}]" value="{{ change.new }}" required maxlength="255">
+                    {% endif %}
+                {% endfor %}
+                <button class="btn btn-primary">Appliquer au brouillon et recréer le mapping</button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

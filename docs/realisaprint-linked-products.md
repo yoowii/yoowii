@@ -24,3 +24,9 @@ Une nouvelle option fournisseur ou une nouvelle valeur n'est pas ajoutée automa
 - Vérifier la configuration et le prix, puis publier. Le configurateur doit accepter la quantité libre.
 - Resynchroniser après suppression simulée d'une valeur fournisseur : la fiche signale une intervention et la publication est refusée.
 - En cas de nouveau mapping publié, une seule version est active pour la référence et le produit.
+
+## Corriger un brouillon déjà généré
+
+Depuis « Produits Yoowii liés », ouvrir « Prévisualiser / corriger le brouillon ». La page compare les champs texte du produit au catalogue synchronisé : une variable en lecture seule reprend sa valeur fournisseur exacte, tandis qu'un texte libre sans défaut demande une valeur d'essai pour la cotation API. Le produit Sylius et son code restent les mêmes ; la définition du brouillon est mise à jour et un nouveau mapping inactif est créé. Refaire ensuite le contrôle du prix avant publication.
+
+Cette opération refuse les produits déjà actifs afin de préserver les devis et commandes existants. Une correction d'un produit actif demande une révision de définition versionnée.

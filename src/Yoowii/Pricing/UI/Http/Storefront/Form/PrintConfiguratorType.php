@@ -20,7 +20,7 @@ final class PrintConfiguratorType extends AbstractType
         /** @var array<string, list<string|int>> $optionChoices */
         $optionChoices = $options['option_choices'];
         /** @var list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}> $fieldSchemas */
-        $fieldSchemas = $options['field_schemas'] ?? [];
+        $fieldSchemas = $options['field_schemas'];
         $schemasByCode = [];
         foreach ($fieldSchemas as $schema) {
             $schemasByCode[$schema['code']] = $schema;
@@ -30,11 +30,10 @@ final class PrintConfiguratorType extends AbstractType
         foreach ($codes as $code) {
             $values = $optionChoices[$code] ?? [];
             $schema = $schemasByCode[$code] ?? null;
-            if (is_array($schema) && true === ($schema['fixed'] ?? false)) {
-                continue;
-            }
-            if ([] === $values && (!is_array($schema) || !in_array($schema['type'], ['float', 'text'], true))) {
-                continue;
+            if ([] === $values) {
+                if (!is_array($schema) || !in_array($schema['type'], ['float', 'text'], true)) {
+                    continue;
+                }
             }
             if (is_array($schema) && 'session' === $schema['type']) {
                 continue;
@@ -60,6 +59,7 @@ final class PrintConfiguratorType extends AbstractType
                 'label' => is_array($schema) ? $schema['label'] : $this->optionLabel($code),
                 'choices' => $choices,
                 'expanded' => true,
+                'data' => 1 === count($values) ? ($schema['default'] ?? $values[0]) : null,
                 'placeholder' => false,
                 'disabled' => is_array($schema) && $schema['readonly'],
             ]);

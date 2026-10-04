@@ -35,6 +35,9 @@
                     <td>
                         <div class="btn-list">
                             {% if item.mapping %}
+                                {% if not item.product.enabled %}
+                                    <a class="btn btn-sm btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_draft_repair', {routeId: item.route.id}) }}">Prévisualiser / corriger le brouillon</a>
+                                {% endif %}
                                 <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: item.mapping.id}) }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ item.mapping.id) }}">
                                     <button class="btn btn-sm btn-outline-primary">Vérifier la configuration et le prix</button>
