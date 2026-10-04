@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
+use App\Entity\Product\Product;
 use App\Yoowii\Sourcing\Application\RealisaprintCatalogSynchronizer;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
+use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
+use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
+use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
+use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
+use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -47,7 +53,10 @@ final class RealisaprintCatalogController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        return $this->render('admin/sourcing/realisaprint_catalog_show.html.twig', ['product' => $product]);
+        return $this->render('admin/sourcing/realisaprint_catalog_show.html.twig', [
+            'product' => $product,
+            'generated_products' => $this->generatedProducts($product, $entityManager),
+        ]);
     }
 
     #[Route('/realisaprint-catalog/{id}/configuration/synchronize', name: 'yoowii_admin_realisaprint_catalog_configuration_synchronize', requirements: ['id' => '\\d+'], methods: ['POST'])]
@@ -67,6 +76,44 @@ final class RealisaprintCatalogController extends AbstractController
         }
 
         return $this->redirectToRoute('yoowii_admin_realisaprint_catalog_show', ['id' => $id]);
+    }
+
+    /**  list<array{product: Product, stock: string, mapping_status: string, route_status: string, mapping: SupplierProductMappingVersion|null, route: SupplierRoute}> */
+    private function generatedProducts(RealisaprintCatalogProduct $catalogProduct, EntityManagerInterface $entityManager): array
+    {
+        $supplier = $entityManager->getRepository(PrintSupplier::class)->findOneBy(['code' => 'realisaprint']);
+        if (!$supplier instanceof PrintSupplier) {
+            return [];
+        }
+        $supplierProduct = $entityManager->getRepository(SupplierProduct::class)->findOneBy(['supplier' => $supplier, 'code' => $catalogProduct->providerProductId()]);
+        if (!$supplierProduct instanceof SupplierProduct) {
+            return [];
+        }
+        $configuration = $catalogProduct->configuration() ?? [];
+        $stocks = is_array($configuration['stocks'] ?? null) ? $configuration['stocks'] : [];
+        $items = [];
+        foreach ($entityManager->getRepository(SupplierRoute::class)->findBy(['supplierProduct' => $supplierProduct], ['id' => 'ASC']) as $route) {
+            if (!$route instanceof SupplierRoute || isset($items[$route->yoowiiProductCode()])) {
+                continue;
+            }
+            $product = $entityManager->getRepository(Product::class)->findOneBy(['code' => $route->yoowiiProductCode()]);
+            if (!$product instanceof Product) {
+                continue;
+            }
+            $mapping = $entityManager->getRepository(SupplierProductMappingVersion::class)->findOneBy(['supplierProduct' => $supplierProduct, 'yoowiiProductCode' => $route->yoowiiProductCode()], ['effectiveFrom' => 'DESC']);
+            $validation = $mapping instanceof SupplierProductMappingVersion ? $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']) : null;
+            $mappingConfiguration = $mapping instanceof SupplierProductMappingVersion ? $mapping->configurationMapping() : [];
+            $providerMapping = is_array($mappingConfiguration['realisaprint'] ?? null) ? $mappingConfiguration['realisaprint'] : [];
+            $stock = $providerMapping['stock'] ?? null;
+            $stock = is_string($stock) ? $stock : '—';
+            $stockLabel = is_scalar($stocks[$stock] ?? null) ? (string) $stocks[$stock] : 'Stock inconnu';
+            $mappingStatus = 'absent';
+            if ($mapping instanceof SupplierProductMappingVersion) {
+                $mappingStatus = $route->isActive() && $mapping->isEffectiveAt(new \DateTimeImmutable('now', new \DateTimeZone('UTC'))) ? 'actif' : ($validation instanceof RealisaprintMappingValidation && $validation->coverageComplete() && $validation->quotePassed() ? 'validé' : 'brouillon');
+            }
+            $items[$route->yoowiiProductCode()] = ['product' => $product, 'stock' => $stock . ' — ' . $stockLabel, 'mapping_status' => $mappingStatus, 'route_status' => $route->isActive() ? 'publiée' : 'brouillon', 'mapping' => $mapping instanceof SupplierProductMappingVersion ? $mapping : null, 'route' => $route];
+        }
+        return array_values($items);
     }
 
     private function assertToken(Request $request, CsrfTokenManagerInterface $csrf, string $id): void
