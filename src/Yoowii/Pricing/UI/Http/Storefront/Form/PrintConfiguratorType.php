@@ -6,6 +6,8 @@ namespace App\Yoowii\Pricing\UI\Http\Storefront\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\Options;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -17,19 +19,48 @@ final class PrintConfiguratorType extends AbstractType
     {
         /** @var array<string, list<string|int>> $optionChoices */
         $optionChoices = $options['option_choices'];
+        /** @var list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}> $fieldSchemas */
+        $fieldSchemas = $options['field_schemas'];
+        $schemasByCode = [];
+        foreach ($fieldSchemas as $schema) {
+            $schemasByCode[$schema['code']] = $schema;
+        }
+        $codes = array_values(array_unique([...array_map(static fn (array $schema): string => $schema['code'], $fieldSchemas), ...array_keys($optionChoices)]));
 
-        foreach ($optionChoices as $code => $values) {
+        foreach ($codes as $code) {
+            $values = $optionChoices[$code] ?? [];
+            $schema = $schemasByCode[$code] ?? null;
+            if ([] === $values) {
+                if (!is_array($schema) || !in_array($schema['type'], ['float', 'text'], true)) {
+                    continue;
+                }
+            }
+            if (is_array($schema) && 'session' === $schema['type']) {
+                continue;
+            }
+            if (is_array($schema) && in_array($schema['type'], ['float', 'text'], true)) {
+                $builder->add($code, 'float' === $schema['type'] ? IntegerType::class : TextType::class, [
+                    'label' => $schema['label'],
+                    'required' => true,
+                    'disabled' => $schema['readonly'],
+                    'data' => $schema['default'],
+                ]);
+
+                continue;
+            }
             $choices = [];
 
             foreach ($values as $value) {
-                $choices[$this->choiceLabel($value)] = $value;
+                $label = is_array($schema) && isset($schema['values'][(string) $value]) ? $schema['values'][(string) $value] : $this->choiceLabel($value);
+                $choices[$label] = $value;
             }
 
             $builder->add($code, ChoiceType::class, [
-                'label' => $this->optionLabel($code),
+                'label' => is_array($schema) ? $schema['label'] : $this->optionLabel($code),
                 'choices' => $choices,
                 'expanded' => true,
                 'placeholder' => false,
+                'disabled' => is_array($schema) && $schema['readonly'],
             ]);
         }
     }
@@ -39,7 +70,9 @@ final class PrintConfiguratorType extends AbstractType
         $resolver->setRequired(['option_choices', 'product_code']);
         $resolver->setAllowedTypes('option_choices', 'array');
         $resolver->setAllowedTypes('product_code', 'string');
+        $resolver->setAllowedTypes('field_schemas', 'array');
         $resolver->setDefaults([
+            'field_schemas' => [],
             'csrf_token_id' => static function (Options $options): string {
                 $productCode = $options['product_code'];
 

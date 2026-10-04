@@ -20,7 +20,6 @@ final readonly class RealisaprintConfigurationMapper
     public function map(PrintConfiguration $configuration, SupplierProduct $supplierProduct, \DateTimeImmutable $at): array
     {
         $mapping = $this->mapping($configuration->productCode(), $supplierProduct, $at);
-
         return $this->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
     }
 

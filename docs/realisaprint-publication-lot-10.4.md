@@ -10,6 +10,14 @@ Le catalogue Realisaprint reste une copie locale en lecture seule. Il ne crée a
 4. Ouvrir **Valider / publier**. La validation vérifie la couverture de tous les axes tarifaires et envoie une seule configuration d’échantillon à l’API Realisaprint. Le mapping reste inactif pendant cette cotation.
 5. Publier seulement après un contrôle réussi. La publication active ensemble le produit, sa variante, le configurateur, la référence fournisseur, le mapping et la route.
 
+## Configurateur dynamique Realisaprint
+
+La définition publiée conserve les codes canoniques Yoowii, les libellés français, les valeurs visibles, le type Realisaprint, la zone et la position. Les identifiants `VARTICLE_*`, les valeurs numériques fournisseur, `shop_id` et `api_key` ne quittent jamais le serveur.
+
+Après une sélection complète, le storefront appelle le relais Symfony `print-configuration/refresh`. Celui-ci traduit les valeurs canoniques vers le mapping actif, appelle `show_variables` avec `retry=1`, puis retourne seulement la visibilité, les valeurs autorisées, les corrections et les messages normalisés. Les listes et champs non compatibles sont ainsi masqués ou actualisés avant la cotation.
+
+Realisaprint limite chaque fonction à un appel par 15 secondes et par IP. Le navigateur annule les requêtes obsolètes et attend 350 ms après une modification ; le limiteur serveur reste la protection finale. Une erreur de rafraîchissement ne publie pas de prix ni de configuration fournisseur.
+
 Une validation expire après 30 minutes. Rejouer le contrôle après toute modification ou à l’expiration.
 
 ## Recette manuelle

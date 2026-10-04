@@ -32,7 +32,9 @@ final readonly class BuiltInPrintProductDefinitionRegistry
             return $definitions;
         }
         foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy(['active' => true]) as $persisted) {
-            $definitions[$persisted->productCode()] = $persisted->definition();
+            if ($persisted instanceof PersistedPrintProductDefinition) {
+                $definitions[$persisted->productCode()] = $persisted->definition();
+            }
         }
 
         return $definitions;
@@ -50,5 +52,16 @@ final readonly class BuiltInPrintProductDefinitionRegistry
 
         return $definitions[$productCode]
             ?? throw new \InvalidArgumentException(sprintf('Unknown print product definition "%s".', $productCode));
+    }
+
+    /** @return list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}> */
+    public function storefrontSchema(string $productCode): array
+    {
+        if (null === $this->entityManager) {
+            return [];
+        }
+        $definition = $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $productCode]);
+
+        return $definition instanceof PersistedPrintProductDefinition ? $definition->storefrontSchema() : [];
     }
 }

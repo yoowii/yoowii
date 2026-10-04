@@ -14,6 +14,7 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 
 final class RealisaprintDraftController extends AbstractController
 {
@@ -28,6 +29,7 @@ final class RealisaprintDraftController extends AbstractController
         $data = new RealisaprintDraftData();
         $data->productCode = $this->suggestedCode($catalogProduct);
         $data->name = $catalogProduct->name();
+        $data->stock = $this->defaultStock($catalogProduct);
         $this->prefillConfiguration($data, $catalogProduct);
         $form = $this->createForm(RealisaprintDraftType::class, $data);
         $form->handleRequest($request);
@@ -41,7 +43,7 @@ final class RealisaprintDraftController extends AbstractController
                 }
                 /** @var array<string, array{type: string, required?: bool, allowed_values?: list<string|int>, minimum?: int|null, maximum?: int|null}> $options */
                 /** @var non-empty-list<string> $axes */
-                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), $options, $axes);
+                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $options, $axes);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
                 return $this->redirectToRoute('yoowii_admin_realisaprint_catalog_show', ['id' => $id]);
@@ -69,18 +71,30 @@ final class RealisaprintDraftController extends AbstractController
 
         $providerVariables = $this->providerVariables($configuration);
         $options = [];
-        foreach ($providerVariables as $providerVariable => $providerValues) {
-            $optionCode = $this->canonicalOptionCode($providerVariable, array_keys($options));
-            $allowedValues = $this->allowedValues($providerValues);
-            $integerOption = $this->isIntegerOption($optionCode);
-            if ($integerOption) {
-                $allowedValues = array_map(static fn (string $value): int => (int) $value, $allowedValues);
-            }
+        foreach ($providerVariables as $providerVariable) {
+            $name = is_string($providerVariable['name'] ?? null) ? $providerVariable['name'] : 'Option';
+            $integerOption = true === ($providerVariable['quantity'] ?? false) || 'float' === ($providerVariable['type'] ?? null);
+            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $integerOption, (string) ($providerVariable['type'] ?? ''));
+            $valueLabels = $this->providerValues($providerVariable['values'] ?? null);
+            $providerValueMap = $this->providerValueMap($providerVariable['values'] ?? null);
+            $allowedValues = $integerOption ? [] : array_keys($valueLabels);
             $options[$optionCode] = [
                 'type' => $integerOption ? 'integer' : 'code',
                 'required' => true,
                 'allowed_values' => $allowedValues,
+                'label' => $name,
+                'provider_variable' => is_string($providerVariable['id'] ?? null) ? $providerVariable['id'] : null,
+                'provider_type' => is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : 'select',
+                'value_labels' => $valueLabels,
+                'provider_values' => $providerValueMap,
+                'area' => (int) ($providerVariable['area'] ?? 1),
+                'position' => (int) ($providerVariable['position'] ?? 0),
+                'readonly' => (bool) ($providerVariable['readonly'] ?? false),
+                'default' => $this->canonicalDefault($providerVariable, $providerValueMap, $integerOption),
             ];
+            if ($integerOption) {
+                $options[$optionCode]['minimum'] = 1;
+            }
         }
         if ([] === $options) {
             return;
@@ -90,33 +104,41 @@ final class RealisaprintDraftController extends AbstractController
         $data->pricingAxes = json_encode(array_keys($options), \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
     }
 
-    /** @param array<string, mixed> $configuration @return array<string, mixed> */
+    private function defaultStock(RealisaprintCatalogProduct $catalogProduct): string
+    {
+        $stocks = $catalogProduct->configuration()['stocks'] ?? [];
+
+        return is_array($stocks) && [] !== $stocks ? (string) array_key_first($stocks) : '';
+    }
+
+    /** @param array<string, mixed> $configuration @return list<array<string, mixed>> */
     private function providerVariables(array $configuration): array
     {
-        $variables = [];
-        $walk = static function (array $value) use (&$variables, &$walk): void {
-            foreach ($value as $key => $item) {
-                if (is_string($key) && str_starts_with(strtoupper($key), 'VARTICLE_')) {
-                    $variables[$key] = $item;
-                }
-                if (is_array($item)) {
-                    $walk($item);
-                }
+        $variables = $configuration['variables'] ?? [];
+        if (!is_array($variables)) {
+            return [];
+        }
+        $result = [];
+        foreach ($variables as $id => $variable) {
+            if (is_string($id) && is_array($variable)) {
+                $variable['id'] = $id;
+                $result[] = $variable;
             }
-        };
-        $walk($configuration);
+        }
 
-        return $variables;
+        return $result;
     }
 
     /** @param list<string> $existing */
-    private function canonicalOptionCode(string $providerVariable, array $existing): string
+    private function canonicalOptionCode(string $name, array $existing, bool $integerOption, string $providerType): string
     {
-        $code = strtolower($providerVariable);
-        $code = preg_replace('/^varticle_/', '', $code) ?? $code;
-        $code = trim($code, '_');
-        $code = preg_replace('/[^a-z0-9]+/', '_', $code) ?? $code;
+        $code = $this->slug($name);
         $code = '' === $code ? 'option' : $code;
+        if (in_array($code, $existing, true) && 'checkbox' === $providerType) {
+            $code .= '_active';
+        } elseif (in_array($code, $existing, true) && !$integerOption) {
+            $code .= '_zone';
+        }
         $candidate = $code;
         $suffix = 2;
         while (in_array($candidate, $existing, true)) {
@@ -126,29 +148,71 @@ final class RealisaprintDraftController extends AbstractController
         return $candidate;
     }
 
-    /** @return list<string> */
-    private function allowedValues(mixed $providerValues): array
+    /** @return array<string, string> canonical value => public label */
+    private function providerValues(mixed $providerValues): array
     {
         if (!is_array($providerValues)) {
             return [];
         }
-        $values = $providerValues['values'] ?? $providerValues;
-        if (!is_array($values)) {
+        $mapped = [];
+        foreach ($providerValues as $key => $label) {
+            if (!is_string($label) && !is_int($label)) {
+                continue;
+            }
+            $canonical = $this->slug((string) $label);
+            $canonical = '' === $canonical ? 'option' : $canonical;
+            $mapped[$canonical] = (string) $label;
+        }
+
+        return $mapped;
+    }
+
+    /** @return array<string, string> canonical value => provider value */
+    private function providerValueMap(mixed $providerValues): array
+    {
+        if (!is_array($providerValues)) {
             return [];
         }
-        $allowed = [];
-        foreach ($values as $key => $value) {
-            $candidate = is_string($key) || is_int($key) ? $key : $value;
-            if (is_string($candidate) || is_int($candidate)) {
-                $allowed[] = (string) $candidate;
+        $mapped = [];
+        foreach ($providerValues as $key => $label) {
+            if (!is_string($label) && !is_int($label)) {
+                continue;
+            }
+            $canonical = $this->slug((string) $label);
+            $mapped['' === $canonical ? 'option' : $canonical] = (string) $key;
+        }
+
+        return $mapped;
+    }
+
+    /** @param array<string, mixed> $providerVariable @param array<string, string> $providerValues */
+    private function canonicalDefault(array $providerVariable, array $providerValues, bool $integerOption): string|int|null
+    {
+        $default = $providerVariable['default'] ?? null;
+        if ($integerOption && (is_int($default) || (is_string($default) && ctype_digit($default)))) {
+            return (int) $default;
+        }
+        if (!is_string($default) && !is_int($default)) {
+            return null;
+        }
+        foreach ($providerValues as $canonical => $provider) {
+            if ((string) $default === $provider) {
+                return $canonical;
             }
         }
 
-        return array_values(array_unique($allowed));
+        return null;
     }
 
-    private function isIntegerOption(string $optionCode): bool
+    private function slug(string $value): string
     {
-        return in_array($optionCode, ['quantity', 'grammage'], true);
+        $value = trim($value);
+        if (1 === preg_match('/^-+$/', $value)) {
+            return 'sans';
+        }
+        $value = (new AsciiSlugger('fr'))->slug($value)->lower()->toString();
+        $value = str_replace('-', '_', $value);
+
+        return trim($value, '_');
     }
 }

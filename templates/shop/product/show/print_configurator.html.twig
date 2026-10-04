@@ -10,6 +10,7 @@
 <div
     class="yoowii-print-configurator"
     data-controller="print-configurator"
+    data-print-configurator-refresh-url-value="{{ refresh_url|default('') }}"
     data-print-configurator-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
     data-empty-quote-label="{{ 'yoowii.storefront.price_after_configuration'|trans }}"
 >
@@ -46,6 +47,7 @@
                             {% set selected_label = choice.vars.label %}
                         {% endif %}
                     {% endfor %}
+                    {% if selected_label is null and field.vars.value is not empty %}{% set selected_label = field.vars.value %}{% endif %}
                     {% set step_complete = selected_label is not null %}
                     {% set step_enabled = previous_steps_complete %}
 
@@ -70,7 +72,7 @@
 
                         <div class="yoowii-print-step-content">
                             {{ form_errors(field) }}
-                            <div class="yoowii-print-choice-grid{{ field.vars.name == 'format' ? ' is-format-grid' : '' }}">
+                            {% if field.vars.expanded %}<div class="yoowii-print-choice-grid{{ field.vars.name == 'format' ? ' is-format-grid' : '' }}">
                                 {% for choice in field %}
                                     <div class="yoowii-print-choice">
                                         <label class="yoowii-print-choice-card" for="{{ choice.vars.id }}">
@@ -93,6 +95,7 @@
                                     </div>
                                 {% endfor %}
                             </div>
+                            {% else %}{{ form_widget(field, {attr: {'data-action': 'change->print-configurator#change'}}) }}{% endif %}
                         </div>
                     </details>
 

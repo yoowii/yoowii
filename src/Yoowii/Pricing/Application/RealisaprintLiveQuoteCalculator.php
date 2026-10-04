@@ -92,7 +92,6 @@ final readonly class RealisaprintLiveQuoteCalculator
         if ('EUR' !== $currencyCode) {
             throw new RealisaprintQuoteException(QuoteFallbackReason::SupplierNotEligible, 'Realisaprint quotation is only available in EUR.');
         }
-
         try {
             $mapped = $this->configurationMapper->mapMapping($configuration, $mapping, $version);
         } catch (\DomainException $exception) {

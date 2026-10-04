@@ -6,8 +6,8 @@ namespace App\Yoowii\Sourcing\UI\Http\Admin\Form;
 
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -21,6 +21,7 @@ final class RealisaprintDraftType extends AbstractType
                 'help' => 'Doit commencer par PRINT_. Il devient aussi le code du configurateur.',
             ])
             ->add('name', TextType::class, ['label' => 'Nom commercial'])
+            ->add('stock', TextType::class, ['label' => 'Stock Realisaprint'])
             ->add('options', TextareaType::class, [
                 'label' => 'Options du configurateur',
                 'attr' => ['rows' => 14, 'class' => 'font-monospace'],

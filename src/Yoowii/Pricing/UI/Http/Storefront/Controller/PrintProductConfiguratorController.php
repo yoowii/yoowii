@@ -13,6 +13,7 @@ use App\Yoowii\Pricing\Application\PrintQuoteService;
 use App\Yoowii\Pricing\Application\Quote\PrintQuoteStore;
 use App\Yoowii\Pricing\Application\Quote\StoredPrintQuote;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
+use App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
 use Sylius\Component\Core\Model\ChannelInterface as CoreChannelInterface;
@@ -26,6 +27,31 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class PrintProductConfiguratorController extends AbstractController
 {
+    /** @param ProductRepositoryInterface<Product> $productRepository */
+    #[Route('/products/{productCode}/print-configuration/refresh', name: 'yoowii_shop_print_product_configuration_refresh', requirements: ['productCode' => '[A-Za-z0-9._-]+'], methods: ['POST'])]
+    public function refresh(
+        string $productCode,
+        Request $request,
+        ProductRepositoryInterface $productRepository,
+        BuiltInPrintProductDefinitionRegistry $definitions,
+        RealisaprintConfiguratorRefresh $refresh,
+        ChannelContextInterface $channelContext,
+    ): Response {
+        $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
+        try {
+            $payload = $request->toArray();
+            $values = $payload['options'] ?? null;
+            if (!is_array($values)) {
+                throw new \InvalidArgumentException('La configuration à rafraîchir est invalide.');
+            }
+            $configuration = $definitions->get($this->definitionCode($product))->configure($values);
+
+            return new JsonResponse($refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC'))), Response::HTTP_OK, ['Cache-Control' => 'no-store']);
+        } catch (\Throwable $exception) {
+            return new JsonResponse(['message' => 'Les options ne peuvent pas être mises à jour pour le moment.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
+        }
+    }
+
     /** @param ProductRepositoryInterface<Product> $productRepository */
     #[Route('/products/{productCode}/print-quote', name: 'yoowii_shop_print_product_quote', requirements: ['productCode' => '[A-Za-z0-9._-]+'], methods: ['POST'])]
     public function quote(
@@ -46,7 +72,7 @@ final class PrintProductConfiguratorController extends AbstractController
         $currencyCode = $currencyContext->getCurrencyCode();
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $availableOptions = $configurationCatalog->availableOptions($definition, $currencyCode, $now);
-        $form = $this->createConfiguratorForm($productCode, $availableOptions, $request);
+        $form = $this->createConfiguratorForm($productCode, $availableOptions, $request, [], $definitions->storefrontSchema($definitionCode));
         $form->handleRequest($request);
 
         if ([] === $availableOptions || in_array([], $availableOptions, true)) {
@@ -140,6 +166,7 @@ final class PrintProductConfiguratorController extends AbstractController
             $availableOptions,
             $request,
             is_array($configuration) ? $configuration : [],
+            $definitions->storefrontSchema($definitionCode),
         );
 
         return $this->render('shop/product/show/print_configurator.html.twig', [
@@ -149,18 +176,21 @@ final class PrintProductConfiguratorController extends AbstractController
             'stored_quote' => $storedQuote,
             'quote_token' => null !== $storedQuote ? $quoteToken : null,
             'configuration' => is_array($configuration) ? $configuration : [],
+            'refresh_url' => $this->generateUrl('yoowii_shop_print_product_configuration_refresh', ['productCode' => $productCode, '_locale' => $request->getLocale()]),
         ]);
     }
 
     /**
      * @param array<string, list<string|int>> $availableOptions
      * @param array<string, mixed> $data
+     * @param list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}> $fieldSchemas
      */
     private function createConfiguratorForm(
         string $productCode,
         array $availableOptions,
         Request $request,
         array $data = [],
+        array $fieldSchemas = [],
     ): \Symfony\Component\Form\FormInterface {
         return $this->createForm(PrintConfiguratorType::class, $data, [
             'action' => $this->generateUrl('yoowii_shop_print_product_quote', [
@@ -169,6 +199,7 @@ final class PrintProductConfiguratorController extends AbstractController
             ]),
             'method' => 'POST',
             'option_choices' => $availableOptions,
+            'field_schemas' => $fieldSchemas,
             'product_code' => $productCode,
         ]);
     }

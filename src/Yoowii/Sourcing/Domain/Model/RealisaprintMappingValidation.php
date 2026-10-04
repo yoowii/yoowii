@@ -15,7 +15,6 @@ class RealisaprintMappingValidation
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    /** @phpstan-ignore-next-line Doctrine assigns generated identifiers. */
     private ?int $id = null;
 
     /** @param list<string> $coverageErrors */
@@ -38,44 +37,12 @@ class RealisaprintMappingValidation
     ) {
     }
 
-    public function id(): ?int
-    {
-        return $this->id;
-    }
-
-    public function mapping(): SupplierProductMappingVersion
-    {
-        return $this->mapping;
-    }
-
-    public function coverageComplete(): bool
-    {
-        return $this->coverageComplete;
-    }
-
-    public function quotePassed(): bool
-    {
-        return $this->quotePassed;
-    }
-
-    public function supplierCost(): ?int
-    {
-        return $this->supplierCost;
-    }
-
-    /** @return list<string> */
-    public function coverageErrors(): array
-    {
-        return $this->coverageErrors;
-    }
-
-    public function technicalDetail(): ?string
-    {
-        return $this->technicalDetail;
-    }
-
-    public function checkedAt(): \DateTimeImmutable
-    {
-        return $this->checkedAt;
-    }
+    public function id(): ?int { return $this->id; }
+    public function mapping(): SupplierProductMappingVersion { return $this->mapping; }
+    public function coverageComplete(): bool { return $this->coverageComplete; }
+    public function quotePassed(): bool { return $this->quotePassed; }
+    public function supplierCost(): ?int { return $this->supplierCost; }
+    /** @return list<string> */ public function coverageErrors(): array { return $this->coverageErrors; }
+    public function technicalDetail(): ?string { return $this->technicalDetail; }
+    public function checkedAt(): \DateTimeImmutable { return $this->checkedAt; }
 }

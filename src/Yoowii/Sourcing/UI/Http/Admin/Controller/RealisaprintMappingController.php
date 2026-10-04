@@ -91,7 +91,7 @@ final class RealisaprintMappingController extends AbstractController
         }
         $variables = [];
         foreach ($data->variables as $row) {
-            if ('' === trim($row->providerVariable) || '' === trim($row->option)) {
+            if (!$row instanceof RealisaprintMappingVariableData || '' === trim($row->providerVariable) || '' === trim($row->option)) {
                 throw new \InvalidArgumentException('Chaque ligne doit désigner une variable fournisseur et une option Yoowii.');
             }
             $values = json_decode($row->values, true, 512, \JSON_THROW_ON_ERROR);

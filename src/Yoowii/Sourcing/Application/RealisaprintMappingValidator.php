@@ -23,7 +23,6 @@ final readonly class RealisaprintMappingValidator
         if ([] !== $errors) {
             return new RealisaprintMappingValidation($mapping, false, false, null, $errors, null, $at);
         }
-
         try {
             $configuration = $definition->definition()->configure($this->sample($definition));
             $quote = $this->quotes->quoteDraftMapping($route, $configuration, $this->pricingPolicy->get(), 'EUR', $at, $mapping->configurationMapping(), $mapping->version());
@@ -52,14 +51,12 @@ final readonly class RealisaprintMappingValidator
         foreach ($definition->pricingAxes() as $option) {
             if (!isset($mappedOptions[$option])) {
                 $errors[] = sprintf('L’axe obligatoire « %s » n’est pas mappé.', $option);
-
                 continue;
             }
             $allowed = $definition->options()[$option]['allowed_values'] ?? [];
             $values = $mappedOptions[$option]['values'] ?? null;
             if (!is_array($values)) {
                 $errors[] = sprintf('Les valeurs de l’axe « %s » ne sont pas mappées.', $option);
-
                 continue;
             }
             foreach ($allowed as $value) {
@@ -80,10 +77,9 @@ final readonly class RealisaprintMappingValidator
             $allowed = $option['allowed_values'] ?? [];
             if ([] !== $allowed) {
                 $sample[$code] = $allowed[0];
-
                 continue;
             }
-            if ('integer' === ($option['type']) && isset($option['minimum'])) {
+            if ('integer' === ($option['type'] ?? null) && isset($option['minimum'])) {
                 $sample[$code] = (int) $option['minimum'];
             }
         }

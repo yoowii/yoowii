@@ -11,6 +11,7 @@ use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
+use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -25,13 +26,16 @@ final readonly class RealisaprintDraftCreator
      * @param array<string, array{type: string, required?: bool, allowed_values?: list<string|int>, minimum?: int|null, maximum?: int|null}> $options
      * @param non-empty-list<string> $pricingAxes
      */
-    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, array $options, array $pricingAxes): Product
+    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, array $options, array $pricingAxes): Product
     {
         if (null === $catalogProduct->configuration()) {
             throw new \DomainException('Charge d’abord la configuration Realisaprint avant de créer le brouillon.');
         }
         if (!$this->isValidPrintCode($productCode)) {
             throw new \InvalidArgumentException('Le code produit doit respecter le format PRINT_MAJUSCULES.');
+        }
+        if ('' === $stock) {
+            throw new \InvalidArgumentException('Le stock Realisaprint est obligatoire.');
         }
         if (null !== $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $productCode])) {
             throw new \DomainException('Un produit Sylius utilise déjà ce code.');
@@ -76,10 +80,29 @@ final readonly class RealisaprintDraftCreator
 
         $route = new SupplierRoute($productCode, $supplierProduct, 1, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
         $route->deactivate();
+        $variables = [];
+        foreach ($options as $code => $option) {
+            if (!is_string($code) || !is_array($option) || !is_string($option['provider_variable'] ?? null)) {
+                continue;
+            }
+            $variables[$option['provider_variable']] = [
+                'option' => $code,
+                'values' => is_array($option['provider_values'] ?? null) ? $option['provider_values'] : [],
+            ];
+        }
+        $mapping = new SupplierProductMappingVersion(
+            $supplierProduct,
+            $productCode,
+            'v1',
+            ['realisaprint' => ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'variables' => $variables]],
+            new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+        );
+        $mapping->deactivate();
 
         $this->entityManager->persist($definition);
         $this->entityManager->persist($product);
         $this->entityManager->persist($route);
+        $this->entityManager->persist($mapping);
         $this->entityManager->flush();
 
         return $product;

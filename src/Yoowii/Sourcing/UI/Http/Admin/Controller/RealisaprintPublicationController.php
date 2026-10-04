@@ -48,7 +48,6 @@ final class RealisaprintPublicationController extends AbstractController
     {
         $mapping = $this->mapping($id, $entityManager);
         $this->token($request, $csrf, 'publish_realisaprint_mapping_' . $id);
-
         try {
             $publication->publish($mapping, $this->route($mapping, $entityManager), new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
             $this->addFlash('success', 'Publication contrôlée terminée : produit, configurateur, mapping et route sont activés.');

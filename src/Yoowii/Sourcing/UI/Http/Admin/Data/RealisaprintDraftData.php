@@ -10,6 +10,8 @@ final class RealisaprintDraftData
 
     public string $name = '';
 
+    public string $stock = '';
+
     /** @var string JSON object keyed by canonical Yoowii option code. */
     public string $options = '{}';
 

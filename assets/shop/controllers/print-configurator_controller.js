@@ -12,16 +12,20 @@ export default class extends Controller {
 
     static values = {
         hasQuote: Boolean,
+        refreshUrl: String,
     };
 
     connect() {
         this.abortController = null;
         this.calculationTimer = null;
+        this.refreshTimer = null;
+        this.refreshAbortController = null;
         this.refreshSteps(false);
     }
 
     disconnect() {
         this.cancelPendingCalculation();
+        this.cancelPendingRefresh();
     }
 
     change(event) {
@@ -30,7 +34,8 @@ export default class extends Controller {
 
         this.clearError();
         this.clearQuote();
-        this.refreshSteps(true, stepIndex);
+        this.refreshSteps(!this.hasRefreshUrlValue, stepIndex);
+        this.scheduleRefresh();
     }
 
     submit(event) {
@@ -142,10 +147,14 @@ export default class extends Controller {
         const selectedOptions = [...step.querySelectorAll('select')]
             .flatMap((select) => [...select.selectedOptions])
             .filter((option) => option.value !== '');
+        const textValues = [...step.querySelectorAll('input[type="number"], input[type="text"]')]
+            .filter((input) => input.value !== '')
+            .map((input) => input.value);
 
         return [
             ...checkedInputs.map((input) => input.dataset.choiceLabel || input.value),
             ...selectedOptions.map((option) => option.textContent.trim()),
+            ...textValues,
         ];
     }
 
@@ -162,6 +171,71 @@ export default class extends Controller {
     scheduleCalculation() {
         this.cancelPendingCalculation();
         this.calculationTimer = window.setTimeout(() => this.calculate(), 250);
+    }
+
+    scheduleRefresh() {
+        if (!this.hasRefreshUrlValue || !this.isComplete()) {
+            return;
+        }
+        this.cancelPendingRefresh();
+        this.refreshTimer = window.setTimeout(() => this.refreshProviderState(), 350);
+    }
+
+    async refreshProviderState() {
+        if (!this.isComplete() || !this.hasRefreshUrlValue) {
+            return;
+        }
+        this.cancelPendingRefresh();
+        const abortController = new AbortController();
+        this.refreshAbortController = abortController;
+        try {
+            const options = Object.fromEntries(new FormData(this.formTarget).entries());
+            delete options._token;
+            const response = await fetch(this.refreshUrlValue, {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ options }),
+                signal: abortController.signal,
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload.message || 'Les options ne peuvent pas être mises à jour.');
+            }
+            this.applyProviderState(payload);
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                this.showError(error.message);
+            }
+        } finally {
+            if (this.refreshAbortController === abortController) {
+                this.refreshAbortController = null;
+            }
+        }
+    }
+
+    applyProviderState(state) {
+        Object.entries(state.visibility || {}).forEach(([option, visible]) => {
+            const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
+            if (!step) return;
+            step.classList.toggle('d-none', !visible);
+            this.setStepInputsDisabled(step, !visible);
+        });
+        Object.entries(state.values || {}).forEach(([option, values]) => {
+            const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
+            if (!step) return;
+            step.querySelectorAll('input[type="radio"]').forEach((input) => {
+                const allowed = Object.prototype.hasOwnProperty.call(values, input.value);
+                input.closest('.yoowii-print-choice')?.classList.toggle('d-none', !allowed);
+                input.disabled = !allowed;
+            });
+        });
+        Object.entries(state.current || {}).forEach(([option, value]) => {
+            const input = this.formTarget.querySelector(`[name$="[${CSS.escape(option)}]"][value="${CSS.escape(value)}"]`);
+            if (input && !input.checked) input.checked = true;
+        });
+        [...(state.alerts || []), ...(state.infos || [])].forEach((message) => this.showError(message));
+        this.refreshSteps(false);
+        if (this.isComplete()) this.scheduleCalculation();
     }
 
     async calculate() {
@@ -215,6 +289,15 @@ export default class extends Controller {
         this.abortController?.abort();
         this.abortController = null;
         this.setLoading(false);
+    }
+
+    cancelPendingRefresh() {
+        if (this.refreshTimer !== null) {
+            window.clearTimeout(this.refreshTimer);
+            this.refreshTimer = null;
+        }
+        this.refreshAbortController?.abort();
+        this.refreshAbortController = null;
     }
 
     clearQuote() {
