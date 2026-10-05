@@ -35,7 +35,7 @@ Encore
     // .enableBuildNotifications()
 
     .enableSourceMaps(!Encore.isProduction())
-    .enableVersioning(Encore.isProduction())
+    .enableVersioning(true)
     .enableSassLoader()
     // .enableStimulusBridge(path.resolve(__dirname, './assets/shop/controllers.json'))
     // remove the following line if you don't want to add automatically controllers provided by plugins

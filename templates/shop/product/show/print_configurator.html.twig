@@ -101,7 +101,10 @@
                                     </div>
                                 {% endfor %}
                             </div>
-                            {% else %}{{ form_widget(field, {attr: {'data-action': 'change->print-configurator#change'}}) }}{% endif %}
+                            {% else %}
+                                {% set live_input = 'integer' in field.vars.block_prefixes or 'number' in field.vars.block_prefixes or 'text' in field.vars.block_prefixes %}
+                                {{ form_widget(field, {attr: {'data-action': live_input ? 'input->print-configurator#change' : 'change->print-configurator#change'}}) }}
+                            {% endif %}
                         </div>
                     </details>
 

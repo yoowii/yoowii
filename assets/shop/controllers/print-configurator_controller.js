@@ -23,6 +23,7 @@ export default class extends Controller {
         this.refreshSequence = 0;
         this.refreshAbortController = null;
         this.refreshSteps(false);
+        this.scheduleRefresh();
     }
 
     disconnect() {
@@ -184,10 +185,11 @@ export default class extends Controller {
     }
 
     scheduleRefresh() {
+        // An incomplete edit also invalidates any pending supplier response.
+        this.cancelPendingRefresh();
         if (!this.hasRefreshUrlValue || !this.isComplete()) {
             return;
         }
-        this.cancelPendingRefresh();
         this.refreshTimer = window.setTimeout(() => this.refreshProviderState(), 350);
     }
 
@@ -200,8 +202,13 @@ export default class extends Controller {
         this.refreshAbortController = abortController;
         const sequence = ++this.refreshSequence;
         try {
-            const options = Object.fromEntries(new FormData(this.formTarget).entries());
-            delete options._token;
+            // Symfony form keys are e.g. print_configurator[quantity]; the API
+            // expects canonical option codes without the form name prefix.
+            const options = {};
+            for (const [name, value] of new FormData(this.formTarget).entries()) {
+                const match = name.match(/\[([^\[\]]+)\]$/);
+                if (match && match[1] !== '_token') options[match[1]] = value;
+            }
             const response = await fetch(this.refreshUrlValue, {
                 method: 'POST',
                 headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
@@ -209,13 +216,13 @@ export default class extends Controller {
                 signal: abortController.signal,
             });
             const payload = await response.json();
+            if (sequence !== this.refreshSequence) return;
             if (!response.ok) {
                 throw new Error(payload.message || 'Les options ne peuvent pas être mises à jour.');
             }
             this.applyProviderState(payload);
-            if (sequence !== this.refreshSequence) return;
         } catch (error) {
-            if (error.name !== 'AbortError') {
+            if (sequence === this.refreshSequence && error.name !== 'AbortError') {
                 this.showError(error.message);
             }
         } finally {
