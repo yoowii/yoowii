@@ -6,7 +6,7 @@ namespace App\Yoowii\Pricing\UI\Http\Storefront\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
+use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\Options;
@@ -38,8 +38,8 @@ final class PrintConfiguratorType extends AbstractType
             if (is_array($schema) && 'session' === $schema['type']) {
                 continue;
             }
-            if (is_array($schema) && in_array($schema['type'], ['float', 'text'], true)) {
-                $builder->add($code, 'float' === $schema['type'] ? IntegerType::class : TextType::class, [
+            if ([] === $values && is_array($schema) && in_array($schema['type'], ['float', 'text'], true)) {
+                $builder->add($code, 'float' === $schema['type'] ? NumberType::class : TextType::class, [
                     'label' => $schema['label'],
                     'required' => true,
                     'disabled' => $schema['readonly'],
@@ -61,17 +61,14 @@ final class PrintConfiguratorType extends AbstractType
                 'expanded' => true,
                 'data' => 1 === count($values) ? ($schema['default'] ?? $values[0]) : null,
                 'placeholder' => false,
-                'disabled' => is_array($schema) && $schema['readonly'],
+                // A fixed supplier value must be submitted, not dropped as a disabled field.
+                'disabled' => is_array($schema) && $schema['readonly'] && 1 !== count($values),
             ]);
         }
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
-        $resolver->setRequired(['option_choices', 'product_code']);
-        $resolver->setAllowedTypes('option_choices', 'array');
-        $resolver->setAllowedTypes('product_code', 'string');
-        $resolver->setAllowedTypes('field_schemas', 'array');
         $resolver->setDefaults([
             'field_schemas' => [],
             'csrf_token_id' => static function (Options $options): string {
@@ -84,6 +81,10 @@ final class PrintConfiguratorType extends AbstractType
                 return sprintf('configure_print_%s', $productCode);
             },
         ]);
+        $resolver->setRequired(['option_choices', 'product_code']);
+        $resolver->setAllowedTypes('option_choices', 'array');
+        $resolver->setAllowedTypes('product_code', 'string');
+        $resolver->setAllowedTypes('field_schemas', 'array');
     }
 
     private function optionLabel(string $code): string

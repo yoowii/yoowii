@@ -45,9 +45,6 @@
                     {% for choice in field %}
                         {% if choice.vars.checked %}
                             {% set selected_label = choice.vars.label %}
-                {% for fixed in fixed_fields|default([]) %}
-                    <p class="text-secondary mb-2"><strong>{{ fixed.label }} :</strong> {{ fixed.values[fixed.default]|default(fixed.default) }} · valeur imposée par Realisaprint</p>
-                {% endfor %}
                         {% endif %}
                     {% endfor %}
                     {% if selected_label is null and field.vars.value is not empty %}{% set selected_label = field.vars.value %}{% endif %}
@@ -75,7 +72,7 @@
 
                         <div class="yoowii-print-step-content">
                             {{ form_errors(field) }}
-                            {% if field.vars.expanded %}<div class="yoowii-print-choice-grid{{ field.vars.name == 'format' ? ' is-format-grid' : '' }}">
+                            {% if field|length > 0 %}<div class="yoowii-print-choice-grid{{ field.vars.name == 'format' ? ' is-format-grid' : '' }}">
                                 {% for choice in field %}
                                     <div class="yoowii-print-choice">
                                         <label class="yoowii-print-choice-card" for="{{ choice.vars.id }}">
