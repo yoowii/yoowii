@@ -7,6 +7,7 @@ namespace App\Yoowii\Pricing\UI\Http\Storefront\Form;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\Options;
@@ -20,7 +21,7 @@ final class PrintConfiguratorType extends AbstractType
         /** @var array<string, list<string|int>> $optionChoices */
         $optionChoices = $options['option_choices'];
         /** @var list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}> $fieldSchemas */
-        $fieldSchemas = $options['field_schemas'];
+        $fieldSchemas = $options['field_schemas'] ?? [];
         $schemasByCode = [];
         foreach ($fieldSchemas as $schema) {
             $schemasByCode[$schema['code']] = $schema;
@@ -31,18 +32,28 @@ final class PrintConfiguratorType extends AbstractType
             $values = $optionChoices[$code] ?? [];
             $schema = $schemasByCode[$code] ?? null;
             if ([] === $values) {
-                if (!is_array($schema) || !in_array($schema['type'], ['float', 'text'], true)) {
+                if (!is_array($schema) || !in_array($schema['type'], ['integer', 'float', 'text'], true)) {
                     continue;
                 }
             }
-            if (is_array($schema) && 'session' === $schema['type']) {
+            if (is_array($schema) && true === ($schema['fixed'] ?? false)) {
                 continue;
             }
-            if ([] === $values && is_array($schema) && in_array($schema['type'], ['float', 'text'], true)) {
-                $builder->add($code, 'float' === $schema['type'] ? NumberType::class : TextType::class, [
+            if ([] === $values && is_array($schema) && in_array($schema['type'], ['integer', 'float', 'text'], true)) {
+                $type = match ($schema['type']) {
+                    'integer' => IntegerType::class,
+                    'float' => NumberType::class,
+                    default => TextType::class,
+                };
+                $builder->add($code, $type, [
                     'label' => $schema['label'],
                     'required' => true,
-                    'disabled' => $schema['readonly'],
+                    'attr' => array_filter([
+                        'min' => $schema['minimum'] ?? null,
+                        'max' => $schema['maximum'] ?? null,
+                        'step' => 'float' === $schema['type'] ? 'any' : null,
+                        'maxlength' => 'text' === $schema['type'] ? 255 : null,
+                    ], static fn (mixed $value): bool => null !== $value),
                     'data' => $schema['default'],
                 ]);
 
@@ -58,11 +69,9 @@ final class PrintConfiguratorType extends AbstractType
             $builder->add($code, ChoiceType::class, [
                 'label' => is_array($schema) ? $schema['label'] : $this->optionLabel($code),
                 'choices' => $choices,
-                'expanded' => true,
+                'expanded' => count($values) <= 8,
                 'data' => 1 === count($values) ? ($schema['default'] ?? $values[0]) : null,
                 'placeholder' => false,
-                // A fixed supplier value must be submitted, not dropped as a disabled field.
-                'disabled' => is_array($schema) && $schema['readonly'] && 1 !== count($values),
             ]);
         }
     }

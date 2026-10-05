@@ -87,12 +87,16 @@ class PersistedPrintProductDefinition
             $schema[] = [
                 'code' => $code,
                 'label' => is_string($option['label'] ?? null) ? $option['label'] : ucfirst(str_replace('_', ' ', $code)),
-                'type' => is_string($option['provider_type'] ?? null) ? $option['provider_type'] : (string) ($option['type'] ?? 'select'),
+                // Provider types only describe the API: forms use canonical Yoowii types.
+                'type' => (string) ($option['type'] ?? 'code'),
+                'provider_type' => is_string($option['provider_type'] ?? null) ? $option['provider_type'] : null,
                 'values' => $valueLabels,
                 'area' => isset($option['area']) ? (int) $option['area'] : 1,
                 'position' => isset($option['position']) ? (int) $option['position'] : 0,
                 'readonly' => (bool) ($option['readonly'] ?? false),
                 'default' => is_string($option['default'] ?? null) || is_int($option['default'] ?? null) || is_float($option['default'] ?? null) ? $option['default'] : null,
+                'minimum' => isset($option['minimum']) ? (float) $option['minimum'] : null,
+                'maximum' => isset($option['maximum']) ? (float) $option['maximum'] : null,
             ];
         }
         usort($schema, static fn (array $left, array $right): int => [$left['area'], $left['position'], $left['code']] <=> [$right['area'], $right['position'], $right['code']]);

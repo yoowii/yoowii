@@ -13,6 +13,7 @@
     data-print-configurator-refresh-url-value="{{ refresh_url|default('') }}"
     data-print-configurator-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
     data-empty-quote-label="{{ 'yoowii.storefront.price_after_configuration'|trans }}"
+    data-print-configurator-pricing-axes-value="{{ pricing_axes|default([])|json_encode|e('html_attr') }}"
 >
     <div class="mb-4">
         <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
@@ -38,6 +39,11 @@
                 }) }}
                 {{ form_errors(form) }}
 
+                {% for code, fixed in fixed_fields|default([]) %}
+                    <p class="text-secondary mb-2" data-fixed-axis="{{ code }}">
+                        <strong>{{ code|replace({'_': ' '})|capitalize }} :</strong> {{ fixed.label }} · valeur imposée par Realisaprint
+                    </p>
+                {% endfor %}
                 {% set previous_steps_complete = true %}
                 {% for field in configurable_fields %}
                     {% set step_index = loop.index0 %}

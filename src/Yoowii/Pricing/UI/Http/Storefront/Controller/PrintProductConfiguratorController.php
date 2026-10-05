@@ -14,6 +14,7 @@ use App\Yoowii\Pricing\Application\Quote\PrintQuoteStore;
 use App\Yoowii\Pricing\Application\Quote\StoredPrintQuote;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh;
+use App\Yoowii\Pricing\Application\RealisaprintFixedOptionResolver;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
 use Sylius\Component\Core\Model\ChannelInterface as CoreChannelInterface;
@@ -36,6 +37,7 @@ final class PrintProductConfiguratorController extends AbstractController
         BuiltInPrintProductDefinitionRegistry $definitions,
         RealisaprintConfiguratorRefresh $refresh,
         ChannelContextInterface $channelContext,
+        RealisaprintFixedOptionResolver $fixedOptions,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         try {
@@ -44,8 +46,9 @@ final class PrintProductConfiguratorController extends AbstractController
             if (!is_array($values)) {
                 throw new \InvalidArgumentException('La configuration à rafraîchir est invalide.');
             }
-            $configuration = $definitions->get($this->definitionCode($product))->configure($values);
+            $configuration = $definitions->get($this->definitionCode($product))->configure($this->withFixedValues($values, $fixedOptions->forProduct($this->definitionCode($product), new \DateTimeImmutable('now', new \DateTimeZone('UTC')))));
 
+            $this->assertPricingAxesComplete($configuration, $definitions->get($this->definitionCode($product))->pricingAxes());
             return new JsonResponse($refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC'))), Response::HTTP_OK, ['Cache-Control' => 'no-store']);
         } catch (\Throwable $exception) {
             return new JsonResponse(['message' => 'Les options ne peuvent pas être mises à jour pour le moment.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
@@ -65,6 +68,7 @@ final class PrintProductConfiguratorController extends AbstractController
         PrintQuoteStore $quoteStore,
         CurrencyContextInterface $currencyContext,
         ChannelContextInterface $channelContext,
+        RealisaprintFixedOptionResolver $fixedOptions,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
@@ -72,10 +76,11 @@ final class PrintProductConfiguratorController extends AbstractController
         $currencyCode = $currencyContext->getCurrencyCode();
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $availableOptions = $configurationCatalog->availableOptions($definition, $currencyCode, $now);
-        $form = $this->createConfiguratorForm($productCode, $availableOptions, $request, [], $definitions->storefrontSchema($definitionCode));
+        $fixed = $fixedOptions->forProduct($definitionCode, $now);
+        $form = $this->createConfiguratorForm($productCode, $availableOptions, $request, [], $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed));
         $form->handleRequest($request);
 
-        if (!$this->hasAvailableConfiguration($definition->pricingAxes(), $availableOptions, $definitions->storefrontSchema($definitionCode))) {
+        if (!$this->hasAvailableConfiguration($definition->pricingAxes(), $availableOptions, $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed))) {
             return $this->quoteError(
                 $request,
                 $product,
@@ -99,9 +104,10 @@ final class PrintProductConfiguratorController extends AbstractController
                 throw new \InvalidArgumentException('La configuration reçue est invalide.');
             }
 
-            $values = $formData;
+            $values = $this->withFixedValues($formData, $fixedOptions->forProduct($definitionCode, $now));
             /** @var array<string, mixed> $values */
             $configuration = $definition->configure($values);
+            $this->assertPricingAxesComplete($configuration, $definition->pricingAxes());
             $quote = $quoteService->quote(
                 $configuration,
                 $pricingPolicyProvider->get(),
@@ -149,6 +155,7 @@ final class PrintProductConfiguratorController extends AbstractController
         PrintQuoteStore $quoteStore,
         CurrencyContextInterface $currencyContext,
         ChannelContextInterface $channelContext,
+        RealisaprintFixedOptionResolver $fixedOptions,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
@@ -160,23 +167,26 @@ final class PrintProductConfiguratorController extends AbstractController
             $now,
         );
         $storedQuote = $this->matchingQuote($quoteToken, $product, $definitionCode, $quoteStore, $now);
+        $fixed = $fixedOptions->forProduct($definitionCode, $now);
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
         $form = $this->createConfiguratorForm(
             $productCode,
             $availableOptions,
             $request,
             is_array($configuration) ? $configuration : [],
-            $definitions->storefrontSchema($definitionCode),
+            $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed),
         );
 
         return $this->render('shop/product/show/print_configurator.html.twig', [
             'product' => $product,
             'form' => $form->createView(),
-            'available' => $this->hasAvailableConfiguration($definition->pricingAxes(), $availableOptions, $definitions->storefrontSchema($definitionCode)),
+            'available' => $this->hasAvailableConfiguration($definition->pricingAxes(), $availableOptions, $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed)),
             'stored_quote' => $storedQuote,
             'quote_token' => null !== $storedQuote ? $quoteToken : null,
             'configuration' => is_array($configuration) ? $configuration : [],
             'refresh_url' => $this->generateUrl('yoowii_shop_print_product_configuration_refresh', ['productCode' => $productCode, '_locale' => $request->getLocale()]),
+            'fixed_fields' => $fixed,
+            'pricing_axes' => $definition->pricingAxes(),
         ]);
     }
 
@@ -204,6 +214,41 @@ final class PrintProductConfiguratorController extends AbstractController
         ]);
     }
 
+    /** @param array<string, mixed> $values @param array<string, array{value: string|int|float, label: string}> $fixed */
+    private function withFixedValues(array $values, array $fixed): array
+    {
+        foreach ($fixed as $code => $field) {
+            $values[$code] = $field['value'];
+        }
+
+        return $values;
+    }
+
+    /** @param list<array<string, mixed>> $schemas @param array<string, array{value: string|int|float, label: string}> $fixed
+     * @return list<array<string, mixed>> */
+    private function withFixedSchema(array $schemas, array $fixed): array
+    {
+        foreach ($schemas as &$schema) {
+            if (isset($fixed[$schema['code'] ?? ''])) {
+                $schema['fixed'] = true;
+                $schema['fixed_label'] = $fixed[$schema['code']]['label'];
+            }
+        }
+        unset($schema);
+
+        return $schemas;
+    }
+
+    /** @param list<string> $axes */
+    private function assertPricingAxesComplete(\App\Yoowii\Pricing\Domain\Print\PrintConfiguration $configuration, array $axes): void
+    {
+        $values = $configuration->toArray();
+        foreach ($axes as $axis) {
+            if (!array_key_exists($axis, $values) || '' === trim((string) $values[$axis])) {
+                throw new \InvalidArgumentException(sprintf('L’axe de prix « %s » doit être renseigné.', $axis));
+            }
+        }
+    }
     /** @param list<string> $axes @param array<string, list<string|int>> $availableOptions @param list<array<string, mixed>> $fieldSchemas */
     private function hasAvailableConfiguration(array $axes, array $availableOptions, array $fieldSchemas): bool
     {

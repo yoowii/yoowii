@@ -13,12 +13,14 @@ export default class extends Controller {
     static values = {
         hasQuote: Boolean,
         refreshUrl: String,
+        pricingAxes: Array,
     };
 
     connect() {
         this.abortController = null;
         this.calculationTimer = null;
         this.refreshTimer = null;
+        this.refreshSequence = 0;
         this.refreshAbortController = null;
         this.refreshSteps(false);
     }
@@ -165,7 +167,15 @@ export default class extends Controller {
     }
 
     isComplete() {
-        return this.stepTargets.length > 0 && this.stepTargets.every((step) => this.selectedLabels(step).length > 0);
+        if (this.stepTargets.length === 0 || !this.stepTargets.every((step) => this.selectedLabels(step).length > 0)) {
+            return false;
+        }
+        return this.pricingAxesValue.every((axis) => {
+            if (this.element.querySelector(`[data-fixed-axis="${CSS.escape(axis)}"]`)) {
+                return true;
+            }
+            return [...this.formTarget.elements].some((input) => input.name.endsWith(`[${axis}]`) && !input.disabled && input.value !== '' && (input.type !== 'radio' || input.checked));
+        });
     }
 
     scheduleCalculation() {
@@ -188,6 +198,7 @@ export default class extends Controller {
         this.cancelPendingRefresh();
         const abortController = new AbortController();
         this.refreshAbortController = abortController;
+        const sequence = ++this.refreshSequence;
         try {
             const options = Object.fromEntries(new FormData(this.formTarget).entries());
             delete options._token;
@@ -202,6 +213,7 @@ export default class extends Controller {
                 throw new Error(payload.message || 'Les options ne peuvent pas être mises à jour.');
             }
             this.applyProviderState(payload);
+            if (sequence !== this.refreshSequence) return;
         } catch (error) {
             if (error.name !== 'AbortError') {
                 this.showError(error.message);
@@ -292,6 +304,7 @@ export default class extends Controller {
     }
 
     cancelPendingRefresh() {
+        this.refreshSequence += 1;
         if (this.refreshTimer !== null) {
             window.clearTimeout(this.refreshTimer);
             this.refreshTimer = null;
