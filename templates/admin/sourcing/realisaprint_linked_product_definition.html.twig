@@ -1,0 +1,23 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+{% set page_title = 'Définition technique — ' ~ route.yoowiiProductCode %}
+{% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog_product.id}) }}">Retour au produit fournisseur</a>{% endblock %}
+{% block sourcing_content %}
+<div class="card">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Produit Yoowii</dt><dd class="col-sm-9"><code>{{ route.yoowiiProductCode }}</code></dd>
+            <dt class="col-sm-3">Produit fournisseur</dt><dd class="col-sm-9"><code>{{ catalog_product.providerProductId }}</code></dd>
+        </dl>
+    </div>
+</div>
+
+<details class="card mt-4" open>
+    <summary class="card-header">Configuration technique proposée (avancé)</summary>
+    <div class="card-body">
+        <h2 class="h3">Options du configurateur</h2>
+        <pre class="mb-4 small">{{ definition.options|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+        <h2 class="h3">Axes de prix</h2>
+        <pre class="mb-0 small">{{ definition.pricingAxes|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+    </div>
+</details>
+{% endblock %}

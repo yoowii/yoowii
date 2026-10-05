@@ -34,6 +34,7 @@
                     <td><span class="badge {{ item.configuration_status == 'Compatible' ? 'bg-success-lt' : 'bg-warning-lt' }}">{{ item.configuration_status }}</span></td>
                     <td>
                         <div class="btn-list">
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_linked_product_definition', {id: product.id, routeId: item.route.id}) }}">Consulter la définition</a>
                             {% if item.mapping %}
                                 {% if not item.product.enabled %}
                                     <a class="btn btn-sm btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_draft_repair', {routeId: item.route.id}) }}">Prévisualiser / corriger le brouillon</a>
