@@ -257,11 +257,15 @@ final class PrintProductConfiguratorController extends AbstractController
             $schemas[$schema['code']] = $schema;
         }
         foreach ($axes as $axis) {
+            $schema = $schemas[$axis] ?? null;
+            if (true === ($schema['fixed'] ?? false)) {
+                continue;
+            }
             if ([] !== ($availableOptions[$axis] ?? [])) {
                 continue;
             }
             // Free numeric/text values do not have a finite supplier catalogue of choices.
-            if (!in_array($schemas[$axis]['type'] ?? null, ['float', 'text'], true)) {
+            if (!in_array($schema['type'] ?? null, ['integer', 'float', 'text'], true)) {
                 return false;
             }
         }
