@@ -59,14 +59,10 @@ final readonly class RealisaprintDraftRepair
             if (!is_string($default) || '' === trim($default)) {
                 throw new \DomainException(sprintf('La variable %s est en lecture seule mais n’a pas de valeur par défaut exploitable.', $id));
             }
-            $canonical = $this->canonical($default);
-            if ('' === $canonical) {
-                throw new \DomainException(sprintf('Impossible de créer un code Yoowii pour la valeur fixe de %s.', $id));
-            }
-            if (($option['allowed_values'] ?? null) === [$canonical] &&
-                ($option['provider_values'][$canonical] ?? null) === $default &&
+            if (($option['allowed_values'] ?? null) === [$default] &&
+                ($option['provider_values'][$default] ?? null) === $default &&
                 ($option['provider_type'] ?? null) === 'select' &&
-                ($mappingRules[$id]['values'] ?? null) === [$canonical => $default]) {
+                ($mappingRules[$id]['values'] ?? null) === [$default => $default]) {
                 continue;
             }
             $changes[] = [
@@ -98,10 +94,11 @@ final readonly class RealisaprintDraftRepair
         foreach ($changes as $change) {
             $id = $change['variable'];
             $rule = $rules[$id] ?? null;
-            if (!is_array($rule) || !is_string($rule['option'] ?? null) || !isset($options[$rule['option']])) {
-                throw new \DomainException(sprintf('La correspondance de %s est introuvable.', $id));
+            $code = is_array($rule) && is_string($rule['option'] ?? null) && isset($options[$rule['option']]) ? $rule['option'] : null;
+            if (null === $code) {
+                foreach ($options as $candidate => $option) { if (is_array($option) && ($option['provider_variable'] ?? null) === $id) { $code = $candidate; break; } }
             }
-            $code = $rule['option'];
+            if (!is_string($code)) { throw new DomainException(sprintf('La correspondance de %s est introuvable.', $id)); }
             if ('sample' === $change['kind']) {
                 $sample = $samples[$id] ?? $change['new'];
                 if (!is_string($sample) || '' === trim($sample) || mb_strlen($sample) > 255) {
@@ -118,16 +115,15 @@ final readonly class RealisaprintDraftRepair
                 continue;
             }
             $default = $change['new'];
-            $canonical = $this->canonical($default);
-            $options[$code]['type'] = 'code';
-            $options[$code]['allowed_values'] = [$canonical];
-            $options[$code]['default'] = $canonical;
-            $options[$code]['value_labels'] = [$canonical => $default];
+            $options[$code]['type'] = 'text';
+            $options[$code]['allowed_values'] = [$default];
+            $options[$code]['default'] = $default;
+            $options[$code]['value_labels'] = [$default => $default];
             // A single selectable value remains submitted by Symfony, unlike a disabled text field.
             $options[$code]['provider_type'] = 'select';
-            $options[$code]['provider_values'] = [$canonical => $default];
+            $options[$code]['provider_values'] = [$default => $default];
             $options[$code]['fixed'] = true;
-            $rules[$id] = ['option' => $code, 'values' => [$canonical => $default]];
+            $rules[$id] = ['option' => $code, 'values' => [$default => $default]];
         }
         $provider['variables'] = $rules;
         $definition->replaceDraftOptions($options);

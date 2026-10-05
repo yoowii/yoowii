@@ -81,10 +81,13 @@ final class RealisaprintDraftController extends AbstractController
             $fixedText = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false) &&
                 false === ($providerVariable['values'] ?? null) && is_string($providerVariable['default'] ?? null) &&
                 '' !== trim($providerVariable['default']);
+            if ('text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false) && false === ($providerVariable['values'] ?? null) && !$fixedText) {
+                throw new \DomainException(sprintf('La variable %s est en lecture seule sans valeur par défaut exploitable.', $name));
+            }
             $optionCode = $this->canonicalOptionCode($name, array_keys($options), $numericOption, (string) ($providerVariable['type'] ?? ''));
             $valueLabels = $this->providerValues($providerVariable['values'] ?? null);
             $providerValueMap = $this->providerValueMap($providerVariable['values'] ?? null);
-            $fixedCode = $fixedText ? $this->slug($providerVariable['default']) : '';
+            $fixedCode = $fixedText ? $providerVariable['default'] : '';
             if ($fixedText && '' === $fixedCode) {
                 throw new \DomainException(sprintf('Valeur fixe invalide pour %s.', $name));
             }
@@ -94,7 +97,7 @@ final class RealisaprintDraftController extends AbstractController
             }
             $allowedValues = $numericOption ? [] : array_keys($valueLabels);
             $options[$optionCode] = [
-                'type' => $numericOption ? ($floatOption ? 'float' : 'integer') : ($fixedText ? 'code' : ('text' === ($providerVariable['type'] ?? null) ? 'text' : 'code')),
+                'type' => $numericOption ? ($floatOption ? 'float' : 'integer') : ($fixedText ? 'text' : ('text' === ($providerVariable['type'] ?? null) ? 'text' : 'code')),
                 'required' => true,
                 'allowed_values' => $allowedValues,
                 'label' => $name,

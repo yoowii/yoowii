@@ -60,14 +60,14 @@ final class RealisaprintDraftControllerTest extends TestCase
         (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), $data, $catalog);
         $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
 
-        self::assertSame('recto', $options['face_imprimee']['fixed_value']);
-        self::assertSame('Recto', $options['face_imprimee']['provider_fixed_value']);
+        self::assertSame(['Recto'], $options['face_imprimee']['allowed_values']);
+        self::assertSame(['Recto' => 'Recto'], $options['face_imprimee']['provider_values']);
         self::assertArrayNotHasKey('fixed_value', $options['commentaire']);
 
         $definition = new PersistedPrintProductDefinition('PRINT_PRODUIT', 'v1', $options, array_keys($options));
-        $configuration = $definition->definition()->configure(['face_imprimee' => 'recto', 'commentaire' => 'texte']);
+        $configuration = $definition->definition()->configure(['face_imprimee' => 'Recto', 'commentaire' => 'texte']);
         $payload = (new RealisaprintConfigurationMapper($this->createMock(EntityManagerInterface::class)))->mapMapping($configuration, ['realisaprint' => ['product' => '70', 'stock' => '1', 'variables' => [
-            'VARTICLE_28779_' => ['option' => 'face_imprimee', 'values' => [], 'fixed_value' => 'Recto'],
+            'VARTICLE_28779_' => ['option' => 'face_imprimee', 'values' => ['Recto' => 'Recto']],
             'COMMENTAIRE_' => ['option' => 'commentaire', 'values' => []],
         ]]], 'v1');
 
@@ -77,7 +77,7 @@ final class RealisaprintDraftControllerTest extends TestCase
     public function testReadonlyValueWithoutUsableDefaultIsRejected(): void
     {
         $catalog = new RealisaprintCatalogProduct('70', 'Produit', new \DateTimeImmutable());
-        $catalog->refreshConfiguration(['stocks' => ['1' => 'Stock'], 'variables' => ['V' => ['name' => 'Face', 'values' => false, 'readonly' => true]]], new \DateTimeImmutable());
+        $catalog->refreshConfiguration(['stocks' => ['1' => 'Stock'], 'variables' => ['V' => ['name' => 'Face', 'type' => 'text', 'values' => false, 'readonly' => true]]], new \DateTimeImmutable());
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('valeur par défaut exploitable');
         (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), new RealisaprintDraftData(), $catalog);
