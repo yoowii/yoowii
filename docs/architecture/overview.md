@@ -82,6 +82,8 @@ Deux lignes configurées ne sont jamais fusionnées automatiquement : la quantit
 
 Le catalogue vendu au client reste indépendant des références Laboprint, Realisaprint, WIRmachenDRUCK ou 123imprim. Un `SupplierProduct` représente la référence technique d'un imprimeur. Ses options sont traduites depuis la configuration Yoowii par un `SupplierProductMappingVersion` immuable.
 
+L’administration affiche par défaut la version la plus récente par produit et référence fournisseur ; l’historique est disponible à la demande. Une suppression définitive, confirmée et protégée par CSRF, n’est permise que pour une version désactivée, remplacée, sans route, validation conservée ni commande qui la référence.
+
 Chaque grille de coût est importée dans un nouveau `SupplierPricingMatrixVersion`. Une version suit le cycle `draft -> active -> archived` et une version archivée ne peut pas être réactivée. Son checksum permet de détecter un import identique, indépendamment de l'ordre des clés JSON.
 
 Le MVP applique un routage fixe par code produit Yoowii : priorité `10` pour le fournisseur principal, puis `20`, `30`, etc. pour les secours. Le routeur refuse une égalité de priorité et ignore les routes hors période ainsi que les fournisseurs ou produits désactivés. Aucun appel API fournisseur n'est effectué dans ce premier lot.
