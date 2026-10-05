@@ -22,6 +22,7 @@ export default class extends Controller {
         this.refreshTimer = null;
         this.refreshSequence = 0;
         this.refreshAbortController = null;
+        this.applySchemaVisibility();
         this.refreshSteps(false);
         this.scheduleRefresh();
     }
@@ -37,6 +38,7 @@ export default class extends Controller {
 
         this.clearError();
         this.clearQuote();
+        this.applySchemaVisibility();
         this.refreshSteps(!this.hasRefreshUrlValue, stepIndex);
         this.scheduleRefresh();
     }
@@ -89,7 +91,7 @@ export default class extends Controller {
         let previousStepsComplete = true;
         let firstIncompleteStep = null;
 
-        this.stepTargets.forEach((step, index) => {
+        this.stepTargets.filter((step) => !step.classList.contains('d-none')).forEach((step, index) => {
             const enabled = previousStepsComplete;
             const labels = this.selectedLabels(step);
             const complete = labels.length > 0;
@@ -144,6 +146,22 @@ export default class extends Controller {
         }
     }
 
+
+    applySchemaVisibility() {
+        this.stepTargets.forEach((step) => {
+            const dependency = step.dataset.dependsOn;
+            if (!dependency) return;
+            const [parent, expected] = dependency.split(':');
+            const selected = this.formTarget.querySelector(`[name$="[${CSS.escape(parent)}]"]:checked, select[name$="[${CSS.escape(parent)}]"]`);
+            const visible = selected && selected.value === expected;
+            step.classList.toggle('d-none', !visible);
+            const summary = this.summaryItemTargets.find((item) => item.dataset.stepIndex === step.dataset.stepIndex);
+            summary?.classList.toggle('d-none', !visible);
+            this.setStepInputsDisabled(step, !visible);
+            if (!visible) step.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach((input) => { input.checked = false; });
+        });
+    }
+
     selectedLabels(step) {
         const checkedInputs = [...step.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked')]
             .filter((input) => input.value !== '');
@@ -168,7 +186,8 @@ export default class extends Controller {
     }
 
     isComplete() {
-        if (this.stepTargets.length === 0 || !this.stepTargets.every((step) => this.selectedLabels(step).length > 0)) {
+        const visibleSteps = this.stepTargets.filter((step) => !step.classList.contains('d-none'));
+        if (visibleSteps.length === 0 || !visibleSteps.every((step) => this.selectedLabels(step).length > 0)) {
             return false;
         }
         return this.pricingAxesValue.every((axis) => {
@@ -237,6 +256,12 @@ export default class extends Controller {
             const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
             if (!step) return;
             step.classList.toggle('d-none', !visible);
+            if (!visible) {
+                step.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach((input) => { input.checked = false; });
+                step.querySelectorAll('select').forEach((input) => { input.selectedIndex = -1; });
+                step.querySelectorAll('input[type="number"], input[type="text"]').forEach((input) => { input.value = ''; });
+                this.clearQuote();
+            }
             this.setStepInputsDisabled(step, !visible);
         });
         Object.entries(state.values || {}).forEach(([option, values]) => {

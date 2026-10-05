@@ -69,7 +69,7 @@ class PersistedPrintProductDefinition
     /**
      * Public schema used by the storefront. Provider identifiers remain metadata for the server-side connector.
      *
-     * @return list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}>
+     * @return list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|float|null, depends_on: array{option: string, value: string}|null}>
      */
     public function storefrontSchema(): array
     {
@@ -84,6 +84,7 @@ class PersistedPrintProductDefinition
                     $valueLabels[(string) $value] = $label;
                 }
             }
+            $parent = str_ends_with($code, "_zone") ? substr($code, 0, -strlen("_zone")) : null;
             $schema[] = [
                 'code' => $code,
                 'label' => is_string($option['label'] ?? null) ? $option['label'] : ucfirst(str_replace('_', ' ', $code)),
@@ -97,6 +98,7 @@ class PersistedPrintProductDefinition
                 'default' => is_string($option['default'] ?? null) || is_int($option['default'] ?? null) || is_float($option['default'] ?? null) ? $option['default'] : null,
                 'minimum' => isset($option['minimum']) ? (float) $option['minimum'] : null,
                 'maximum' => isset($option['maximum']) ? (float) $option['maximum'] : null,
+                'depends_on' => null !== $parent ? ['option' => $parent, 'value' => $this->yesValue($code, $parent)] : null,
             ];
         }
         usort($schema, static fn (array $left, array $right): int => [$left['area'], $left['position'], $left['code']] <=> [$right['area'], $right['position'], $right['code']]);
@@ -121,6 +123,7 @@ class PersistedPrintProductDefinition
 
     public function definition(): PrintProductDefinition
     {
+        $this->assertPublishedDisplayRules();
         $options = [];
         foreach ($this->options as $code => $item) {
             if (!is_string($code) || !is_array($item)) {
@@ -137,5 +140,46 @@ class PersistedPrintProductDefinition
             $options[$code] = new PrintOptionDefinition($code, $type, (bool) ($item['required'] ?? true), $allowed, PrintOptionType::Float === $type && isset($item['minimum']) ? (float) $item['minimum'] : (isset($item['minimum']) ? (int) $item['minimum'] : null), PrintOptionType::Float === $type && isset($item['maximum']) ? (float) $item['maximum'] : (isset($item['maximum']) ? (int) $item['maximum'] : null));
         }
         return new PrintProductDefinition($this->productCode, $this->schemaVersion, 'matrix_exact', $options, $this->pricingAxes);
+    }
+
+    private function yesValue(string $dependent, string $parent): string
+    {
+        $parentDefinition = $this->options[$parent] ?? null;
+        if (!is_array($parentDefinition)) {
+            throw new \DomainException(sprintf('La dépendance affichage de « %s » référence le parent absent « %s ».', $dependent, $parent));
+        }
+        $matches = [];
+        foreach (($parentDefinition['value_labels'] ?? []) as $canonical => $label) {
+            if ((is_string($canonical) || is_int($canonical)) && is_string($label) && 'oui' === mb_strtolower(trim($label))) {
+                $matches[] = (string) $canonical;
+            }
+        }
+        if ([] === $matches) {
+            foreach (($parentDefinition['allowed_values'] ?? []) as $canonical) {
+                if ((is_string($canonical) || is_int($canonical)) && 'oui' === mb_strtolower(trim((string) $canonical))) {
+                    $matches[] = (string) $canonical;
+                }
+            }
+        }
+        if (1 !== count(array_unique($matches))) {
+            throw new \DomainException(sprintf('La dépendance affichage de « %s » exige une correspondance publiée non ambiguë vers « Oui » pour « %s ».', $dependent, $parent));
+        }
+
+        return $matches[0];
+    }
+
+    private function assertPublishedDisplayRules(): void
+    {
+        foreach ($this->options as $code => $option) {
+            if (!is_string($code) || !is_array($option) || !str_ends_with($code, '_zone')) {
+                continue;
+            }
+            $parent = substr($code, 0, -strlen('_zone'));
+            $parentDefinition = $this->options[$parent] ?? null;
+            if (!is_array($parentDefinition)) {
+                throw new \DomainException(sprintf('La dépendance affichage de « %s » référence le parent absent « %s ».', $code, $parent));
+            }
+            $this->yesValue($code, $parent);
+        }
     }
 }

@@ -26,7 +26,9 @@ final class PrintConfiguratorType extends AbstractType
         foreach ($fieldSchemas as $schema) {
             $schemasByCode[$schema['code']] = $schema;
         }
-        $codes = array_values(array_unique([...array_map(static fn (array $schema): string => $schema['code'], $fieldSchemas), ...array_keys($optionChoices)]));
+        $codes = [] !== $fieldSchemas
+            ? array_values(array_unique(array_map(static fn (array $schema): string => $schema['code'], $fieldSchemas)))
+            : array_keys($optionChoices);
 
         foreach ($codes as $code) {
             $values = $optionChoices[$code] ?? [];
@@ -49,12 +51,15 @@ final class PrintConfiguratorType extends AbstractType
                     'label' => $schema['label'],
                     'required' => true,
                     'attr' => array_filter([
+                        'data-area' => $schema['area'] ?? 1,
+                        'data-depends-on' => is_array($schema['depends_on'] ?? null) ? ($schema['depends_on']['option'] . ':' . $schema['depends_on']['value']) : null,
                         'min' => $schema['minimum'] ?? null,
                         'max' => $schema['maximum'] ?? null,
                         'step' => 'float' === $schema['type'] ? 'any' : null,
                         'maxlength' => 'text' === $schema['type'] ? 255 : null,
                     ], static fn (mixed $value): bool => null !== $value),
                     'data' => $schema['default'],
+                    'required' => false,
                 ]);
 
                 continue;
@@ -70,6 +75,11 @@ final class PrintConfiguratorType extends AbstractType
                 'label' => is_array($schema) ? $schema['label'] : $this->optionLabel($code),
                 'choices' => $choices,
                 'expanded' => count($values) <= 8,
+                'attr' => [
+                    'data-area' => $schema['area'] ?? 1,
+                    'data-depends-on' => is_array($schema['depends_on'] ?? null) ? ($schema['depends_on']['option'] . ':' . $schema['depends_on']['value']) : null,
+                ],
+                'required' => false,
                 'data' => 1 === count($values) ? ($schema['default'] ?? $values[0]) : null,
                 'placeholder' => false,
             ]);

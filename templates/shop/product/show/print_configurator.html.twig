@@ -45,7 +45,13 @@
                     </p>
                 {% endfor %}
                 {% set previous_steps_complete = true %}
+                {% set secondary_started = false %}
+                <h3 class="h5 mb-3">Caractéristiques</h3>
                 {% for field in configurable_fields %}
+                    {% if field.vars.attr['data-area']|default(1) == 2 and not secondary_started %}
+                        {% set secondary_started = true %}
+                        <h3 class="h5 mt-5 mb-3">Options complémentaires</h3>
+                    {% endif %}
                     {% set step_index = loop.index0 %}
                     {% set selected_label = null %}
                     {% for choice in field %}
@@ -62,6 +68,8 @@
                         data-print-configurator-target="step"
                         data-step-index="{{ step_index }}"
                         data-axis="{{ field.vars.name }}"
+                        data-area="{{ field.vars.attr['data-area']|default(1) }}"
+                        data-depends-on="{{ field.vars.attr['data-depends-on']|default('') }}"
                         {% if step_enabled and not step_complete %}open{% endif %}
                     >
                         <summary data-action="click->print-configurator#guardStep">
