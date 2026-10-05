@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
+use App\Yoowii\Sourcing\Application\MappingDeletionRefused;
+use App\Yoowii\Sourcing\Application\SupplierProductMappingDeletion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\SupplierProductMappingData;
 use App\Yoowii\Sourcing\UI\Http\Admin\Form\SupplierProductMappingType;
@@ -74,6 +76,27 @@ final class SupplierProductMappingController extends AbstractController
         $this->addFlash('success', 'Le mapping a été désactivé.');
 
         return $this->redirectToRoute('yoowii_admin_sourcing_dashboard');
+    }
+
+    #[Route('/mappings/{id}/delete', name: 'yoowii_admin_sourcing_mapping_delete', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    public function delete(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, SupplierProductMappingDeletion $deletion): Response
+    {
+        $mapping = $entityManager->find(SupplierProductMappingVersion::class, $id);
+        if (!$mapping instanceof SupplierProductMappingVersion) {
+            throw $this->createNotFoundException();
+        }
+        if (!$csrf->isTokenValid(new CsrfToken('delete_mapping_' . $id, (string) $request->request->get('_token')))) {
+            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
+        }
+
+        try {
+            $deletion->delete($mapping);
+            $this->addFlash('success', 'Le mapping obsolète a été supprimé.');
+        } catch (MappingDeletionRefused $exception) {
+            $this->addFlash('danger', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('yoowii_admin_sourcing_dashboard', ['history' => 1]);
     }
 
     private function renderFormPage(\Symfony\Component\Form\FormInterface $form): Response

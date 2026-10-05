@@ -100,6 +100,11 @@ class SupplierProductMappingVersion
             (null === $this->effectiveUntil || $at < $this->effectiveUntil);
     }
 
+    public function isActive(): bool
+    {
+        return $this->active;
+    }
+
     public function deactivate(): void
     {
         $this->active = false;

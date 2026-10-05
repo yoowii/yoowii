@@ -30,7 +30,10 @@
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="card-title">Mappings API versionnés</h2>
-            <a href="{{ path('yoowii_admin_sourcing_mapping_create') }}" class="btn btn-sm btn-primary">Ajouter</a>
+            <div class="btn-list">
+                <a href="{{ path('yoowii_admin_sourcing_dashboard', mapping_history_visible ? {} : {history: 1}) }}" class="btn btn-sm btn-outline-secondary">{{ mapping_history_visible ? 'Masquer l’historique' : 'Voir l’historique' }}</a>
+                <a href="{{ path('yoowii_admin_sourcing_mapping_create') }}" class="btn btn-sm btn-primary">Ajouter</a>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-vcenter card-table">
@@ -48,10 +51,15 @@
                             {% if mapping.supplierProduct.supplier.code == 'realisaprint' %}
                                 <a href="{{ path('yoowii_admin_realisaprint_mapping_validation', {id: mapping.id}) }}" class="btn btn-sm btn-outline-primary">Valider / publier</a>
                             {% endif %}
-                            {% if mapping.isEffectiveAt(now) %}
+                            {% if mapping.isActive %}
                                 <form method="post" action="{{ path('yoowii_admin_sourcing_mapping_deactivate', {id: mapping.id}) }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('deactivate_mapping_' ~ mapping.id) }}">
                                     <button class="btn btn-sm btn-outline-danger" type="submit">Désactiver</button>
+                                </form>
+                            {% else %}
+                                <form method="post" action="{{ path('yoowii_admin_sourcing_mapping_delete', {id: mapping.id}) }}" onsubmit="return confirm('Supprimer définitivement cette ancienne version ? Cette action est irréversible.');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('delete_mapping_' ~ mapping.id) }}">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Supprimer</button>
                                 </form>
                             {% endif %}
                         </td>
