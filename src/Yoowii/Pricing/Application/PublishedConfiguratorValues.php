@@ -26,8 +26,12 @@ final class PublishedConfiguratorValues
                 // Never replace an explicit client value: normalizeCode() must reject it if invalid.
                 continue;
             }
-            if (in_array($schema['type'] ?? null, ['code', 'checkbox'], true)) {
+            if ('checkbox' === ($schema['type'] ?? null)) {
                 $values[$code] = $this->choiceDefault($schema, $code);
+                continue;
+            }
+            if ('code' === ($schema['type'] ?? null)) {
+                // A select must be chosen explicitly by the customer.
                 continue;
             }
             if (!array_key_exists($code, $values)) {
