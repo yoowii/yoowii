@@ -198,7 +198,7 @@
 
 .yoowii-print-summary-list li {
     display: grid;
-    grid-template-columns: 1rem minmax(0, 1fr) auto;
+    grid-template-columns: 1rem minmax(0, 1fr) minmax(0, 1fr) auto;
     gap: 0.45rem;
     align-items: center;
     padding: 0.55rem 0;
@@ -208,7 +208,7 @@
 
 .yoowii-print-summary-list li button {
     display: none;
-    grid-column: 3;
+    grid-column: 4;
     font-size: 0.75rem;
 }
 
@@ -235,14 +235,12 @@
 }
 
 .yoowii-print-summary-list strong {
-    grid-column: 2;
+    grid-column: 3;
+    text-align: right;
     color: var(--bs-secondary-color);
     font-weight: 500;
 }
 
-.yoowii-print-summary-list li.is-complete .yoowii-print-summary-name {
-    display: none;
-}
 
 .yoowii-print-summary-list li.is-complete strong {
     color: var(--bs-body-color);
