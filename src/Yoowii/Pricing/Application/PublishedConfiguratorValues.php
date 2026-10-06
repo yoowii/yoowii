@@ -17,9 +17,11 @@ final class PublishedConfiguratorValues
         }
         foreach ($schemas as $schema) {
             $code = $schema['code'] ?? null;
-            if (!is_string($code) || $this->isVisible($schema, $values) || array_key_exists($code, $fixed)) {
+            if (!is_string($code) || array_key_exists($code, $values) || array_key_exists($code, $fixed)) {
                 continue;
             }
+            // Disabled dynamic fields are deliberately absent from FormData. Their
+            // value is selected exclusively from the published server-side default.
             $default = $schema['default'] ?? null;
             if (null === $default || '' === $default) {
                 throw new \DomainException(sprintf('La définition publiée ne fournit pas de valeur sûre pour l’axe caché « %s ».', $code));
@@ -27,7 +29,14 @@ final class PublishedConfiguratorValues
             $values[$code] = $default;
         }
 
-        return $definition->configure($values)->toArray();
+        $resolved = $definition->configure($values)->toArray();
+        foreach ($definition->pricingAxes() as $axis) {
+            if (!array_key_exists($axis, $resolved) || '' === trim((string) $resolved[$axis])) {
+                throw new \DomainException(sprintf('L’axe de prix « %s » ne possède aucune valeur publiée sûre.', $axis));
+            }
+        }
+
+        return $resolved;
     }
 
     /** @param array<string, mixed> $schema @param array<string, mixed> $values */

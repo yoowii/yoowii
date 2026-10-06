@@ -29,15 +29,14 @@ final class PublishedConfiguratorValuesTest extends TestCase
         self::assertSame(['option' => 'non', 'option_zone' => 'sans', 'format' => 'a4', 'technical' => 'fixed'], $resolver->resolve($definition, $schemas, ['option' => 'non', 'format' => 'a4']));
     }
 
-    public function testItRequiresTheZoneAgainWhenTheParentIsYes(): void
+    public function testItResolvesAnOmittedDynamicFieldFromThePublishedDefault(): void
     {
-        $this->expectExceptionMessage('Required print option "option_zone" is missing.');
-        (new PublishedConfiguratorValues())->resolve($this->definition(), [
+        self::assertSame('sans', (new PublishedConfiguratorValues())->resolve($this->definition(), [
             ['code' => 'option', 'position' => 1, 'default' => 'non'],
             ['code' => 'option_zone', 'position' => 2, 'default' => 'sans', 'depends_on' => ['option' => 'option', 'value' => 'oui']],
             ['code' => 'format', 'position' => 3, 'default' => 'a4'],
             ['code' => 'technical', 'position' => 0, 'default' => 'fixed'],
-        ], ['option' => 'oui', 'format' => 'a4']);
+        ], ['option' => 'oui', 'format' => 'a4'])['option_zone']);
     }
 
 
