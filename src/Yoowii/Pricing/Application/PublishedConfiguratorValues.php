@@ -26,8 +26,8 @@ final class PublishedConfiguratorValues
                 // Never replace an explicit client value: normalizeCode() must reject it if invalid.
                 continue;
             }
-            if ('code' === ($schema['type'] ?? null)) {
-                $values[$code] = $this->codeDefault($schema, $code);
+            if (in_array($schema['type'] ?? null, ['code', 'checkbox'], true)) {
+                $values[$code] = $this->choiceDefault($schema, $code);
                 continue;
             }
             if (!array_key_exists($code, $values)) {
@@ -50,12 +50,12 @@ final class PublishedConfiguratorValues
     }
 
     /** @param array<string, mixed> $schema */
-    private function codeDefault(array $schema, string $code): string
+    private function choiceDefault(array $schema, string $code): string
     {
         $default = $schema['default'] ?? null;
         $allowed = $schema['allowed_values'] ?? array_keys(is_array($schema['values'] ?? null) ? $schema['values'] : []);
         if (!is_string($default) || '' === trim($default) || !is_array($allowed) || !in_array($default, $allowed, true)) {
-            throw new \DomainException(sprintf('La définition publiée de l’option code « %s » doit définir un défaut canonique non vide présent dans allowed_values.', $code));
+            throw new \DomainException(sprintf('La définition publiée de l’option à choix « %s » doit définir un défaut canonique non vide présent dans allowed_values.', $code));
         }
 
         return $default;

@@ -97,7 +97,7 @@ final class RealisaprintDraftController extends AbstractController
             }
             $allowedValues = $numericOption ? [] : array_keys($valueLabels);
             $options[$optionCode] = [
-                'type' => $numericOption ? ($floatOption ? 'float' : 'integer') : ($fixedText ? 'text' : ('text' === ($providerVariable['type'] ?? null) ? 'text' : 'code')),
+                'type' => $numericOption ? ($floatOption ? 'float' : 'integer') : ($fixedText ? 'text' : ('checkbox' === ($providerVariable['type'] ?? null) ? 'checkbox' : ('text' === ($providerVariable['type'] ?? null) ? 'text' : 'code'))),
                 'required' => true,
                 'allowed_values' => $allowedValues,
                 'label' => $name,

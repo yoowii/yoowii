@@ -89,7 +89,7 @@ class PersistedPrintProductDefinition
                 'code' => $code,
                 'label' => is_string($option['label'] ?? null) ? $option['label'] : ucfirst(str_replace('_', ' ', $code)),
                 // Provider types only describe the API: forms use canonical Yoowii types.
-                'type' => (string) ($option['type'] ?? 'code'),
+                'type' => 'checkbox' === ($option['provider_type'] ?? null) ? 'checkbox' : (string) ($option['type'] ?? 'code'),
                 'provider_type' => is_string($option['provider_type'] ?? null) ? $option['provider_type'] : null,
                 'values' => $valueLabels,
                 'allowed_values' => array_values(array_filter($option['allowed_values'] ?? [], static fn (mixed $value): bool => is_string($value) || is_int($value))),
@@ -129,7 +129,7 @@ class PersistedPrintProductDefinition
             if (!is_string($code) || !is_array($item)) {
                 throw new \DomainException('Invalid persisted print option definition.');
             }
-            $type = PrintOptionType::tryFrom((string) ($item['type'] ?? ''));
+            $type = PrintOptionType::tryFrom('checkbox' === ($item['provider_type'] ?? null) ? 'checkbox' : (string) ($item['type'] ?? ''));
             if (!$type instanceof PrintOptionType) {
                 throw new \DomainException(sprintf('Invalid type for print option "%s".', $code));
             }

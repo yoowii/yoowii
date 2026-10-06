@@ -44,6 +44,7 @@ final readonly class PrintOptionDefinition
     {
         $normalizedValue = match ($this->type) {
             PrintOptionType::Code => $this->normalizeCode($value),
+            PrintOptionType::Checkbox => $this->normalizeCheckbox($value),
             PrintOptionType::Integer => $this->normalizeInteger($value),
             PrintOptionType::Float => $this->normalizeFloat($value),
             PrintOptionType::Text => $this->normalizeText($value),
@@ -89,6 +90,18 @@ final readonly class PrintOptionDefinition
         }
 
         return $value;
+    }
+
+    private function normalizeCheckbox(mixed $value): string
+    {
+        if (true === $value || 'oui' === strtolower(trim((string) $value))) {
+            return 'oui';
+        }
+        if (false === $value || 'non' === strtolower(trim((string) $value))) {
+            return 'non';
+        }
+
+        throw new \InvalidArgumentException(sprintf('Print option "%s" must be checkbox value "oui" or "non".', $this->code));
     }
 
     private function normalizeInteger(mixed $value): int
@@ -141,7 +154,7 @@ final readonly class PrintOptionDefinition
 
     private function assertValueType(string|int|float $value): void
     {
-        if (PrintOptionType::Code === $this->type && !is_string($value)) {
+        if ((PrintOptionType::Code === $this->type || PrintOptionType::Checkbox === $this->type) && !is_string($value)) {
             throw new \InvalidArgumentException(sprintf('Allowed values for print option "%s" must be strings.', $this->code));
         }
 

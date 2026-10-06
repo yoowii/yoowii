@@ -126,6 +126,19 @@ final class PublishedConfiguratorValuesTest extends TestCase
         self::assertSame('Sans', $mapped['variables']['gold']);
     }
 
+
+    public function testItUsesCheckboxAsASeparateCanonicalYesNoType(): void
+    {
+        $definition = new PrintProductDefinition('PRINT_CHECKBOX', 'v1', 'matrix_exact', [
+            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Checkbox, true, ['oui', 'non']),
+        ], ['dorure_a_chaud']);
+        $schema = [['code' => 'dorure_a_chaud', 'type' => 'checkbox', 'position' => 1, 'default' => 'non', 'allowed_values' => ['oui', 'non']]];
+
+        self::assertSame('non', (new PublishedConfiguratorValues())->resolve($definition, $schema, [])['dorure_a_chaud']);
+        self::assertSame('oui', $definition->configure(['dorure_a_chaud' => true])->toArray()['dorure_a_chaud']);
+        self::assertSame('non', $definition->configure(['dorure_a_chaud' => 'non'])->toArray()['dorure_a_chaud']);
+    }
+
     private function definition(): PrintProductDefinition
     {
         return new PrintProductDefinition('PRINT_AGENDA', 'v1', 'matrix_exact', [
