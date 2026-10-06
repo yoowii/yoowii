@@ -61,6 +61,31 @@ final readonly class RealisaprintConfiguratorRefresh
         return $this->normalize($response, $mapping);
     }
 
+    /**
+     * Used exclusively by the back-office publication check. The supplier response
+     * remains server-side, in the validation record, and is never returned by the
+     * storefront configurator endpoint.
+     *
+     * @return array{state: array{visibility: array<string, bool>, values: array<string, array<string, string>>, current: array<string, string|int>, alerts: list<string>, infos: list<string>}, request: array{product: string|int|float|bool|null, stock: string|int|float|bool|null, variables: array<string, mixed>, retry: int}, response: array<string, mixed>}
+     */
+    public function previewWithDiagnostic(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping): array
+    {
+        $mapped = $this->mapper->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
+        $request = [
+            'product' => $mapped['product'],
+            'stock' => $mapped['stock'],
+            'variables' => $mapped['variables'],
+            'retry' => 1,
+        ];
+        $response = $this->client->post('show_variables', $request);
+
+        return [
+            'state' => $this->normalize($response, $mapping),
+            'request' => $request,
+            'response' => $response,
+        ];
+    }
+
     private function mapping(string $productCode, SupplierRoute $route, \DateTimeImmutable $at): ?SupplierProductMappingVersion
     {
         $mappings = $this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]);

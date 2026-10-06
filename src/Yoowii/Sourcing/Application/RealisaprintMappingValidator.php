@@ -27,6 +27,7 @@ final readonly class RealisaprintMappingValidator
     public function validate(SupplierRoute $route, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, array $sample, \DateTimeImmutable $at): RealisaprintMappingValidation
     {
         $errors = $this->coverageErrors($mapping, $definition);
+        $initialState = null;
         $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
         $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
 
@@ -46,17 +47,30 @@ final readonly class RealisaprintMappingValidator
             $configuration = $definition->definition()->configure($sample);
             // This must precede save_configuration/get_price: the supplier can constrain
             // the exact configuration that is eligible for quotation.
-            $state = $this->configuratorRefresh->preview($configuration, $mapping);
+            $diagnostic = $this->configuratorRefresh->previewWithDiagnostic($configuration, $mapping);
+            $state = $diagnostic['state'];
+            $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
+            $initialState = [
+                'product' => $provider['product'] ?? null,
+                'stock' => $provider['stock'] ?? null,
+                'mapping_version' => $mapping->version(),
+                'schema_version' => $definition->definition()->schemaVersion(),
+                'fingerprint' => $this->fingerprint($mapping, $sample),
+                'configuration' => $sample,
+                'state' => $state,
+                'show_variables_request' => $diagnostic['request'],
+                'show_variables_response' => $diagnostic['response'],
+            ];
             $configuration = $definition->definition()->configure($this->applyProviderState($configuration->toArray(), $state, $definition->pricingAxes()));
             $quote = $this->quotes->quoteDraftMapping($route, $configuration, $this->pricingPolicy->get(), 'EUR', $at, $mapping->configurationMapping(), $mapping->version());
 
             $fingerprint = $this->fingerprint($mapping, $configuration->toArray());
-            $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
-            $initialState = ['product' => $provider['product'] ?? null, 'stock' => $provider['stock'] ?? null, 'mapping_version' => $mapping->version(), 'schema_version' => $definition->definition()->schemaVersion(), 'fingerprint' => $fingerprint, 'configuration' => $configuration->toArray(), 'state' => $state];
+            $initialState['fingerprint'] = $fingerprint;
+            $initialState['configuration'] = $configuration->toArray();
 
             return new RealisaprintMappingValidation($mapping, true, true, $quote->supplierCost(), $quote->productionCost(), $quote->shippingCost(), $configuration->toArray(), $fingerprint, [], null, $at, $initialState);
         } catch (\Throwable $exception) {
-            return new RealisaprintMappingValidation($mapping, true, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), [], $this->safeDetail($exception->getMessage()), $at);
+            return new RealisaprintMappingValidation($mapping, true, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), [], $this->safeDetail($exception->getMessage()), $at, $initialState);
         }
     }
 

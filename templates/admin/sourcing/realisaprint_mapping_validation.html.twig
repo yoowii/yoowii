@@ -54,7 +54,16 @@
                 <div class="alert alert-warning">Le contrôle a expiré ou le catalogue a changé. Relance-le avant la publication.</div>
             {% endif %}
             {% for error in validation.coverageErrors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
-            {% if validation.technicalDetail %}<div class="alert alert-warning">{{ validation.technicalDetail }}</div>{% endif %}
+            {% if validation.technicalDetail %}
+                <div class="alert alert-warning d-flex align-items-center gap-2">
+                    {% if validation.initialConfiguratorState and validation.initialConfiguratorState.show_variables_response is defined %}
+                        <button class="btn btn-outline-dark btn-sm flex-shrink-0" type="button" data-bs-toggle="modal" data-bs-target="#show-variables-diagnostic">
+                            Voir show_variables
+                        </button>
+                    {% endif %}
+                    <span>{{ validation.technicalDetail }}</span>
+                </div>
+            {% endif %}
         {% else %}
             <p class="text-secondary">Aucun contrôle API enregistré pour ce mapping. La table ci-dessus présente la configuration qui sera testée.</p>
         {% endif %}
@@ -97,4 +106,23 @@
         </div>
     </div>
 </div>
+{% if validation and validation.initialConfiguratorState and validation.initialConfiguratorState.show_variables_response is defined %}
+    <div class="modal modal-blur fade" id="show-variables-diagnostic" tabindex="-1" aria-labelledby="show-variables-diagnostic-title" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="show-variables-diagnostic-title">Diagnostic show_variables</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-secondary">Requête envoyée et réponse brute reçue de Realisaprint lors du dernier contrôle.</p>
+                    <h3 class="h4">Requête</h3>
+                    <pre class="bg-dark text-light p-3 rounded small"><code>{{ validation.initialConfiguratorState.show_variables_request|default({})|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                    <h3 class="h4">Réponse</h3>
+                    <pre class="bg-dark text-light p-3 rounded small mb-0"><code>{{ validation.initialConfiguratorState.show_variables_response|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
 {% endblock %}
