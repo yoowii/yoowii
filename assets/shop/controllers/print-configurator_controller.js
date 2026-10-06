@@ -24,7 +24,7 @@ export default class extends Controller {
         this.refreshSequence = 0;
         this.refreshAbortController = null;
         this.applySchemaVisibility();
-        if (this.hasInitialProviderStateValue) this.applyProviderState(this.initialProviderStateValue);
+        if (this.hasInitialProviderStateValue) this.applyProviderState(this.initialProviderStateValue, true);
         this.refreshSteps(false);
         if (!this.hasInitialProviderStateValue) this.scheduleRefresh();
     }
@@ -40,6 +40,7 @@ export default class extends Controller {
 
         this.clearError();
         this.clearQuote();
+        this.initialProviderStateValue = null;
         this.applySchemaVisibility();
         this.refreshSteps(!this.hasRefreshUrlValue, stepIndex);
         this.scheduleRefresh();
@@ -105,17 +106,17 @@ export default class extends Controller {
 
             const stepValue = step.querySelector('[data-role="step-value"]');
             if (stepValue) {
-                stepValue.textContent = complete ? selectedLabel : this.pendingLabel(index);
+                stepValue.textContent = complete ? selectedLabel : this.pendingLabel(step.dataset.stepIndex);
             }
 
-            const summaryItem = this.summaryItemTargets[index];
+            const summaryItem = this.summaryForStep(step);
             if (summaryItem) {
                 summaryItem.classList.toggle('is-complete', complete);
                 summaryItem.classList.toggle('is-pending', !complete);
 
                 const summaryValue = summaryItem.querySelector('[data-role="summary-value"]');
                 if (summaryValue) {
-                    summaryValue.textContent = complete ? selectedLabel : this.pendingLabel(index);
+                    summaryValue.textContent = complete ? selectedLabel : this.pendingLabel(step.dataset.stepIndex);
                 }
             }
 
@@ -143,11 +144,34 @@ export default class extends Controller {
             });
         }
 
+        this.visibleSteps().forEach((step, index) => {
+            const number = step.querySelector('.yoowii-print-step-number');
+            if (number) number.textContent = String(index + 1);
+        });
+
         if (shouldCalculate && previousStepsComplete) {
             this.scheduleCalculation();
         }
     }
 
+    visibleSteps() {
+        return this.stepTargets.filter((step) => !step.classList.contains('d-none'));
+    }
+
+    summaryForStep(step) {
+        return this.summaryItemTargets.find((item) => item.dataset.stepIndex === step.dataset.stepIndex);
+    }
+
+    setStepVisibility(step, visible, clearValue = false) {
+        step.classList.toggle('d-none', !visible);
+        this.summaryForStep(step)?.classList.toggle('d-none', !visible);
+        if (!visible && clearValue) {
+            step.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach((input) => { input.checked = false; });
+            step.querySelectorAll('select').forEach((input) => { input.selectedIndex = -1; });
+            step.querySelectorAll('input[type="number"], input[type="text"]').forEach((input) => { input.value = ''; });
+        }
+        this.setStepInputsDisabled(step, !visible);
+    }
 
     applySchemaVisibility() {
         this.stepTargets.forEach((step) => {
@@ -156,11 +180,7 @@ export default class extends Controller {
             const [parent, expected] = dependency.split(':');
             const selected = this.formTarget.querySelector(`[name$="[${CSS.escape(parent)}]"]:checked, select[name$="[${CSS.escape(parent)}]"]`);
             const visible = selected && selected.value === expected;
-            step.classList.toggle('d-none', !visible);
-            const summary = this.summaryItemTargets.find((item) => item.dataset.stepIndex === step.dataset.stepIndex);
-            summary?.classList.toggle('d-none', !visible);
-            this.setStepInputsDisabled(step, !visible);
-            if (!visible) step.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach((input) => { input.checked = false; });
+            this.setStepVisibility(step, Boolean(visible), !visible);
         });
     }
 
@@ -194,6 +214,10 @@ export default class extends Controller {
         }
         return this.pricingAxesValue.every((axis) => {
             if (this.element.querySelector(`[data-fixed-axis="${CSS.escape(axis)}"]`)) {
+                return true;
+            }
+            const axisStep = this.stepTargets.find((step) => step.dataset.axis === axis);
+            if (axisStep && axisStep.classList.contains('d-none')) {
                 return true;
             }
             return [...this.formTarget.elements].some((input) => input.name.endsWith(`[${axis}]`) && !input.disabled && input.value !== '' && (input.type !== 'radio' || input.checked));
@@ -253,18 +277,12 @@ export default class extends Controller {
         }
     }
 
-    applyProviderState(state) {
+    applyProviderState(state, initial = false) {
         Object.entries(state.visibility || {}).forEach(([option, visible]) => {
             const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
             if (!step) return;
-            step.classList.toggle('d-none', !visible);
-            if (!visible) {
-                step.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach((input) => { input.checked = false; });
-                step.querySelectorAll('select').forEach((input) => { input.selectedIndex = -1; });
-                step.querySelectorAll('input[type="number"], input[type="text"]').forEach((input) => { input.value = ''; });
-                this.clearQuote();
-            }
-            this.setStepInputsDisabled(step, !visible);
+            this.setStepVisibility(step, visible === true, !initial && visible !== true);
+            if (!initial && visible !== true) this.clearQuote();
         });
         Object.entries(state.values || {}).forEach(([option, values]) => {
             const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
