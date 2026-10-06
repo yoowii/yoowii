@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\Application;
 
 use App\Yoowii\Pricing\Application\RealisaprintLiveQuoteCalculator;
+use App\Yoowii\Pricing\Application\RealisaprintAvailabilityFallback;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
@@ -17,6 +18,7 @@ final readonly class RealisaprintMappingValidator
 {
     public function __construct(
         private RealisaprintLiveQuoteCalculator $quotes,
+        private RealisaprintAvailabilityFallback $availabilityFallback,
         private RetailPrintPricingPolicyProvider $pricingPolicy,
         private RealisaprintMappingCompleteness $completeness,
         private \App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh $configuratorRefresh,
@@ -61,7 +63,7 @@ final readonly class RealisaprintMappingValidator
                 'show_variables_request' => $diagnostic['request'],
                 'show_variables_response' => $diagnostic['response'],
             ];
-            $configuration = $definition->definition()->configure($this->applyProviderState($configuration->toArray(), $state, $definition->pricingAxes()));
+            $configuration = $definition->definition()->configure($this->availabilityFallback->apply($configuration->toArray(), $state, $definition));
             $quote = $this->quotes->quoteDraftMapping($route, $configuration, $this->pricingPolicy->get(), 'EUR', $at, $mapping->configurationMapping(), $mapping->version());
 
             $fingerprint = $this->fingerprint($mapping, $configuration->toArray());
@@ -72,31 +74,6 @@ final readonly class RealisaprintMappingValidator
         } catch (\Throwable $exception) {
             return new RealisaprintMappingValidation($mapping, true, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), [], $this->safeDetail($exception->getMessage()), $at, $initialState);
         }
-    }
-
-    /** @param array<string, string|int|float> $values @param array{visibility: array<string, bool>, values: array<string, array<string, string>>, current: array<string, string|int>, alerts: list<string>, infos: list<string>} $state @param list<string> $axes
-     * @return array<string, string|int|float> */
-    private function applyProviderState(array $values, array $state, array $axes): array
-    {
-        foreach ($state['current'] as $option => $current) {
-            $values[$option] = $current;
-        }
-        foreach ($axes as $axis) {
-            if (!array_key_exists($axis, $values) || '' === trim((string) $values[$axis])) {
-                throw new \DomainException(sprintf('show_variables a rendu l’axe requis « %s » incomplet.', $axis));
-            }
-            $allowed = $state['values'][$axis] ?? null;
-            if (null !== $allowed && !array_key_exists((string) $values[$axis], $allowed)) {
-                throw new \DomainException(sprintf(
-                    'show_variables interdit « %s » pour l’axe requis « %s ». Valeurs autorisées : %s.',
-                    (string) $values[$axis],
-                    $axis,
-                    [] === $allowed ? 'aucune' : implode(', ', array_map(static fn (int|string $code, string $label): string => sprintf('%s (%s)', $label, $code), array_keys($allowed), $allowed)),
-                ));
-            }
-        }
-
-        return $values;
     }
 
     /** @return list<string> */

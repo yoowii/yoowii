@@ -16,15 +16,17 @@
         <p class="mb-2"><strong>Stock :</strong> {{ preview.stock }} — {{ preview.stock_label }}
             <span class="badge {{ preview.stock_valid ? 'bg-success-lt' : 'bg-danger-lt' }}">{{ preview.stock_valid ? 'Reconnu' : 'Invalide' }}</span>
         </p>
-        <p class="text-secondary small mb-0">Chaque ligne montre la valeur d'essai, son code envoyé à Realisaprint et la couverture de tous les choix de cette option.</p>
+        <p class="text-secondary small mb-0">Chaque ligne permet de comparer les valeurs par défaut Yoowii et API, puis montre la valeur d'essai et son code envoyé à Realisaprint.</p>
     </div>
     <div class="table-responsive">
         <table class="table table-vcenter card-table">
-            <thead><tr><th>Option Yoowii</th><th>Valeur d'essai</th><th>Correspondance Realisaprint</th><th>Couverture</th></tr></thead>
+            <thead><tr><th>Option Yoowii</th><th>Défaut Yoowii</th><th>Défaut API</th><th>Valeur d'essai</th><th>Correspondance Realisaprint</th><th>Couverture</th></tr></thead>
             <tbody>
             {% for row in preview.rows %}
                 <tr>
                     <td><strong>{{ row.label }}</strong><br><small class="text-secondary">{{ row.option }}</small></td>
+                    <td>{{ row.default }}{% if row.default_value %}<br><code>{{ row.default_value }}</code>{% endif %}</td>
+                    <td>{{ row.provider_default }}{% if row.provider_default_value %}<br><code>{{ row.provider_default_value }}</code>{% endif %}</td>
                     <td>{{ row.sample }}</td>
                     <td><small>{{ row.provider_label ?: row.variable }}</small><br><code>{{ row.variable ?: 'Variable absente' }} = {{ row.provider_value }}</code></td>
                     <td><span class="badge {{ row.covered ? 'bg-success-lt' : 'bg-danger-lt' }}">{{ row.covered ? 'OK' : 'À corriger' }}</span>

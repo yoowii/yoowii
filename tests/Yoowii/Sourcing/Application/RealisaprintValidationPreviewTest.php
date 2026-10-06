@@ -25,6 +25,8 @@ final class RealisaprintValidationPreviewTest extends TestCase
         self::assertSame('837', $preview['stock']);
         self::assertSame('Express', $preview['rows'][0]['sample']);
         self::assertSame('2', $preview['rows'][0]['provider_value']);
+        self::assertSame('Standard', $preview['rows'][0]['default']);
+        self::assertSame('0', $preview['rows'][0]['provider_default_value']);
         self::assertSame(2, $preview['rows'][0]['mapped']);
         self::assertSame('50', $preview['rows'][1]['provider_value']);
         self::assertTrue($preview['rows'][1]['covered']);
@@ -49,7 +51,7 @@ final class RealisaprintValidationPreviewTest extends TestCase
     private function definition(): PersistedPrintProductDefinition
     {
         return new PersistedPrintProductDefinition('PRINT_AGENDA', 'v1', [
-            'delai' => ['type' => 'code', 'allowed_values' => ['standard', 'express'], 'label' => 'Délai', 'value_labels' => ['standard' => 'Standard', 'express' => 'Express'], 'provider_variable' => 'VARTICLE_28524_'],
+            'delai' => ['type' => 'code', 'allowed_values' => ['standard', 'express'], 'label' => 'Délai', 'value_labels' => ['standard' => 'Standard', 'express' => 'Express'], 'default' => 'standard', 'provider_variable' => 'VARTICLE_28524_'],
             'quantite' => ['type' => 'integer', 'allowed_values' => [], 'minimum' => 1, 'provider_variable' => 'VARTICLE_28514_'],
         ], ['delai', 'quantite']);
     }
@@ -75,7 +77,7 @@ final class RealisaprintValidationPreviewTest extends TestCase
         return [
             'stocks' => ['837' => 'Agenda'],
             'variables' => [
-                'VARTICLE_28524_' => ['name' => 'Délai', 'values' => ['0' => 'Standard', '2' => 'Express']],
+                'VARTICLE_28524_' => ['name' => 'Délai', 'values' => ['0' => 'Standard', '2' => 'Express'], 'default' => '0'],
                 'VARTICLE_28514_' => ['name' => 'Quantité', 'values' => false],
             ],
         ];

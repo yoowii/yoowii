@@ -78,6 +78,7 @@ final class PrintConfiguratorType extends AbstractType
                 'attr' => [
                     'data-area' => $schema['area'] ?? 1,
                     'data-depends-on' => is_array($schema['depends_on'] ?? null) ? ($schema['depends_on']['option'] . ':' . $schema['depends_on']['value']) : null,
+                    'data-default-value' => $schema['default'] ?? null,
                 ],
                 'required' => false,
                 'data' => is_array($schema) && 'checkbox' === ($schema['type'] ?? null) && is_string($schema['default'] ?? null) ? $schema['default'] : (1 === count($values) ? ($schema['default'] ?? $values[0]) : null),

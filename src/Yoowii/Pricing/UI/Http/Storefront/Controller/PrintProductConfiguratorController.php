@@ -14,6 +14,7 @@ use App\Yoowii\Pricing\Application\Quote\PrintQuoteStore;
 use App\Yoowii\Pricing\Application\Quote\StoredPrintQuote;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh;
+use App\Yoowii\Pricing\Application\RealisaprintAvailabilityFallback;
 use App\Yoowii\Pricing\Application\RealisaprintFixedOptionResolver;
 use App\Yoowii\Pricing\Application\PublishedConfiguratorValues;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
@@ -40,6 +41,7 @@ final class PrintProductConfiguratorController extends AbstractController
         ChannelContextInterface $channelContext,
         RealisaprintFixedOptionResolver $fixedOptions,
         PublishedConfiguratorValues $publishedValues,
+        RealisaprintAvailabilityFallback $availabilityFallback,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         try {
@@ -52,7 +54,14 @@ final class PrintProductConfiguratorController extends AbstractController
             $configuration = $definition->configure($publishedValues->resolve($definition, $definitions->storefrontSchema($this->definitionCode($product)), $values, $fixedOptions->forProduct($this->definitionCode($product), new \DateTimeImmutable('now', new \DateTimeZone('UTC')))));
 
             $this->assertPricingAxesComplete($configuration, $definitions->get($this->definitionCode($product))->pricingAxes());
-            return new JsonResponse($refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC'))), Response::HTTP_OK, ['Cache-Control' => 'no-store']);
+            $state = $refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+            $corrected = $availabilityFallback->applyToSchema($configuration->toArray(), $state, $definitions->storefrontSchema($this->definitionCode($product)), $definition->pricingAxes());
+            foreach ($corrected as $option => $value) {
+                if ((string) ($configuration->toArray()[$option] ?? '') !== (string) $value) {
+                    $state['current'][$option] = (string) $value;
+                }
+            }
+            return new JsonResponse($state, Response::HTTP_OK, ['Cache-Control' => 'no-store']);
         } catch (\InvalidArgumentException|\DomainException $exception) {
             return new JsonResponse(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         } catch (\Throwable) {

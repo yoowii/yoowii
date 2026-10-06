@@ -22,7 +22,7 @@ final readonly class RealisaprintConfiguratorRefresh
     ) {
     }
 
-    /** @return array{visibility: array<string, bool>, values: array<string, array<string, string>>, current: array<string, string|int>, alerts: list<string>, infos: list<string>} */
+    /** @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>} */
     public function refresh(PrintConfiguration $configuration, \DateTimeImmutable $at): array
     {
         foreach ($this->routes->findCandidates($configuration->productCode(), $at) as $route) {
@@ -41,13 +41,13 @@ final readonly class RealisaprintConfiguratorRefresh
                 'retry' => 1,
             ]);
 
-            return $this->normalize($response, $mapping);
+            return $this->normalizeResponse($response, $mapping);
         }
 
         throw new \DomainException('Aucune route Realisaprint compatible ne permet de rafraîchir cette configuration.');
     }
 
-    /** @return array{visibility: array<string, bool>, values: array<string, array<string, string>>, current: array<string, string|int>, alerts: list<string>, infos: list<string>} */
+    /** @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>} */
     public function preview(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping): array
     {
         $mapped = $this->mapper->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
@@ -58,7 +58,7 @@ final readonly class RealisaprintConfiguratorRefresh
             'retry' => 1,
         ]);
 
-        return $this->normalize($response, $mapping);
+        return $this->normalizeResponse($response, $mapping);
     }
 
     /**
@@ -66,7 +66,7 @@ final readonly class RealisaprintConfiguratorRefresh
      * remains server-side, in the validation record, and is never returned by the
      * storefront configurator endpoint.
      *
-     * @return array{state: array{visibility: array<string, bool>, values: array<string, array<string, string>>, current: array<string, string|int>, alerts: list<string>, infos: list<string>}, request: array{product: string|int|float|bool|null, stock: string|int|float|bool|null, variables: array<string, mixed>, retry: int}, response: array<string, mixed>}
+     * @return array{state: array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}, request: array{product: string|int|float|bool|null, stock: string|int|float|bool|null, variables: array<string, mixed>, retry: int}, response: array<string, mixed>}
      */
     public function previewWithDiagnostic(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping): array
     {
@@ -80,7 +80,7 @@ final readonly class RealisaprintConfiguratorRefresh
         $response = $this->client->post('show_variables', $request);
 
         return [
-            'state' => $this->normalize($response, $mapping),
+            'state' => $this->normalizeResponse($response, $mapping),
             'request' => $request,
             'response' => $response,
         ];
@@ -98,13 +98,19 @@ final readonly class RealisaprintConfiguratorRefresh
         return null;
     }
 
-    /** @return array{visibility: array<string, bool>, values: array<string, array<string, string>>, current: array<string, string|int>, alerts: list<string>, infos: list<string>} */
-    private function normalize(array $response, SupplierProductMappingVersion $mapping): array
+    /**
+     * `show_variables` returns availability markers (usually 1/0), not values
+     * to send back to Realisaprint. Provider values stay in the server mapping;
+     * the browser only receives canonical Yoowii codes that remain available.
+     *
+     * @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}
+     */
+    public function normalizeResponse(array $response, SupplierProductMappingVersion $mapping): array
     {
         $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
         $rules = is_array($provider) && is_array($provider['variables'] ?? null) ? $provider['variables'] : [];
         $visibility = [];
-        $values = [];
+        $availability = [];
         $current = [];
         foreach ($rules as $providerVariable => $rule) {
             if (!is_string($providerVariable) || !is_array($rule) || !is_string($rule['option'] ?? null)) {
@@ -112,35 +118,62 @@ final readonly class RealisaprintConfiguratorRefresh
             }
             $option = $rule['option'];
             $visibility[$option] = true === ($response[$providerVariable] ?? true);
-            $hasProviderValues = array_key_exists($providerVariable, is_array($response['variable_values'] ?? null) ? $response['variable_values'] : []);
-            $providerValues = is_array($response['variable_values'][$providerVariable] ?? null) ? $response['variable_values'][$providerVariable] : [];
-            if ($hasProviderValues) {
-                $values[$option] = [];
-            }
             $reverse = [];
             foreach ((is_array($rule['values'] ?? null) ? $rule['values'] : []) as $canonical => $providerValue) {
                 if (is_string($canonical) && is_scalar($providerValue)) {
                     $reverse[(string) $providerValue] = $canonical;
                 }
             }
-            foreach ($providerValues as $providerValue => $label) {
-                if (is_scalar($providerValue) && is_string($label) && isset($reverse[(string) $providerValue])) {
-                    $values[$option][$reverse[(string) $providerValue]] = $label;
+            // Some Realisaprint products return this map under the canonical
+            // option name, others under the provider variable or variable_values.
+            // Its values are flags, while its keys identify the available choice.
+            $availabilitySource = $response[$option] ?? $response[$providerVariable] ?? (is_array($response['variable_values'] ?? null) ? ($response['variable_values'][$providerVariable] ?? null) : null);
+            if (is_array($availabilitySource)) {
+                $availability[$option] = [];
+                foreach ($availabilitySource as $candidate => $available) {
+                    if ((!is_string($candidate) && !is_int($candidate)) || !$this->isAvailable($available)) {
+                        continue;
+                    }
+                    $canonical = array_key_exists((string) $candidate, is_array($rule['values'] ?? null) ? $rule['values'] : [])
+                        ? (string) $candidate
+                        : ($reverse[(string) $candidate] ?? null);
+                    if (null !== $canonical) {
+                        $availability[$option][] = $canonical;
+                    }
                 }
+                $availability[$option] = array_values(array_unique($availability[$option]));
             }
             $providerCurrent = $response['variables'][$providerVariable] ?? null;
-            if (is_scalar($providerCurrent) && isset($reverse[(string) $providerCurrent])) {
-                $current[$option] = $reverse[(string) $providerCurrent];
+            if (is_scalar($providerCurrent)) {
+                $providerCurrent = (string) $providerCurrent;
+                if (array_key_exists($providerCurrent, is_array($rule['values'] ?? null) ? $rule['values'] : [])) {
+                    $current[$option] = $providerCurrent;
+                } elseif (isset($reverse[$providerCurrent])) {
+                    $current[$option] = $reverse[$providerCurrent];
+                }
             }
         }
 
         return [
             'visibility' => $visibility,
-            'values' => $values,
+            'availability' => $availability,
             'current' => $current,
             'alerts' => $this->messages($response['alerts'] ?? []),
             'infos' => $this->messages($response['infos'] ?? []),
         ];
+    }
+
+    private function isAvailable(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return 0.0 !== (float) $value;
+        }
+
+        return is_string($value) && in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'available'], true);
     }
 
     /** @return list<string> */

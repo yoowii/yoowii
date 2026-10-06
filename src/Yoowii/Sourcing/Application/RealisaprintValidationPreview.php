@@ -14,7 +14,7 @@ final class RealisaprintValidationPreview
      * @param array<string, mixed> $catalog
      * @param array<string, string|int> $sampleConfiguration
      *
-     * @return array{stock: string, stock_label: string, stock_valid: bool, rows: list<array{label: string, option: string, sample: string, variable: string, provider_label: string, provider_value: string, mapped: int, total: int, covered: bool}>, covered: bool}
+     * @return array{stock: string, stock_label: string, stock_valid: bool, rows: list<array{label: string, option: string, default: string, default_value: string, provider_default: string, provider_default_value: string, sample: string, variable: string, provider_label: string, provider_value: string, mapped: int, total: int, covered: bool}>, covered: bool}
      */
     public function build(PersistedPrintProductDefinition $definition, SupplierProductMappingVersion $mapping, array $catalog, array $sampleConfiguration): array
     {
@@ -62,9 +62,22 @@ final class RealisaprintValidationPreview
             $covered = $covered && $rowCovered;
             $providerValue = $free ? $sample : ($values[(string) $sample] ?? null);
             $labels = is_array($option['value_labels'] ?? null) ? $option['value_labels'] : [];
+            $default = is_scalar($option['default'] ?? null) ? (string) $option['default'] : '';
+            $providerDefault = is_scalar($source['default'] ?? null) ? (string) $source['default'] : '';
+            $providerDefaultCanonical = null;
+            foreach ($values as $canonical => $mappedValue) {
+                if (is_scalar($mappedValue) && (string) $mappedValue === $providerDefault) {
+                    $providerDefaultCanonical = (string) $canonical;
+                    break;
+                }
+            }
             $rows[] = [
                 'label' => is_string($option['label'] ?? null) ? $option['label'] : $code,
                 'option' => $code,
+                'default' => '' === $default ? '—' : (string) ($labels[$default] ?? $default),
+                'default_value' => '' === $default ? '' : $default,
+                'provider_default' => '' === $providerDefault ? '—' : (string) ($sourceValues[$providerDefault] ?? $providerDefault),
+                'provider_default_value' => '' === $providerDefault ? '' : $providerDefault,
                 'sample' => null === $sample ? '—' : (string) ($labels[(string) $sample] ?? $sample),
                 'variable' => $id,
                 'provider_label' => is_string($source['name'] ?? null) ? $source['name'] : '',

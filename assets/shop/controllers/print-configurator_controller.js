@@ -286,23 +286,53 @@ export default class extends Controller {
             if (!step) return;
             this.setStepVisibility(step, visible === true, !initial && visible !== true);
         });
-        Object.entries(state.values || {}).forEach(([option, values]) => {
+        let corrected = false;
+        Object.entries(state.availability || {}).forEach(([option, availableValues]) => {
             const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
             if (!step) return;
+            const allowedValues = Array.isArray(availableValues) ? availableValues : [];
             step.querySelectorAll('input[type="radio"]').forEach((input) => {
-                const allowed = Object.prototype.hasOwnProperty.call(values, input.value);
+                const allowed = allowedValues.includes(input.value);
                 input.closest('.yoowii-print-choice')?.classList.toggle('d-none', !allowed);
                 input.disabled = !allowed;
             });
-        });
-        Object.entries(state.current || {}).forEach(([option, value]) => {
-            const input = this.formTarget.querySelector(`[name$="[${CSS.escape(option)}]"][value="${CSS.escape(value)}"]`);
-            if (input && !input.checked) input.checked = true;
+            step.querySelectorAll('select option').forEach((choice) => {
+                if (choice.value === '') return;
+                const allowed = allowedValues.includes(choice.value);
+                choice.hidden = !allowed;
+                choice.disabled = !allowed;
+            });
+
+            const selected = step.querySelector('input[type="radio"]:checked, select');
+            const selectedValue = selected?.value || '';
+            if (allowedValues.includes(selectedValue)) return;
+
+            // Published default wins, then the unambiguously normalized supplier
+            // current value, then the first available value in published DOM order.
+            const candidates = [
+                step.dataset.defaultValue || '',
+                state.current?.[option] || '',
+                ...[...step.querySelectorAll('input[type="radio"], select option')].map((choice) => choice.value),
+            ];
+            const fallback = candidates.find((value) => allowedValues.includes(value));
+            if (!fallback) return;
+            const radio = step.querySelector(`input[type="radio"][value="${CSS.escape(fallback)}"]`);
+            if (radio) {
+                radio.checked = true;
+            } else {
+                const select = step.querySelector('select');
+                if (select) select.value = fallback;
+            }
+            corrected = true;
         });
         [...(state.alerts || []), ...(state.infos || [])].forEach((message) => this.showError(message));
         // The quote request for this edit was already started in parallel with
         // show_variables. Do not send a duplicate quote when the refresh returns.
         this.refreshSteps(false);
+        if (corrected) {
+            this.clearQuote();
+            this.scheduleRefresh();
+        }
     }
 
     async calculate() {
