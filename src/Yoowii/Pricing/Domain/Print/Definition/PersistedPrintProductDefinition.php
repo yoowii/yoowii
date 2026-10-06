@@ -102,7 +102,17 @@ class PersistedPrintProductDefinition
                 'depends_on' => null !== $parent ? $this->yesNoDependency($parent) : null,
             ];
         }
-        usort($schema, static fn (array $left, array $right): int => [$left['area'], $left['position'], $left['code']] <=> [$right['area'], $right['position'], $right['code']]);
+        usort($schema, static fn (array $left, array $right): int => [
+            'delai' === $left['code'] ? 1 : 0,
+            $left['area'],
+            $left['position'],
+            $left['code'],
+        ] <=> [
+            'delai' === $right['code'] ? 1 : 0,
+            $right['area'],
+            $right['position'],
+            $right['code'],
+        ]);
 
         return $schema;
     }

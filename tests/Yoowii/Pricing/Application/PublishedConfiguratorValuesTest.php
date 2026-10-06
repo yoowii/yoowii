@@ -154,6 +154,17 @@ final class PublishedConfiguratorValuesTest extends TestCase
         self::assertSame('sans', $resolved['enabled_zone']);
     }
 
+
+    public function testItAlwaysPlacesDelayLastInThePublishedSchema(): void
+    {
+        $definition = new PersistedPrintProductDefinition('PRINT_ORDER', 'v1', [
+            'delai' => ['type' => 'code', 'required' => true, 'allowed_values' => ['standard'], 'value_labels' => ['standard' => 'Standard'], 'area' => 1, 'position' => 1, 'default' => 'standard'],
+            'format' => ['type' => 'code', 'required' => true, 'allowed_values' => ['a4'], 'value_labels' => ['a4' => 'A4'], 'area' => 2, 'position' => 3, 'default' => 'a4'],
+        ], ['delai', 'format']);
+
+        self::assertSame(['format', 'delai'], array_column($definition->storefrontSchema(), 'code'));
+    }
+
     private function definition(): PrintProductDefinition
     {
         return new PrintProductDefinition('PRINT_AGENDA', 'v1', 'matrix_exact', [
