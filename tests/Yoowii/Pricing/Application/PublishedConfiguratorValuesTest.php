@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Yoowii\Pricing\Application;
 
 use App\Yoowii\Pricing\Application\PublishedConfiguratorValues;
+use App\Yoowii\Pricing\Application\RealisaprintConfigurationMapper;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Pricing\Domain\Print\Definition\PrintOptionDefinition;
 use App\Yoowii\Pricing\Domain\Print\Definition\PrintOptionType;
 use App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 
 final class PublishedConfiguratorValuesTest extends TestCase
@@ -72,6 +74,56 @@ final class PublishedConfiguratorValuesTest extends TestCase
         ], ['pelliculage_couverture' => 'choice_7', 'pelliculage_couverture_zone' => 'avec']);
 
         self::assertSame(['pelliculage_couverture' => 'choice_7', 'pelliculage_couverture_zone' => 'avec'], $values);
+    }
+
+
+    public function testItInjectsTheCanonicalCodeDefaultForMissingNullAndEmptyValues(): void
+    {
+        $definition = new PrintProductDefinition('PRINT_DORURE', 'v1', 'matrix_exact', [
+            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Code, true, ['sans', 'or']),
+        ], ['dorure_a_chaud']);
+        $schema = [['code' => 'dorure_a_chaud', 'type' => 'code', 'position' => 1, 'default' => 'sans', 'allowed_values' => ['sans', 'or'], 'values' => ['sans' => 'Sans', 'or' => 'Or']]];
+        $resolver = new PublishedConfiguratorValues();
+
+        self::assertSame('sans', $resolver->resolve($definition, $schema, [])['dorure_a_chaud']);
+        self::assertSame('sans', $resolver->resolve($definition, $schema, ['dorure_a_chaud' => null])['dorure_a_chaud']);
+        self::assertSame('sans', $resolver->resolve($definition, $schema, ['dorure_a_chaud' => ''])['dorure_a_chaud']);
+    }
+
+    public function testItDoesNotReplaceAnExplicitInvalidCode(): void
+    {
+        $this->expectExceptionMessage('Print option "dorure_a_chaud" contains unsupported value "argent".');
+        $definition = new PrintProductDefinition('PRINT_DORURE', 'v1', 'matrix_exact', [
+            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Code, true, ['sans', 'or']),
+        ], ['dorure_a_chaud']);
+        (new PublishedConfiguratorValues())->resolve($definition, [['code' => 'dorure_a_chaud', 'type' => 'code', 'position' => 1, 'default' => 'sans', 'allowed_values' => ['sans', 'or']]], ['dorure_a_chaud' => 'argent']);
+    }
+
+    public function testItRejectsAnInvalidPublishedCodeDefault(): void
+    {
+        $this->expectExceptionMessage('doit définir un défaut canonique non vide présent dans allowed_values');
+        $definition = new PrintProductDefinition('PRINT_DORURE', 'v1', 'matrix_exact', [
+            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Code, true, ['sans']),
+        ], ['dorure_a_chaud']);
+        (new PublishedConfiguratorValues())->resolve($definition, [['code' => 'dorure_a_chaud', 'type' => 'code', 'position' => 1, 'default' => 'Sans', 'allowed_values' => ['sans']]], []);
+    }
+
+
+    public function testTheInjectedCodeIsPresentInTheMappedPayloadAndSnapshot(): void
+    {
+        $definition = new PrintProductDefinition('PRINT_DORURE', 'v1', 'matrix_exact', [
+            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Code, true, ['sans', 'or']),
+        ], ['dorure_a_chaud']);
+        $resolved = (new PublishedConfiguratorValues())->resolve($definition, [[
+            'code' => 'dorure_a_chaud', 'type' => 'code', 'position' => 0, 'default' => 'sans', 'allowed_values' => ['sans', 'or'],
+        ]], []);
+        $configuration = $definition->configure($resolved);
+        $mapped = (new RealisaprintConfigurationMapper($this->createMock(EntityManagerInterface::class)))->mapMapping($configuration, ['realisaprint' => [
+            'product' => '46', 'stock' => '1', 'variables' => ['gold' => ['option' => 'dorure_a_chaud', 'values' => ['sans' => 'Sans', 'or' => 'Gold']]],
+        ]], 'v1');
+
+        self::assertSame('sans', $configuration->snapshotData()['options']['dorure_a_chaud']);
+        self::assertSame('Sans', $mapped['variables']['gold']);
     }
 
     private function definition(): PrintProductDefinition

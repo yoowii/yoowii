@@ -17,16 +17,26 @@ final class PublishedConfiguratorValues
         }
         foreach ($schemas as $schema) {
             $code = $schema['code'] ?? null;
-            if (!is_string($code) || array_key_exists($code, $values) || array_key_exists($code, $fixed)) {
+            if (!is_string($code) || array_key_exists($code, $fixed)) {
                 continue;
             }
-            // Disabled dynamic fields are deliberately absent from FormData. Their
-            // value is selected exclusively from the published server-side default.
-            $default = $schema['default'] ?? null;
-            if (null === $default || '' === $default) {
-                throw new \DomainException(sprintf('La définition publiée ne fournit pas de valeur sûre pour l’axe caché « %s ».', $code));
+            $value = $values[$code] ?? null;
+            $missing = !array_key_exists($code, $values) || null === $value || (is_string($value) && '' === trim($value));
+            if (!$missing) {
+                // Never replace an explicit client value: normalizeCode() must reject it if invalid.
+                continue;
             }
-            $values[$code] = $default;
+            if ('code' === ($schema['type'] ?? null)) {
+                $values[$code] = $this->codeDefault($schema, $code);
+                continue;
+            }
+            if (!array_key_exists($code, $values)) {
+                $default = $schema['default'] ?? null;
+                if (null === $default || '' === $default) {
+                    throw new \DomainException(sprintf('La définition publiée ne fournit pas de valeur sûre pour l’axe caché « %s ».', $code));
+                }
+                $values[$code] = $default;
+            }
         }
 
         $resolved = $definition->configure($values)->toArray();
@@ -37,6 +47,18 @@ final class PublishedConfiguratorValues
         }
 
         return $resolved;
+    }
+
+    /** @param array<string, mixed> $schema */
+    private function codeDefault(array $schema, string $code): string
+    {
+        $default = $schema['default'] ?? null;
+        $allowed = $schema['allowed_values'] ?? array_keys(is_array($schema['values'] ?? null) ? $schema['values'] : []);
+        if (!is_string($default) || '' === trim($default) || !is_array($allowed) || !in_array($default, $allowed, true)) {
+            throw new \DomainException(sprintf('La définition publiée de l’option code « %s » doit définir un défaut canonique non vide présent dans allowed_values.', $code));
+        }
+
+        return $default;
     }
 
     /** @param array<string, mixed> $schema @param array<string, mixed> $values */

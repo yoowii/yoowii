@@ -92,6 +92,7 @@ class PersistedPrintProductDefinition
                 'type' => (string) ($option['type'] ?? 'code'),
                 'provider_type' => is_string($option['provider_type'] ?? null) ? $option['provider_type'] : null,
                 'values' => $valueLabels,
+                'allowed_values' => array_values(array_filter($option['allowed_values'] ?? [], static fn (mixed $value): bool => is_string($value) || is_int($value))),
                 'area' => isset($option['area']) ? (int) $option['area'] : 1,
                 'position' => isset($option['position']) ? (int) $option['position'] : 0,
                 'readonly' => (bool) ($option['readonly'] ?? false),
