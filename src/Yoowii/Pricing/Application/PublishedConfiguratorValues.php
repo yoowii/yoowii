@@ -31,7 +31,10 @@ final class PublishedConfiguratorValues
                 continue;
             }
             if ('code' === ($schema['type'] ?? null)) {
-                // A select must be chosen explicitly by the customer.
+                // Dynamic provider visibility is not trusted from the browser.
+                // An omitted select (disabled/hidden by show_variables) is always
+                // resolved from its published canonical default on the server.
+                $values[$code] = $this->choiceDefault($schema, $code);
                 continue;
             }
             if (!array_key_exists($code, $values)) {

@@ -53,7 +53,9 @@ final class PrintProductConfiguratorController extends AbstractController
 
             $this->assertPricingAxesComplete($configuration, $definitions->get($this->definitionCode($product))->pricingAxes());
             return new JsonResponse($refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC'))), Response::HTTP_OK, ['Cache-Control' => 'no-store']);
-        } catch (\Throwable $exception) {
+        } catch (\InvalidArgumentException|\DomainException $exception) {
+            return new JsonResponse(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
+        } catch (\Throwable) {
             return new JsonResponse(['message' => 'Les options ne peuvent pas être mises à jour pour le moment.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
     }

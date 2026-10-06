@@ -77,17 +77,17 @@ final class PublishedConfiguratorValuesTest extends TestCase
     }
 
 
-    public function testItInjectsTheCanonicalCodeDefaultForMissingNullAndEmptyValues(): void
+    public function testItInjectsTheCanonicalCheckboxDefaultForMissingNullAndEmptyValues(): void
     {
         $definition = new PrintProductDefinition('PRINT_DORURE', 'v1', 'matrix_exact', [
-            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Code, true, ['sans', 'or']),
+            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Checkbox, true, ['oui', 'non']),
         ], ['dorure_a_chaud']);
-        $schema = [['code' => 'dorure_a_chaud', 'type' => 'code', 'position' => 1, 'default' => 'sans', 'allowed_values' => ['sans', 'or'], 'values' => ['sans' => 'Sans', 'or' => 'Or']]];
+        $schema = [['code' => 'dorure_a_chaud', 'type' => 'checkbox', 'position' => 1, 'default' => 'non', 'allowed_values' => ['oui', 'non'], 'values' => ['oui' => 'Oui', 'non' => 'Non']]];
         $resolver = new PublishedConfiguratorValues();
 
-        self::assertSame('sans', $resolver->resolve($definition, $schema, [])['dorure_a_chaud']);
-        self::assertSame('sans', $resolver->resolve($definition, $schema, ['dorure_a_chaud' => null])['dorure_a_chaud']);
-        self::assertSame('sans', $resolver->resolve($definition, $schema, ['dorure_a_chaud' => ''])['dorure_a_chaud']);
+        self::assertSame('non', $resolver->resolve($definition, $schema, [])['dorure_a_chaud']);
+        self::assertSame('non', $resolver->resolve($definition, $schema, ['dorure_a_chaud' => null])['dorure_a_chaud']);
+        self::assertSame('non', $resolver->resolve($definition, $schema, ['dorure_a_chaud' => ''])['dorure_a_chaud']);
     }
 
     public function testItDoesNotReplaceAnExplicitInvalidCode(): void
@@ -103,9 +103,9 @@ final class PublishedConfiguratorValuesTest extends TestCase
     {
         $this->expectExceptionMessage('doit définir un défaut canonique non vide présent dans allowed_values');
         $definition = new PrintProductDefinition('PRINT_DORURE', 'v1', 'matrix_exact', [
-            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Code, true, ['sans']),
+            'dorure_a_chaud' => new PrintOptionDefinition('dorure_a_chaud', PrintOptionType::Checkbox, true, ['oui', 'non']),
         ], ['dorure_a_chaud']);
-        (new PublishedConfiguratorValues())->resolve($definition, [['code' => 'dorure_a_chaud', 'type' => 'code', 'position' => 1, 'default' => 'Sans', 'allowed_values' => ['sans']]], []);
+        (new PublishedConfiguratorValues())->resolve($definition, [['code' => 'dorure_a_chaud', 'type' => 'checkbox', 'position' => 1, 'default' => 'Sans', 'allowed_values' => ['oui', 'non']]], []);
     }
 
 
@@ -137,6 +137,21 @@ final class PublishedConfiguratorValuesTest extends TestCase
         self::assertSame('non', (new PublishedConfiguratorValues())->resolve($definition, $schema, [])['dorure_a_chaud']);
         self::assertSame('oui', $definition->configure(['dorure_a_chaud' => true])->toArray()['dorure_a_chaud']);
         self::assertSame('non', $definition->configure(['dorure_a_chaud' => 'non'])->toArray()['dorure_a_chaud']);
+    }
+
+
+    public function testItResolvesOnlyAMaskedSelectFromItsPublishedDefault(): void
+    {
+        $definition = new PrintProductDefinition('PRINT_ZONE', 'v1', 'matrix_exact', [
+            'enabled' => new PrintOptionDefinition('enabled', PrintOptionType::Checkbox, true, ['oui', 'non']),
+            'enabled_zone' => new PrintOptionDefinition('enabled_zone', PrintOptionType::Code, true, ['sans', 'zone_1']),
+        ], ['enabled', 'enabled_zone']);
+        $resolved = (new PublishedConfiguratorValues())->resolve($definition, [
+            ['code' => 'enabled', 'type' => 'checkbox', 'position' => 1, 'default' => 'non', 'allowed_values' => ['oui', 'non']],
+            ['code' => 'enabled_zone', 'type' => 'code', 'position' => 2, 'default' => 'sans', 'allowed_values' => ['sans', 'zone_1'], 'depends_on' => ['option' => 'enabled', 'value' => 'oui']],
+        ], ['enabled' => 'non']);
+
+        self::assertSame('sans', $resolved['enabled_zone']);
     }
 
     private function definition(): PrintProductDefinition
