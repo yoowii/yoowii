@@ -42,7 +42,10 @@ export default class extends Controller {
         this.clearQuote();
         this.initialProviderStateValue = null;
         this.applySchemaVisibility();
-        this.refreshSteps(!this.hasRefreshUrlValue, stepIndex);
+        // Quote and show_variables are independent requests. Start both once the
+        // visible configuration is complete; refreshSequence still discards stale
+        // provider responses.
+        this.refreshSteps(true, stepIndex);
         this.scheduleRefresh();
     }
 
@@ -282,7 +285,6 @@ export default class extends Controller {
             const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
             if (!step) return;
             this.setStepVisibility(step, visible === true, !initial && visible !== true);
-            if (!initial && visible !== true) this.clearQuote();
         });
         Object.entries(state.values || {}).forEach(([option, values]) => {
             const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
@@ -298,8 +300,9 @@ export default class extends Controller {
             if (input && !input.checked) input.checked = true;
         });
         [...(state.alerts || []), ...(state.infos || [])].forEach((message) => this.showError(message));
+        // The quote request for this edit was already started in parallel with
+        // show_variables. Do not send a duplicate quote when the refresh returns.
         this.refreshSteps(false);
-        if (this.isComplete()) this.scheduleCalculation();
     }
 
     async calculate() {
