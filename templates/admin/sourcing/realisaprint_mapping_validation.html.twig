@@ -59,17 +59,35 @@
             <p class="text-secondary">Aucun contrôle API enregistré pour ce mapping. La table ci-dessus présente la configuration qui sera testée.</p>
         {% endif %}
         <div class="btn-list">
-            <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: mapping.id}) }}">
-                {% for code, field in numeric_test_fields %}
-                    <div class="mb-3">
-                        <label class="form-label" for="test_{{ code }}">{{ field.label }} (essai)</label>
-                        <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" inputmode="decimal" required>
-                        <div class="form-hint">{{ field.type == 'float' ? 'Nombre décimal positif (6 décimales maximum). ' : 'Entier positif. ' }}{{ field.suggestion ? 'Suggestion modifiable : aucun défaut fournisseur exploitable n’a été synchronisé.' : 'Défaut fournisseur synchronisé, modifiable pour cet essai.' }}</div>
+            <details class="w-100">
+                <summary class="btn btn-outline-primary">Personnaliser les valeurs d’essai</summary>
+                <form id="realisaprint-test-values" method="post" class="card card-body mt-3" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: mapping.id}) }}">
+                    <p class="text-secondary">Ces valeurs servent uniquement au contrôle API. Les valeurs fixes Realisaprint sont affichées mais restent imposées côté serveur.</p>
+                    <div class="row">
+                    {% for code, field in test_fields %}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="test_{{ code }}">{{ field.label }}</label>
+                            {% if not field.editable %}
+                                <input class="form-control" id="test_{{ code }}" value="{{ sample[code]|default(field.fixed_label) }}" disabled>
+                                <div class="form-hint">Valeur fixe Realisaprint.</div>
+                            {% elseif field.choices is not empty %}
+                                <select class="form-select" id="test_{{ code }}" name="test_values[{{ code }}]" required>
+                                    {% for value, label in field.choices %}<option value="{{ value }}" {{ sample[code]|default('') == value ? 'selected' : '' }}>{{ label }}</option>{% endfor %}
+                                </select>
+                            {% elseif field.type == 'integer' %}
+                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="number" step="1" required>
+                            {% elseif field.type == 'float' %}
+                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="number" step="any" required>
+                            {% else %}
+                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="text" required>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
                     </div>
-                {% endfor %}
-                <input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ mapping.id) }}">
-                <button class="btn btn-primary">Lancer le contrôle du prix API</button>
-            </form>
+                    <input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ mapping.id) }}">
+                </form>
+            </details>
+            <button class="btn btn-primary" type="submit" form="realisaprint-test-values">Lancer le contrôle du prix API</button>
             {% if can_publish %}
                 <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_publish', {id: mapping.id}) }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('publish_realisaprint_mapping_' ~ mapping.id) }}">

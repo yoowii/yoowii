@@ -87,7 +87,11 @@ final readonly class RealisaprintConfiguratorRefresh
             }
             $option = $rule['option'];
             $visibility[$option] = true === ($response[$providerVariable] ?? true);
+            $hasProviderValues = array_key_exists($providerVariable, is_array($response['variable_values'] ?? null) ? $response['variable_values'] : []);
             $providerValues = is_array($response['variable_values'][$providerVariable] ?? null) ? $response['variable_values'][$providerVariable] : [];
+            if ($hasProviderValues) {
+                $values[$option] = [];
+            }
             $reverse = [];
             foreach ((is_array($rule['values'] ?? null) ? $rule['values'] : []) as $canonical => $providerValue) {
                 if (is_string($canonical) && is_scalar($providerValue)) {

@@ -49,7 +49,7 @@ final class RealisaprintPublicationController extends AbstractController
         $validation = $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
         $catalog = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $mapping->supplierProduct()->code()]);
         $definition = $this->definition($mapping, $entityManager);
-        $sample = $validator->sample($definition);
+        $sample = $this->withFixedValues($validator->sample($definition), $mapping);
         if ($validation instanceof RealisaprintMappingValidation) {
             $sample = array_replace($sample, $validation->testConfiguration());
         }
@@ -68,7 +68,7 @@ final class RealisaprintPublicationController extends AbstractController
             'can_publish' => $canPublish,
             'valid_until' => $validUntil,
             'sample' => $sample,
-            'numeric_test_fields' => $this->numericTestFields($definition),
+            'test_fields' => $this->testFields($definition, $mapping),
         ]);
     }
 
@@ -90,14 +90,20 @@ final class RealisaprintPublicationController extends AbstractController
     /**  array<string, string|int|float> */
     private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request, SupplierProductMappingVersion $mapping): array
     {
-        $sample = $validator->sample($definition);
+        $sample = $this->withFixedValues($validator->sample($definition), $mapping);
         $submitted = $request->request->all('test_values');
         if (!is_array($submitted)) {
             throw new \InvalidArgumentException('Les valeurs d’essai sont requises.');
         }
-        foreach ($this->numericTestFields($definition) as $code => $field) {
+        foreach ($this->testFields($definition, $mapping) as $code => $field) {
+            if (!$field['editable']) {
+                continue;
+            }
             $value = $submitted[$code] ?? null;
-            if (!is_string($value) || '' === trim($value)) {
+            if (!is_string($value) && !is_int($value) && !is_float($value)) {
+                throw new \InvalidArgumentException(sprintf('La valeur d’essai « %s » est requise.', $field['label']));
+            }
+            if (is_string($value) && '' === trim($value)) {
                 throw new \InvalidArgumentException(sprintf('La valeur d’essai « %s » est requise.', $field['label']));
             }
             $sample[$code] = $value;
@@ -130,15 +136,30 @@ final class RealisaprintPublicationController extends AbstractController
         return $values;
     }
 
-    /**  array<string, array{label: string, type: string, suggestion: bool}> */
-    private function numericTestFields(PersistedPrintProductDefinition $definition): array
+    /** @return array<string, array{label: string, type: string, choices: array<string, string>, editable: bool, fixed_label: string|null}> */
+    private function testFields(PersistedPrintProductDefinition $definition, SupplierProductMappingVersion $mapping): array
     {
+        $fixed = $this->withFixedValues([], $mapping);
         $fields = [];
         foreach ($definition->options() as $code => $option) {
-            if (!is_array($option) || [] !== ($option['allowed_values'] ?? []) || !in_array($option['type'] ?? null, ['integer', 'float'], true)) {
+            if (!is_array($option)) {
                 continue;
             }
-            $fields[$code] = ['label' => is_string($option['label'] ?? null) ? $option['label'] : $code, 'type' => $option['type'], 'suggestion' => !isset($option['default'])];
+            $choices = [];
+            foreach (($option['allowed_values'] ?? []) as $value) {
+                if (!is_string($value) && !is_int($value)) {
+                    continue;
+                }
+                $key = (string) $value;
+                $choices[$key] = is_string($option['value_labels'][$key] ?? null) ? $option['value_labels'][$key] : $key;
+            }
+            $fields[$code] = [
+                'label' => is_string($option['label'] ?? null) ? $option['label'] : $code,
+                'type' => is_string($option['type'] ?? null) ? $option['type'] : 'text',
+                'choices' => $choices,
+                'editable' => !array_key_exists($code, $fixed),
+                'fixed_label' => array_key_exists($code, $fixed) ? (string) $fixed[$code] : null,
+            ];
         }
 
         return $fields;

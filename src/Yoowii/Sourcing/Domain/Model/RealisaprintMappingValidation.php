@@ -38,7 +38,7 @@ class RealisaprintMappingValidation
         private readonly string $testFingerprint,
         #[ORM\Column(name: 'coverage_errors', type: Types::JSON)]
         private readonly array $coverageErrors,
-        #[ORM\Column(name: 'technical_detail', type: Types::STRING, length: 280, nullable: true)]
+        #[ORM\Column(name: 'technical_detail', type: Types::TEXT, nullable: true)]
         private readonly ?string $technicalDetail,
         #[ORM\Column(name: 'checked_at', type: Types::DATETIME_IMMUTABLE)]
         private readonly \DateTimeImmutable $checkedAt,

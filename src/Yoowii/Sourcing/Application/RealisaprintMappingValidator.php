@@ -44,17 +44,45 @@ final readonly class RealisaprintMappingValidator
 
         try {
             $configuration = $definition->definition()->configure($sample);
+            // This must precede save_configuration/get_price: the supplier can constrain
+            // the exact configuration that is eligible for quotation.
+            $state = $this->configuratorRefresh->preview($configuration, $mapping);
+            $configuration = $definition->definition()->configure($this->applyProviderState($configuration->toArray(), $state, $definition->pricingAxes()));
             $quote = $this->quotes->quoteDraftMapping($route, $configuration, $this->pricingPolicy->get(), 'EUR', $at, $mapping->configurationMapping(), $mapping->version());
 
             $fingerprint = $this->fingerprint($mapping, $configuration->toArray());
             $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
-            $initialState = $this->configuratorRefresh->preview($configuration, $mapping);
-            $initialState = ['product' => $provider['product'] ?? null, 'stock' => $provider['stock'] ?? null, 'mapping_version' => $mapping->version(), 'schema_version' => $definition->definition()->schemaVersion(), 'fingerprint' => $fingerprint, 'configuration' => $configuration->toArray(), 'state' => $initialState];
+            $initialState = ['product' => $provider['product'] ?? null, 'stock' => $provider['stock'] ?? null, 'mapping_version' => $mapping->version(), 'schema_version' => $definition->definition()->schemaVersion(), 'fingerprint' => $fingerprint, 'configuration' => $configuration->toArray(), 'state' => $state];
 
             return new RealisaprintMappingValidation($mapping, true, true, $quote->supplierCost(), $quote->productionCost(), $quote->shippingCost(), $configuration->toArray(), $fingerprint, [], null, $at, $initialState);
         } catch (\Throwable $exception) {
             return new RealisaprintMappingValidation($mapping, true, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), [], $this->safeDetail($exception->getMessage()), $at);
         }
+    }
+
+    /** @param array<string, string|int|float> $values @param array{visibility: array<string, bool>, values: array<string, array<string, string>>, current: array<string, string|int>, alerts: list<string>, infos: list<string>} $state @param list<string> $axes
+     * @return array<string, string|int|float> */
+    private function applyProviderState(array $values, array $state, array $axes): array
+    {
+        foreach ($state['current'] as $option => $current) {
+            $values[$option] = $current;
+        }
+        foreach ($axes as $axis) {
+            if (!array_key_exists($axis, $values) || '' === trim((string) $values[$axis])) {
+                throw new \DomainException(sprintf('show_variables a rendu l’axe requis « %s » incomplet.', $axis));
+            }
+            $allowed = $state['values'][$axis] ?? null;
+            if (null !== $allowed && !array_key_exists((string) $values[$axis], $allowed)) {
+                throw new \DomainException(sprintf(
+                    'show_variables interdit « %s » pour l’axe requis « %s ». Valeurs autorisées : %s.',
+                    (string) $values[$axis],
+                    $axis,
+                    [] === $allowed ? 'aucune' : implode(', ', array_map(static fn (int|string $code, string $label): string => sprintf('%s (%s)', $label, $code), array_keys($allowed), $allowed)),
+                ));
+            }
+        }
+
+        return $values;
     }
 
     /** @return list<string> */
@@ -131,6 +159,6 @@ final readonly class RealisaprintMappingValidator
     {
         $message = preg_replace('/(?:api[_-]?key|password|authorization)\s*[:=]\s*\S+/i', '[redacted]', $message) ?? 'Validation Realisaprint impossible.';
 
-        return mb_substr($message, 0, 280);
+        return $message;
     }
 }
