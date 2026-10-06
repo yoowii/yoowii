@@ -14,6 +14,7 @@ export default class extends Controller {
         hasQuote: Boolean,
         refreshUrl: String,
         pricingAxes: Array,
+        initialProviderState: Object,
     };
 
     connect() {
@@ -23,8 +24,9 @@ export default class extends Controller {
         this.refreshSequence = 0;
         this.refreshAbortController = null;
         this.applySchemaVisibility();
+        if (this.hasInitialProviderStateValue) this.applyProviderState(this.initialProviderStateValue);
         this.refreshSteps(false);
-        this.scheduleRefresh();
+        if (!this.hasInitialProviderStateValue) this.scheduleRefresh();
     }
 
     disconnect() {

@@ -47,6 +47,20 @@ final readonly class RealisaprintConfiguratorRefresh
         throw new \DomainException('Aucune route Realisaprint compatible ne permet de rafraîchir cette configuration.');
     }
 
+    /** @return array{visibility: array<string, bool>, values: array<string, array<string, string>>, current: array<string, string|int>, alerts: list<string>, infos: list<string>} */
+    public function preview(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping): array
+    {
+        $mapped = $this->mapper->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
+        $response = $this->client->post('show_variables', [
+            'product' => $mapped['product'],
+            'stock' => $mapped['stock'],
+            'variables' => $mapped['variables'],
+            'retry' => 1,
+        ]);
+
+        return $this->normalize($response, $mapping);
+    }
+
     private function mapping(string $productCode, SupplierRoute $route, \DateTimeImmutable $at): ?SupplierProductMappingVersion
     {
         $mappings = $this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]);

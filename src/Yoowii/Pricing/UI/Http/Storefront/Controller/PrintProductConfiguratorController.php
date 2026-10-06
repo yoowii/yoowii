@@ -163,6 +163,7 @@ final class PrintProductConfiguratorController extends AbstractController
         ChannelContextInterface $channelContext,
         RealisaprintFixedOptionResolver $fixedOptions,
         PublishedConfiguratorValues $publishedValues,
+        \Doctrine\ORM\EntityManagerInterface $entityManager,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
@@ -176,6 +177,7 @@ final class PrintProductConfiguratorController extends AbstractController
         $storedQuote = $this->matchingQuote($quoteToken, $product, $definitionCode, $quoteStore, $now);
         $fixed = $fixedOptions->forProduct($definitionCode, $now);
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
+        $initialState = $this->initialConfiguratorState($definition, $definitionCode, $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed), $fixed, $entityManager);
         $form = $this->createConfiguratorForm(
             $productCode,
             $availableOptions,
@@ -194,6 +196,7 @@ final class PrintProductConfiguratorController extends AbstractController
             'refresh_url' => $this->generateUrl('yoowii_shop_print_product_configuration_refresh', ['productCode' => $productCode, '_locale' => $request->getLocale()]),
             'fixed_fields' => $fixed,
             'pricing_axes' => $definition->pricingAxes(),
+            'initial_provider_state' => $initialState,
         ]);
     }
 
@@ -244,6 +247,36 @@ final class PrintProductConfiguratorController extends AbstractController
         unset($schema);
 
         return $schemas;
+    }
+
+    /** @param list<array<string, mixed>> $schemas @param array<string, array{value: string|int|float, label: string}> $fixed
+     * @return array<string, mixed>|null */
+    private function initialConfiguratorState(\App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition $definition, string $definitionCode, array $schemas, array $fixed, \Doctrine\ORM\EntityManagerInterface $entityManager): ?array
+    {
+        $values = $this->withFixedValues([], $fixed);
+        foreach ($schemas as $schema) {
+            if (is_string($schema['code'] ?? null) && null !== ($schema['default'] ?? null)) {
+                $values[$schema['code']] = $schema['default'];
+            }
+        }
+        try {
+            $configuration = $definition->configure($values)->toArray();
+        } catch (\Throwable) {
+            return null;
+        }
+        foreach ($entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
+            if (!$mapping instanceof \App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion) {
+                continue;
+            }
+            $validation = $entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
+            $state = $validation instanceof \App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation ? $validation->initialConfiguratorState() : null;
+            $fingerprint = hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $configuration], JSON_THROW_ON_ERROR));
+            if (is_array($state) && ($state['fingerprint'] ?? null) === $fingerprint && ($state['mapping_version'] ?? null) === $mapping->version() && ($state['configuration'] ?? null) === $configuration) {
+                return is_array($state['state'] ?? null) ? $state['state'] : null;
+            }
+        }
+
+        return null;
     }
 
     /** @param list<string> $axes */

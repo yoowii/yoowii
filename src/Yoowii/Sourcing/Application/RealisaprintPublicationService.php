@@ -31,6 +31,10 @@ final readonly class RealisaprintPublicationService
         if ($validation->checkedAt() < $now->modify('-30 minutes')) {
             throw new \DomainException('Publication refusée : la validation API a expiré, relance-la.');
         }
+        $initialState = $validation->initialConfiguratorState();
+        if (!is_array($initialState) || ($initialState['fingerprint'] ?? null) !== $validation->testFingerprint() || ($initialState['mapping_version'] ?? null) !== $mapping->version()) {
+            throw new \DomainException('Publication refusée : l’état initial du configurateur est absent ou périmé, relance le contrôle.');
+        }
         /** @var Product|null $product */
         $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $mapping->yoowiiProductCode()]);
         /** @var PersistedPrintProductDefinition|null $definition */
@@ -51,6 +55,9 @@ final readonly class RealisaprintPublicationService
             throw new \DomainException('Publication refusée : correspondances fournisseur introuvables.');
         }
         $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
+        if (($initialState['stock'] ?? null) !== ($provider['stock'] ?? null) || ($initialState['schema_version'] ?? null) !== $definition->definition()->schemaVersion()) {
+            throw new \DomainException('Publication refusée : la définition ou le stock ont changé, relance le contrôle.');
+        }
 
         foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
             'supplierProduct' => $route->supplierProduct(),

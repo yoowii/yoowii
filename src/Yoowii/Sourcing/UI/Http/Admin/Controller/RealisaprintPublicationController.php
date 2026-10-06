@@ -30,7 +30,7 @@ final class RealisaprintPublicationController extends AbstractController
         $route = $this->route($mapping, $entityManager);
         $definition = $this->definition($mapping, $entityManager);
         try {
-            $sample = $this->testSample($definition, $validator, $request);
+            $sample = $this->testSample($definition, $validator, $request, $mapping);
         } catch (\InvalidArgumentException $exception) {
             $this->addFlash('error', $exception->getMessage());
             return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
@@ -88,7 +88,7 @@ final class RealisaprintPublicationController extends AbstractController
     }
 
     /**  array<string, string|int|float> */
-    private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request): array
+    private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request, SupplierProductMappingVersion $mapping): array
     {
         $sample = $validator->sample($definition);
         $submitted = $request->request->all('test_values');
@@ -102,9 +102,32 @@ final class RealisaprintPublicationController extends AbstractController
             }
             $sample[$code] = $value;
         }
-        $configuration = $definition->definition()->configure($sample);
+        $configuration = $definition->definition()->configure($this->withFixedValues($sample, $mapping));
 
         return $configuration->toArray();
+    }
+
+    /** @param array<string, string|int|float> $values @return array<string, string|int|float> */
+    private function withFixedValues(array $values, SupplierProductMappingVersion $mapping): array
+    {
+        $rules = $mapping->configurationMapping()['realisaprint']['variables'] ?? [];
+        if (!is_array($rules)) {
+            return $values;
+        }
+        foreach ($rules as $rule) {
+            if (!is_array($rule) || !is_string($rule['option'] ?? null) || !is_scalar($rule['fixed_value'] ?? null)) {
+                continue;
+            }
+            foreach ((is_array($rule['values'] ?? null) ? $rule['values'] : []) as $canonical => $provider) {
+                if ((string) $provider === (string) $rule['fixed_value']) {
+                    $values[$rule['option']] = ctype_digit((string) $canonical) ? (int) $canonical : (string) $canonical;
+                    continue 2;
+                }
+            }
+            throw new \InvalidArgumentException(sprintf('La valeur fixe de « %s » ne correspond pas au mapping publié.', $rule['option']));
+        }
+
+        return $values;
     }
 
     /**  array<string, array{label: string, type: string, suggestion: bool}> */

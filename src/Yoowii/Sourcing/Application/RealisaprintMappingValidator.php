@@ -19,6 +19,7 @@ final readonly class RealisaprintMappingValidator
         private RealisaprintLiveQuoteCalculator $quotes,
         private RetailPrintPricingPolicyProvider $pricingPolicy,
         private RealisaprintMappingCompleteness $completeness,
+        private \App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh $configuratorRefresh,
         private EntityManagerInterface $entityManager,
     ) {
     }
@@ -45,7 +46,12 @@ final readonly class RealisaprintMappingValidator
             $configuration = $definition->definition()->configure($sample);
             $quote = $this->quotes->quoteDraftMapping($route, $configuration, $this->pricingPolicy->get(), 'EUR', $at, $mapping->configurationMapping(), $mapping->version());
 
-            return new RealisaprintMappingValidation($mapping, true, true, $quote->supplierCost(), $quote->productionCost(), $quote->shippingCost(), $configuration->toArray(), $this->fingerprint($mapping, $configuration->toArray()), [], null, $at);
+            $fingerprint = $this->fingerprint($mapping, $configuration->toArray());
+            $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
+            $initialState = $this->configuratorRefresh->preview($configuration, $mapping);
+            $initialState = ['product' => $provider['product'] ?? null, 'stock' => $provider['stock'] ?? null, 'mapping_version' => $mapping->version(), 'schema_version' => $definition->definition()->schemaVersion(), 'fingerprint' => $fingerprint, 'configuration' => $configuration->toArray(), 'state' => $initialState];
+
+            return new RealisaprintMappingValidation($mapping, true, true, $quote->supplierCost(), $quote->productionCost(), $quote->shippingCost(), $configuration->toArray(), $fingerprint, [], null, $at, $initialState);
         } catch (\Throwable $exception) {
             return new RealisaprintMappingValidation($mapping, true, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), [], $this->safeDetail($exception->getMessage()), $at);
         }

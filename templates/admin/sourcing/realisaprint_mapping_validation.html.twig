@@ -45,6 +45,7 @@
                 <dt class="col-sm-4">Couverture</dt><dd class="col-sm-8">{{ validation.coverageComplete and preview.covered ? 'Complète' : 'Incomplète' }}</dd>
                 <dt class="col-sm-4">Cotation API</dt><dd class="col-sm-8">{{ validation.quotePassed ? 'Réussie' : 'Non validée' }}</dd>
                 <dt class="col-sm-4">Valeurs effectivement testées</dt><dd class="col-sm-8"><code>{{ validation.testConfiguration|json_encode }}</code></dd>
+                {% if validation.initialConfiguratorState %}<dt class="col-sm-4">État initial du configurateur</dt><dd class="col-sm-8"><code>{{ validation.initialConfiguratorState.state|json_encode }}</code></dd>{% endif %}
                 {% if validation.supplierCost is not null %}
                     <dt class="col-sm-4">Coût fournisseur de l'essai</dt><dd class="col-sm-8">{{ (validation.supplierCost / 100)|number_format(2, ',', ' ') }} EUR{% if validation.supplierBaseCost is not null and validation.supplierOptionsCost is not null %}<br><small class="text-secondary">Prix produit : {{ (validation.supplierBaseCost / 100)|number_format(2, ',', ' ') }} EUR + options : {{ (validation.supplierOptionsCost / 100)|number_format(2, ',', ' ') }} EUR</small>{% endif %}</dd>
                 {% endif %}
