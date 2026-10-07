@@ -27,8 +27,14 @@
                 <div class="container-xl">
                     {% for type, messages in app.flashes %}
                         {% for message in messages %}
-                            <div class="alert alert-{{ type == 'error' ? 'danger' : type }}" role="alert">
-                                {{ message }}
+                            {% set is_realisaprint_diagnostic = type in ['realisaprint_test_success', 'realisaprint_test_error'] %}
+                            <div class="alert alert-{{ type == 'realisaprint_test_error' or type == 'error' ? 'danger' : (type == 'realisaprint_test_success' ? 'success' : type) }} d-flex align-items-center gap-2" role="alert">
+                                <span>{{ message }}</span>
+                                {% if is_realisaprint_diagnostic %}
+                                    <button class="btn btn-outline-dark btn-sm ms-auto flex-shrink-0" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-api-diagnostic">
+                                        Voir l’appel API
+                                    </button>
+                                {% endif %}
                             </div>
                         {% endfor %}
                     {% endfor %}

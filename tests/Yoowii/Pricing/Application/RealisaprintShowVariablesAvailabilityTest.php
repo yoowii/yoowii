@@ -20,13 +20,16 @@ final class RealisaprintShowVariablesAvailabilityTest extends TestCase
     {
         $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
         $state = $refresh->normalizeResponse([
-            'support_interieur' => [
-                '115g_m2_couche_mat' => '1',
-                '115g_m2_couche_brillant' => '1',
-                '135g_m2_couche_brillant' => '1',
-                '170g_m2_couche_mat' => '1',
-                '90g_m2_couche_brillant' => '0',
+            'VARTICLE_SUPPORT_' => true,
+            'variable_values' => [
+                'VARTICLE_SUPPORT_' => [
+                    'provider-115-mat' => '115g/m² couché mat',
+                    'provider-115-gloss' => '115g/m² couché brillant',
+                    'provider-135-gloss' => '135g/m² couché brillant',
+                    'provider-170-mat' => '170g/m² couché mat',
+                ],
             ],
+            'current_values' => ['VARTICLE_SUPPORT_' => 'provider-135-gloss'],
         ], $this->mapping());
 
         self::assertSame([
@@ -35,7 +38,20 @@ final class RealisaprintShowVariablesAvailabilityTest extends TestCase
             '135g_m2_couche_brillant',
             '170g_m2_couche_mat',
         ], $state['availability']['support_interieur']);
+        self::assertSame('135g_m2_couche_brillant', $state['current']['support_interieur']);
         self::assertArrayNotHasKey('values', $state);
+    }
+
+    public function testItNormalizesNumericVisibilityMarkers(): void
+    {
+        $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
+
+        self::assertTrue($refresh->normalizeResponse([
+            'VARTICLE_SUPPORT_' => '1',
+        ], $this->mapping())['visibility']['support_interieur']);
+        self::assertFalse($refresh->normalizeResponse([
+            'VARTICLE_SUPPORT_' => 0,
+        ], $this->mapping())['visibility']['support_interieur']);
     }
 
     public function testItFallsBackToThePublishedDefaultThenMapsThatCanonicalValue(): void

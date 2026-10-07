@@ -12,6 +12,7 @@ use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
+use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,11 +40,22 @@ final class RealisaprintPublicationController extends AbstractController
         $entityManager->persist($validation);
         $entityManager->flush();
 
+        if (null !== $validation->initialConfiguratorState()) {
+            $this->addFlash(
+                $validation->quotePassed() ? 'realisaprint_test_success' : 'realisaprint_test_error',
+                $validation->quotePassed()
+                    ? 'Le contrôle du prix API est terminé avec succès.'
+                    : 'Le contrôle du prix API a échoué. Consultez le diagnostic de l’appel fournisseur.',
+            );
+        } else {
+            $this->addFlash('error', 'Le contrôle du prix API a échoué avant qu’un appel Realisaprint puisse être enregistré.');
+        }
+
         return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
     }
 
     #[Route('/realisaprint-publications/mappings/{id}/validation', name: 'yoowii_admin_realisaprint_mapping_validation', requirements: ['id' => '\\d+'], methods: ['GET'])]
-    public function validation(int $id, EntityManagerInterface $entityManager, RealisaprintValidationPreview $previewBuilder, RealisaprintMappingValidator $validator): Response
+    public function validation(int $id, EntityManagerInterface $entityManager, RealisaprintValidationPreview $previewBuilder, RealisaprintMappingValidator $validator, RealisaprintClient $client): Response
     {
         $mapping = $this->mapping($id, $entityManager);
         $validation = $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
@@ -59,6 +71,10 @@ final class RealisaprintPublicationController extends AbstractController
             && $validation->coverageComplete() && $validation->quotePassed() && $preview['covered']
             && hash_equals($validation->testFingerprint(), $validator->fingerprint($mapping, $validation->testConfiguration()))
             && $validUntil >= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $initialState = $validation instanceof RealisaprintMappingValidation ? $validation->initialConfiguratorState() : null;
+        $showVariablesRequest = is_array($initialState) && is_array($initialState['show_variables_request'] ?? null)
+            ? $initialState['show_variables_request']
+            : null;
 
         return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', [
             'mapping' => $mapping,
@@ -69,6 +85,7 @@ final class RealisaprintPublicationController extends AbstractController
             'valid_until' => $validUntil,
             'sample' => $sample,
             'test_fields' => $this->testFields($definition, $mapping),
+            'api_diagnostic_curl' => is_array($showVariablesRequest) ? $client->diagnosticCurl('show_variables', $showVariablesRequest) : null,
         ]);
     }
 

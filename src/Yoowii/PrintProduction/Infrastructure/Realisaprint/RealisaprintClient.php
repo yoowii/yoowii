@@ -20,6 +20,38 @@ final readonly class RealisaprintClient
     }
 
     /**
+     * Produces a copyable diagnostic command without disclosing credentials.
+     *
+     * @param array<string, mixed> $parameters
+     */
+    public function diagnosticCurl(string $operation, array $parameters): string
+    {
+        $arguments = [
+            'curl --request POST ' . escapeshellarg(rtrim($this->baseUrl, '/') . '/' . rawurlencode($operation)),
+            '--data-urlencode "shop_id=${YOOWII_REALISAPRINT_SHOP_ID}"',
+            '--data-urlencode "api_key=${YOOWII_REALISAPRINT_API_KEY}"',
+        ];
+        foreach ($parameters as $name => $value) {
+            if (is_array($value)) {
+                foreach ($value as $key => $nestedValue) {
+                    if (!is_scalar($nestedValue)) {
+                        continue;
+                    }
+                    $arguments[] = '--data-urlencode ' . escapeshellarg(sprintf('%s[%s]=%s', $name, (string) $key, (string) $nestedValue));
+                }
+
+                continue;
+            }
+            if (!is_scalar($value)) {
+                continue;
+            }
+            $arguments[] = '--data-urlencode ' . escapeshellarg(sprintf('%s=%s', $name, (string) $value));
+        }
+
+        return implode(" \\\n  ", $arguments);
+    }
+
+    /**
      * @param array<string, bool|float|int|string|array<array-key, bool|float|int|string>> $parameters
      *
      * @return array<string, mixed>
@@ -42,6 +74,7 @@ final readonly class RealisaprintClient
         if (!is_array($decoded)) {
             return ['_http_status' => $response->getStatusCode(), '_malformed_response' => true];
         }
+        /** @var array<string, mixed> $decoded */
         $decoded['_http_status'] = $response->getStatusCode();
 
         return $decoded;

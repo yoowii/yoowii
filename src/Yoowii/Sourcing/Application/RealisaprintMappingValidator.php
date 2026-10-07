@@ -47,6 +47,7 @@ final readonly class RealisaprintMappingValidator
 
         try {
             $configuration = $definition->definition()->configure($sample);
+            $initialConfiguration = $configuration->toArray();
             // This must precede save_configuration/get_price: the supplier can constrain
             // the exact configuration that is eligible for quotation.
             $diagnostic = $this->configuratorRefresh->previewWithDiagnostic($configuration, $mapping);
@@ -57,8 +58,11 @@ final readonly class RealisaprintMappingValidator
                 'stock' => $provider['stock'] ?? null,
                 'mapping_version' => $mapping->version(),
                 'schema_version' => $definition->definition()->schemaVersion(),
-                'fingerprint' => $this->fingerprint($mapping, $sample),
-                'configuration' => $sample,
+                // This is the exact configuration that produced state. Keep it
+                // separate from the quote configuration, which may be corrected
+                // afterwards by availabilityFallback.
+                'initial_fingerprint' => $this->fingerprint($mapping, $initialConfiguration),
+                'initial_configuration' => $initialConfiguration,
                 'state' => $state,
                 'show_variables_request' => $diagnostic['request'],
                 'show_variables_response' => $diagnostic['response'],
