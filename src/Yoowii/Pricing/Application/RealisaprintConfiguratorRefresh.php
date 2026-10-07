@@ -90,7 +90,7 @@ final readonly class RealisaprintConfiguratorRefresh
     {
         $mappings = $this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]);
         foreach ($mappings as $mapping) {
-            if ($mapping instanceof SupplierProductMappingVersion && $mapping->supplierProduct() === $route->supplierProduct() && $mapping->isEffectiveAt($at)) {
+            if ($mapping->supplierProduct() === $route->supplierProduct() && $mapping->isEffectiveAt($at)) {
                 return $mapping;
             }
         }
@@ -102,6 +102,8 @@ final readonly class RealisaprintConfiguratorRefresh
      * `show_variables` returns availability markers (usually 1/0), not values
      * to send back to Realisaprint. Provider values stay in the server mapping;
      * the browser only receives canonical Yoowii codes that remain available.
+     *
+     * @param array<string, mixed> $response
      *
      * @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}
      */
@@ -117,23 +119,26 @@ final readonly class RealisaprintConfiguratorRefresh
                 continue;
             }
             $option = $rule['option'];
-            $visibility[$option] = true === ($response[$providerVariable] ?? true);
+            $visibility[$option] = $this->isAvailable($response[$providerVariable] ?? true);
             $reverse = [];
             foreach ((is_array($rule['values'] ?? null) ? $rule['values'] : []) as $canonical => $providerValue) {
                 if (is_string($canonical) && is_scalar($providerValue)) {
                     $reverse[(string) $providerValue] = $canonical;
                 }
             }
-            // Some Realisaprint products return this map under the canonical
-            // option name, others under the provider variable or variable_values.
-            // Its values are flags, while its keys identify the available choice.
-            $availabilitySource = $response[$option] ?? $response[$providerVariable] ?? (is_array($response['variable_values'] ?? null) ? ($response['variable_values'][$providerVariable] ?? null) : null);
+            // show_variables documents variable_values as a map of available
+            // provider values to their labels. The labels are descriptive, not
+            // availability markers: every key in this map is selectable.
+            $variableValues = $response['variable_values'] ?? null;
+            $availabilitySource = is_array($variableValues) ? ($variableValues[$providerVariable] ?? null) : null;
+            // Keep compatibility with historic normalized responses which
+            // exposed choices directly under the canonical option code.
+            if (!is_array($availabilitySource)) {
+                $availabilitySource = $response[$option] ?? null;
+            }
             if (is_array($availabilitySource)) {
                 $availability[$option] = [];
-                foreach ($availabilitySource as $candidate => $available) {
-                    if ((!is_string($candidate) && !is_int($candidate)) || !$this->isAvailable($available)) {
-                        continue;
-                    }
+                foreach ($availabilitySource as $candidate => $_label) {
                     $canonical = array_key_exists((string) $candidate, is_array($rule['values'] ?? null) ? $rule['values'] : [])
                         ? (string) $candidate
                         : ($reverse[(string) $candidate] ?? null);
@@ -143,7 +148,10 @@ final readonly class RealisaprintConfiguratorRefresh
                 }
                 $availability[$option] = array_values(array_unique($availability[$option]));
             }
-            $providerCurrent = $response['variables'][$providerVariable] ?? null;
+            // v2.23 uses current_values. current_variables was used by earlier
+            // documentation, while variables is retained for legacy responses.
+            $providerValues = $response['current_values'] ?? $response['current_variables'] ?? $response['variables'] ?? null;
+            $providerCurrent = is_array($providerValues) ? ($providerValues[$providerVariable] ?? null) : null;
             if (is_scalar($providerCurrent)) {
                 $providerCurrent = (string) $providerCurrent;
                 if (array_key_exists($providerCurrent, is_array($rule['values'] ?? null) ? $rule['values'] : [])) {

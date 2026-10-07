@@ -20,10 +20,17 @@ export default class extends Controller {
     connect() {
         this.abortController = null;
         this.calculationTimer = null;
+        this.inputTimer = null;
         this.refreshTimer = null;
         this.refreshSequence = 0;
         this.refreshAbortController = null;
         this.applySchemaVisibility();
+        console.info('[print-configurator] controller connected');
+        console.log(this.hasInitialProviderStateValue);
+        console.info('[print-configurator] initial_provider_state.visibility', {
+            present: this.hasInitialProviderStateValue,
+            visibility: this.hasInitialProviderStateValue ? (this.initialProviderStateValue.visibility || {}) : null,
+        });
         if (this.hasInitialProviderStateValue) this.applyProviderState(this.initialProviderStateValue, true);
         this.refreshSteps(false);
         if (!this.hasInitialProviderStateValue) this.scheduleRefresh();
@@ -31,7 +38,23 @@ export default class extends Controller {
 
     disconnect() {
         this.cancelPendingCalculation();
+        this.cancelPendingInputChange();
         this.cancelPendingRefresh();
+    }
+
+    input(event) {
+        // A numeric or free-text value is incomplete while the customer is
+        // typing. Do not apply supplier visibility rules to an intermediate
+        // value: they may hide the very step being edited.
+        this.cancelPendingInputChange();
+        this.cancelPendingRefresh();
+        this.clearError();
+        this.clearQuote();
+
+        this.inputTimer = window.setTimeout(() => {
+            this.inputTimer = null;
+            this.change(event);
+        }, 600);
     }
 
     change(event) {
@@ -40,7 +63,6 @@ export default class extends Controller {
 
         this.clearError();
         this.clearQuote();
-        this.initialProviderStateValue = null;
         this.applySchemaVisibility();
         // Quote and show_variables are independent requests. Start both once the
         // visible configuration is complete; refreshSequence still discards stale
@@ -386,6 +408,13 @@ export default class extends Controller {
         this.abortController?.abort();
         this.abortController = null;
         this.setLoading(false);
+    }
+
+    cancelPendingInputChange() {
+        if (this.inputTimer !== null) {
+            window.clearTimeout(this.inputTimer);
+            this.inputTimer = null;
+        }
     }
 
     cancelPendingRefresh() {

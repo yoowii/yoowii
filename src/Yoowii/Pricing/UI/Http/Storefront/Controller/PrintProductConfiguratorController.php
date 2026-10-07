@@ -188,13 +188,17 @@ final class PrintProductConfiguratorController extends AbstractController
         $storedQuote = $this->matchingQuote($quoteToken, $product, $definitionCode, $quoteStore, $now);
         $fixed = $fixedOptions->forProduct($definitionCode, $now);
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
-        $initialState = $this->initialConfiguratorState($definition, $definitionCode, $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed), $fixed, $entityManager);
+        $schemas = $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed);
+        $initialState = $this->initialConfiguratorState($definition, $definitionCode, $schemas, $fixed, $entityManager);
+        $formData = is_array($configuration) && [] !== $configuration
+            ? $configuration
+            : $this->initialFormValues($schemas, $initialState);
         $form = $this->createConfiguratorForm(
             $productCode,
             $availableOptions,
             $request,
-            is_array($configuration) ? $configuration : [],
-            $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed),
+            $formData,
+            $schemas,
         );
 
         return $this->render('shop/product/show/print_configurator.html.twig', [
@@ -245,6 +249,37 @@ final class PrintProductConfiguratorController extends AbstractController
         return $values;
     }
 
+    /** @param list<array<string, mixed>> $schemas @param array<string, mixed>|null $state
+     * @return array<string, string|int|float> */
+    private function initialFormValues(array $schemas, ?array $state): array
+    {
+        if (null === $state) {
+            return [];
+        }
+
+        $configuration = is_array($state['initial_configuration'] ?? null) ? $state['initial_configuration'] : [];
+        $current = is_array($state['current'] ?? null) ? $state['current'] : [];
+        $values = [];
+        foreach ($schemas as $schema) {
+            $code = $schema['code'] ?? null;
+            if (!is_string($code) || true === ($schema['fixed'] ?? false)) {
+                continue;
+            }
+            $candidate = $configuration[$code] ?? $current[$code] ?? $schema['default'] ?? null;
+            if (!is_string($candidate) && !is_int($candidate) && !is_float($candidate)) {
+                continue;
+            }
+            $allowed = $schema['allowed_values'] ?? [];
+            $allowedValues = is_array($allowed) ? array_map('strval', $allowed) : [];
+            if ([] !== $allowedValues && !in_array((string) $candidate, $allowedValues, true)) {
+                continue;
+            }
+            $values[$code] = $candidate;
+        }
+
+        return $values;
+    }
+
     /** @param list<array<string, mixed>> $schemas @param array<string, array{value: string|int|float, label: string}> $fixed
      * @return list<array<string, mixed>> */
     private function withFixedSchema(array $schemas, array $fixed): array
@@ -264,27 +299,33 @@ final class PrintProductConfiguratorController extends AbstractController
      * @return array<string, mixed>|null */
     private function initialConfiguratorState(\App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition $definition, string $definitionCode, array $schemas, array $fixed, \Doctrine\ORM\EntityManagerInterface $entityManager): ?array
     {
-        $values = $this->withFixedValues([], $fixed);
-        foreach ($schemas as $schema) {
-            if (is_string($schema['code'] ?? null) && null !== ($schema['default'] ?? null)) {
-                $values[$schema['code']] = $schema['default'];
-            }
-        }
-        try {
-            $configuration = $definition->configure($values)->toArray();
-        } catch (\Throwable) {
-            return null;
-        }
         foreach ($entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
             if (!$mapping instanceof \App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion) {
                 continue;
             }
             $validation = $entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
             $state = $validation instanceof \App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation ? $validation->initialConfiguratorState() : null;
-            $fingerprint = hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $configuration], JSON_THROW_ON_ERROR));
-            if (is_array($state) && ($state['fingerprint'] ?? null) === $fingerprint && ($state['mapping_version'] ?? null) === $mapping->version() && ($state['configuration'] ?? null) === $configuration) {
-                return is_array($state['state'] ?? null) ? $state['state'] : null;
+            $initialFingerprint = is_array($state) ? ($state['initial_fingerprint'] ?? null) : null;
+            $initialConfiguration = is_array($state) ? ($state['initial_configuration'] ?? null) : null;
+            if (!is_array($state) || !is_string($initialFingerprint) || !is_array($initialConfiguration) || ($state['mapping_version'] ?? null) !== $mapping->version() || ($state['schema_version'] ?? null) !== $definition->schemaVersion() || !is_array($state['state'] ?? null)) {
+                continue;
             }
+            try {
+                $validatedConfiguration = $definition->configure($initialConfiguration)->toArray();
+            } catch (\Throwable) {
+                continue;
+            }
+            $fingerprint = hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $validatedConfiguration], JSON_THROW_ON_ERROR));
+            if (!hash_equals($initialFingerprint, $fingerprint)) {
+                continue;
+            }
+            foreach ($fixed as $code => $field) {
+                if (($validatedConfiguration[$code] ?? null) !== $field['value']) {
+                    continue 2;
+                }
+            }
+
+            return $state['state'] + ['initial_configuration' => $validatedConfiguration];
         }
 
         return null;

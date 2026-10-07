@@ -6,6 +6,8 @@
         {% set configurable_fields = configurable_fields|merge([field]) %}
     {% endif %}
 {% endfor %}
+{% set initial_visibility = initial_provider_state.visibility|default({}) %}
+{% set initial_availability = initial_provider_state.availability|default({}) %}
 
 <div
     class="yoowii-print-configurator"
@@ -14,7 +16,9 @@
     data-print-configurator-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
     data-empty-quote-label="{{ 'yoowii.storefront.price_after_configuration'|trans }}"
     data-print-configurator-pricing-axes-value="{{ pricing_axes|default([])|json_encode|e('html_attr') }}"
-    data-print-configurator-initial-provider-state-value="{{ initial_provider_state|default(null)|json_encode|e('html_attr') }}"
+    {% if initial_provider_state is not null %}
+        data-print-configurator-initial-provider-state-value="{{ initial_provider_state|json_encode|e('html_attr') }}"
+    {% endif %}
 >
     <div class="mb-4">
         <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
@@ -54,6 +58,8 @@
                         <h3 class="h5 mt-5 mb-3">Options complémentaires</h3>
                     {% endif %}
                     {% set step_index = loop.index0 %}
+                    {% set initially_visible = initial_visibility[field.vars.name] is defined ? initial_visibility[field.vars.name] : true %}
+                    {% set initially_available_values = initial_availability[field.vars.name] is defined ? initial_availability[field.vars.name] : null %}
                     {% set selected_label = null %}
                     {% for choice in field %}
                         {% if choice.vars.checked %}
@@ -65,7 +71,7 @@
                     {% set step_enabled = previous_steps_complete %}
 
                     <details
-                        class="yoowii-print-step{{ step_complete ? ' is-complete' : '' }}{{ not step_enabled ? ' is-disabled' : '' }}"
+                        class="yoowii-print-step{{ step_complete ? ' is-complete' : '' }}{{ not step_enabled ? ' is-disabled' : '' }}{{ not initially_visible ? ' d-none' : '' }}"
                         data-print-configurator-target="step"
                         data-step-index="{{ step_index }}"
                         data-axis="{{ field.vars.name }}"
@@ -89,7 +95,8 @@
                             {{ form_errors(field) }}
                             {% if field|length > 0 %}<div class="yoowii-print-choice-grid{{ field.vars.name == 'format' ? ' is-format-grid' : '' }}">
                                 {% for choice in field %}
-                                    <div class="yoowii-print-choice">
+                                    {% set initially_available = initially_available_values is null or choice.vars.value in initially_available_values %}
+                                    <div class="yoowii-print-choice{{ not initially_available ? ' d-none' : '' }}">
                                         <label class="yoowii-print-choice-card" for="{{ choice.vars.id }}">
                                             {{ form_widget(choice, {
                                                 label: false,
@@ -112,7 +119,7 @@
                             </div>
                             {% else %}
                                 {% set live_input = 'integer' in field.vars.block_prefixes or 'number' in field.vars.block_prefixes or 'text' in field.vars.block_prefixes %}
-                                {{ form_widget(field, {attr: {'data-action': live_input ? 'input->print-configurator#change' : 'change->print-configurator#change'}}) }}
+                                {{ form_widget(field, {attr: {'data-action': live_input ? 'input->print-configurator#input' : 'change->print-configurator#change'}}) }}
                             {% endif %}
                         </div>
                     </details>
@@ -154,7 +161,7 @@
                                     {% endif %}
                                 {% endfor %}
                                 <li
-                                    class="{{ selected_label is not null ? 'is-complete' : 'is-pending' }}"
+                                    class="{{ selected_label is not null ? 'is-complete' : 'is-pending' }}{{ initial_visibility[field.vars.name] is defined and not initial_visibility[field.vars.name] ? ' d-none' : '' }}"
                                     data-print-configurator-target="summaryItem"
                                     data-step-index="{{ loop.index0 }}"
                                     data-pending-label="{{ 'yoowii.storefront.choice_pending'|trans }}"
