@@ -31,9 +31,13 @@ export default class extends Controller {
         this.lastAutoQuoteFingerprint = null;
         this.quoteRequested = false;
         this.providerState = this.hasInitialProviderStateValue ? this.initialProviderStateValue : { visibility: {}, availability: {}, current: {} };
+        this.providerVisibility = {};
         this.applyProviderState(this.providerState, { source: 'initial' });
         this.refreshSteps(false);
-        if (!this.hasInitialProviderStateValue && !this.manualQuoteValue) this.scheduleRefresh();
+        // An unavailable initial display state must be refreshed for manual
+        // quote products too. Otherwise their first paint silently exposes
+        // every provider-controlled option until the customer changes a field.
+        if (!this.hasInitialProviderStateValue) this.scheduleRefresh();
     }
 
     disconnect() {
@@ -128,7 +132,7 @@ export default class extends Controller {
         let previousStepsComplete = true;
         let firstIncompleteStep = null;
 
-        this.stepTargets.filter((step) => !step.classList.contains('d-none')).forEach((step, index) => {
+        this.visibleSteps().forEach((step) => {
             const enabled = previousStepsComplete;
             const labels = this.selectedLabels(step);
             const complete = labels.length > 0;
@@ -191,7 +195,7 @@ export default class extends Controller {
     }
 
     visibleSteps() {
-        return this.stepTargets.filter((step) => !step.classList.contains('d-none'));
+        return this.stepTargets.filter((step) => this.isOptionVisible(step.dataset.optionCode) && !step.classList.contains('d-none'));
     }
 
     summaryForStep(step) {
@@ -202,9 +206,16 @@ export default class extends Controller {
         return this.summaryItemTargets.find((item) => item.dataset.optionCode === code);
     }
 
-    setStepVisibility(step, visible) {
+    isOptionVisible(optionCode) {
+        return this.providerVisibility[optionCode] !== false;
+    }
+
+    setOptionVisibility(step, visible) {
         step.classList.toggle('d-none', !visible);
-        this.summaryForOption(step.dataset.optionCode)?.classList.toggle('d-none', !visible);
+        step.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        const summaryItem = this.summaryForOption(step.dataset.optionCode);
+        summaryItem?.classList.toggle('d-none', !visible);
+        summaryItem?.setAttribute('aria-hidden', visible ? 'false' : 'true');
         this.setStepInputsDisabled(step, !visible);
     }
 
@@ -217,6 +228,9 @@ export default class extends Controller {
     }
 
     selectedLabels(step) {
+        if (!this.isOptionVisible(step.dataset.optionCode)) {
+            return [];
+        }
         const checkedInputs = [...step.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked')]
             .filter((input) => input.value !== '');
         const selectedOptions = [...step.querySelectorAll('select')]
@@ -234,6 +248,9 @@ export default class extends Controller {
     }
 
     setStepInputsDisabled(step, disabled) {
+        if (!this.isOptionVisible(step.dataset.optionCode)) {
+            disabled = true;
+        }
         step.querySelectorAll('input:not([type="hidden"]), select').forEach((input) => {
             if (disabled) {
                 input.disabled = true;
@@ -245,7 +262,7 @@ export default class extends Controller {
     }
 
     isComplete() {
-        const visibleSteps = this.stepTargets.filter((step) => !step.classList.contains('d-none'));
+        const visibleSteps = this.visibleSteps();
         if (visibleSteps.length === 0 || !visibleSteps.every((step) => this.selectedLabels(step).length > 0)) {
             return false;
         }
@@ -255,7 +272,7 @@ export default class extends Controller {
             }
             const axisStep = this.optionTargets.find((step) => step.dataset.optionCode === axis);
             if (axisStep) {
-                return axisStep.classList.contains('d-none') || this.selectedLabels(axisStep).length > 0;
+                return !this.isOptionVisible(axis) || axisStep.classList.contains('d-none') || this.selectedLabels(axisStep).length > 0;
             }
             return [...this.formTarget.elements].some((input) => input.name.endsWith(`[${axis}]`) && !input.disabled && input.value !== '' && (input.type !== 'radio' || input.checked));
         });
@@ -334,11 +351,12 @@ export default class extends Controller {
 
     applyProviderState(state, { source = 'refresh', changedStepIndex = -1, applyAvailability = true } = {}) {
         this.providerState = state;
+        this.providerVisibility = state.visibility || {};
         this.optionTargets.forEach((step) => {
             const code = step.dataset.optionCode;
-            const visible = state.visibility?.[code] !== false && this.isSchemaVisible(step);
-            this.setStepVisibility(step, visible);
-            if (this.debugValue && state.visibility?.[code] === false) {
+            const visible = this.isOptionVisible(code) && this.isSchemaVisible(step);
+            this.setOptionVisibility(step, visible);
+            if (this.debugValue && !this.isOptionVisible(code)) {
                 console.debug('[print-configurator] hidden provider option', {
                     definitionCode: code,
                     visibilityKey: code,

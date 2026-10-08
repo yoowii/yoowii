@@ -59,9 +59,6 @@ final readonly class RealisaprintInitialDisplayStateBuilder
     {
         $values = [];
         foreach ($definition->options() as $code => $option) {
-            if (!is_string($code) || !is_array($option)) {
-                continue;
-            }
             $default = $option['default'] ?? null;
             if (is_string($default) || is_int($default) || is_float($default)) {
                 $values[$code] = $default;
@@ -86,23 +83,56 @@ final readonly class RealisaprintInitialDisplayStateBuilder
     /** @param array<string, mixed> $state */
     public function isUsable(array $state, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, \DateTimeImmutable $now): bool
     {
+        $reason = $this->unusableReason($state, $mapping, $definition, $now);
+        if (null !== $reason) {
+            $this->logger->debug('Realisaprint initial display state was rejected for the storefront.', [
+                'mapping_id' => $mapping->id(),
+                'reason' => $reason,
+            ]);
+        }
+
+        return null === $reason;
+    }
+
+    /** @param array<string, mixed> $state */
+    public function unusableReason(array $state, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, \DateTimeImmutable $now): ?string
+    {
         $generatedAt = isset($state['generated_at']) && is_string($state['generated_at']) ? \DateTimeImmutable::createFromFormat(\DATE_ATOM, $state['generated_at']) : false;
         $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
-        if (!$generatedAt instanceof \DateTimeImmutable || $generatedAt < $now->modify('-' . $this->timeToLive . ' seconds') || isset($state['error']) ||
-            ($state['mapping_version'] ?? null) !== $mapping->version() ||
-            ($state['schema_version'] ?? null) !== $definition->definition()->schemaVersion() ||
-            ($state['stock'] ?? null) !== (is_array($provider) && is_scalar($provider['stock'] ?? null) ? (string) $provider['stock'] : null) ||
-            !is_array($state['display_configuration'] ?? null) || !is_string($state['display_fingerprint'] ?? null)) {
-            return false;
+        if (!$generatedAt instanceof \DateTimeImmutable) {
+            return 'generated_at_invalid';
+        }
+        if ($generatedAt < $now->modify('-' . $this->timeToLive . ' seconds')) {
+            return 'expired';
+        }
+        if (isset($state['error'])) {
+            return 'build_error';
+        }
+        if (($state['mapping_version'] ?? null) !== $mapping->version()) {
+            return 'mapping_version_mismatch';
+        }
+        if (($state['schema_version'] ?? null) !== $definition->definition()->schemaVersion()) {
+            return 'schema_version_mismatch';
+        }
+        if (($state['stock'] ?? null) !== (is_array($provider) && is_scalar($provider['stock'] ?? null) ? (string) $provider['stock'] : null)) {
+            return 'stock_mismatch';
+        }
+        if (!is_array($state['display_configuration'] ?? null) || !is_string($state['display_fingerprint'] ?? null) ||
+            !is_array($state['visibility'] ?? null) || !is_array($state['availability'] ?? null) || !is_array($state['current'] ?? null)) {
+            return 'json_shape_invalid';
         }
 
         try {
             $configuration = $this->displayConfiguration($mapping, $definition);
         } catch (\Throwable) {
-            return false;
+            return 'display_configuration_invalid';
         }
 
-        return $configuration === $state['display_configuration'] && hash_equals($state['display_fingerprint'], $this->fingerprint($mapping, $configuration));
+        if ($configuration !== $state['display_configuration']) {
+            return 'display_configuration_mismatch';
+        }
+
+        return hash_equals($state['display_fingerprint'], $this->fingerprint($mapping, $configuration)) ? null : 'fingerprint_mismatch';
     }
 
     /** @return array<string, string|int|float> */
@@ -117,7 +147,7 @@ final readonly class RealisaprintInitialDisplayStateBuilder
                 continue;
             }
             foreach (is_array($rule['values'] ?? null) ? $rule['values'] : [] as $canonical => $provider) {
-                if ((string) $provider === (string) $rule['fixed_value']) {
+                if (is_scalar($provider) && (string) $provider === (string) $rule['fixed_value']) {
                     $values[$rule['option']] = ctype_digit((string) $canonical) ? (int) $canonical : (string) $canonical;
 
                     continue 2;

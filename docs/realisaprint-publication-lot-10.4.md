@@ -16,6 +16,8 @@ La définition publiée conserve les codes canoniques Yoowii, les libellés fran
 
 Après une sélection complète, le storefront appelle le relais Symfony `print-configuration/refresh`. Celui-ci traduit les valeurs canoniques vers le mapping actif, appelle `show_variables` avec `retry=1`, puis retourne seulement la visibilité, les valeurs autorisées, les corrections et les messages normalisés. Les listes et champs non compatibles sont ainsi masqués ou actualisés avant la cotation.
 
+Le snapshot `initial_display_state` évite le clignotement des options incompatibles au premier rendu. Il n’est utilisé que s’il correspond encore au mapping, au stock et au schéma publiés et s’il est dans son TTL. Sinon le storefront journalise en développement la raison de son rejet et lance immédiatement un refresh, y compris pour un produit à devis manuel. Dans le navigateur, `visibility` fournisseur est la source de vérité : une option avec la valeur canonique `false` est masquée, marquée `aria-hidden`, désactivée et exclue du récapitulatif ainsi que des étapes suivantes. Une clé omise reste visible.
+
 Realisaprint limite chaque fonction à un appel par 15 secondes et par IP. Le navigateur annule les requêtes obsolètes et attend 350 ms après une modification ; le limiteur serveur reste la protection finale. Une erreur de rafraîchissement ne publie pas de prix ni de configuration fournisseur.
 
 Une validation expire après 30 minutes. Rejouer le contrôle après toute modification ou à l’expiration.

@@ -55,7 +55,7 @@
                 {% set secondary_started = false %}
                 <h3 class="h5 mb-3">Caractéristiques</h3>
                 {% for field in configurable_fields %}
-                    {% set option_code = field.vars.attr['data-option-code']|default(field.vars.name) %}
+                    {% set option_code = field.vars.name %}
                     {% if field.vars.attr['data-area']|default(1) == 2 and not secondary_started %}
                         {% set secondary_started = true %}
                         <h3 class="h5 mt-5 mb-3">Options complémentaires</h3>
@@ -77,10 +77,10 @@
                         class="yoowii-print-step{{ step_complete ? ' is-complete' : '' }}{{ not step_enabled ? ' is-disabled' : '' }}{{ not initially_visible ? ' d-none' : '' }}"
                         data-print-configurator-target="step option"
                         data-step-index="{{ step_index }}"
-                        data-axis="{{ field.vars.name }}"
-                        data-option-code="{{ option_code }}"
+                        data-option-code="{{ field.vars.name }}"
                         data-area="{{ field.vars.attr['data-area']|default(1) }}"
                         data-depends-on="{{ field.vars.attr['data-depends-on']|default('') }}"
+                        aria-hidden="{{ initially_visible ? 'false' : 'true' }}"
                         {% if step_enabled and not step_complete %}open{% endif %}
                     >
                         <summary data-action="click->print-configurator#guardStep">
@@ -162,7 +162,7 @@
 
                         <ul class="list-unstyled yoowii-print-summary-list mb-4">
                             {% for field in configurable_fields %}
-                                {% set option_code = field.vars.attr['data-option-code']|default(field.vars.name) %}
+                                {% set option_code = field.vars.name %}
                                 {% set selected_label = null %}
                                 {% for choice in field %}
                                     {% if choice.vars.checked %}
@@ -175,6 +175,7 @@
                                     data-step-index="{{ loop.index0 }}"
                                     data-option-code="{{ option_code }}"
                                     data-pending-label="{{ 'yoowii.storefront.choice_pending'|trans }}"
+                                    aria-hidden="{{ initial_visibility[option_code] is defined and not initial_visibility[option_code] ? 'true' : 'false' }}"
                                 >
                                     <span class="yoowii-print-summary-check" aria-hidden="true">✓</span>
                                     <span class="yoowii-print-summary-name">{{ field.vars.label }}</span>
