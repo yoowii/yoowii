@@ -31,8 +31,8 @@
                             <div class="alert alert-{{ type == 'realisaprint_test_error' or type == 'error' ? 'danger' : (type == 'realisaprint_test_success' ? 'success' : type) }} d-flex align-items-center gap-2" role="alert">
                                 <span>{{ message }}</span>
                                 {% if is_realisaprint_diagnostic %}
-                                    <button class="btn btn-outline-dark btn-sm ms-auto flex-shrink-0" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-api-diagnostic">
-                                        Voir l’appel API
+                                    <button class="btn btn-outline-dark btn-sm ms-auto flex-shrink-0" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-price-api-diagnostic">
+                                        Voir les appels de cotation
                                     </button>
                                 {% endif %}
                             </div>

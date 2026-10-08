@@ -42,8 +42,8 @@ class RealisaprintMappingValidation
         private readonly ?string $technicalDetail,
         #[ORM\Column(name: 'checked_at', type: Types::DATETIME_IMMUTABLE)]
         private readonly \DateTimeImmutable $checkedAt,
-        #[ORM\Column(name: 'initial_configurator_state', type: Types::JSON, nullable: true)]
-        private readonly ?array $initialConfiguratorState = null,
+        #[ORM\Column(name: 'price_api_diagnostic', type: Types::JSON, nullable: true)]
+        private readonly ?array $priceApiDiagnostic = null,
     ) {
     }
 
@@ -105,9 +105,9 @@ class RealisaprintMappingValidation
     }
 
     /** @return array<string, mixed>|null */
-    public function initialConfiguratorState(): ?array
+    public function priceApiDiagnostic(): ?array
     {
-        return $this->initialConfiguratorState;
+        return $this->priceApiDiagnostic;
     }
 
     public function checkedAt(): \DateTimeImmutable

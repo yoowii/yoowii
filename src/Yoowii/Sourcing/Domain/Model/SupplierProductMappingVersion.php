@@ -21,6 +21,10 @@ class SupplierProductMappingVersion
     #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null; // @phpstan-ignore property.unusedType
 
+    /** @var array<string, mixed>|null */
+    #[ORM\Column(name: 'initial_display_state', type: Types::JSON, nullable: true)]
+    private ?array $initialDisplayState = null;
+
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = true;
 
@@ -81,6 +85,22 @@ class SupplierProductMappingVersion
     public function configurationMapping(): array
     {
         return $this->configurationMapping;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function initialDisplayState(): ?array
+    {
+        return $this->initialDisplayState;
+    }
+
+    /** @param array<string, mixed>|null $state */
+    public function storeInitialDisplayState(?array $state): void
+    {
+        if (null !== $state) {
+            self::assertJsonCompatible($state, 'initial_display_state');
+        }
+
+        $this->initialDisplayState = $state;
     }
 
     public function effectiveFrom(): \DateTimeImmutable

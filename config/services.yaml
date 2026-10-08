@@ -15,6 +15,7 @@ parameters:
     yoowii.print_assets.directory: '%kernel.project_dir%/var/private/print'
     yoowii.print_job_link.ttl: 2592000
     yoowii.print_production.alert_recipients: '%env(csv:YOOWII_PRINT_PRODUCTION_ALERT_RECIPIENTS)%'
+    yoowii.realisaprint.initial_display_state_ttl: 1800
 
 services:
     # Default configuration for services in *this* file
@@ -143,6 +144,10 @@ services:
             $cache: '@cache.app'
             $cacheTtl: '%yoowii.realisaprint.quote_cache_ttl%'
             $enabled: '%yoowii.realisaprint.quote_enabled%'
+
+    App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder:
+        arguments:
+            $timeToLive: '%yoowii.realisaprint.initial_display_state_ttl%'
 
     App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
         alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository

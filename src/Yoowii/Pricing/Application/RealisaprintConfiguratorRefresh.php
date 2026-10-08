@@ -119,11 +119,15 @@ final readonly class RealisaprintConfiguratorRefresh
                 continue;
             }
             $option = $rule['option'];
-            $visibility[$option] = $this->isAvailable($response[$providerVariable] ?? true);
+            $visibilitySource = $response['visibility'] ?? $response['variable_visibility'] ?? null;
+            $visibilityValue = is_array($visibilitySource)
+                ? ($visibilitySource[$providerVariable] ?? $visibilitySource[$option] ?? ($response[$providerVariable] ?? true))
+                : ($response[$providerVariable] ?? true);
+            $visibility[$option] = $this->isAvailable($visibilityValue);
             $reverse = [];
             foreach ((is_array($rule['values'] ?? null) ? $rule['values'] : []) as $canonical => $providerValue) {
                 if (is_string($canonical) && is_scalar($providerValue)) {
-                    $reverse[(string) $providerValue] = $canonical;
+                    $reverse[(string) $providerValue][] = $canonical;
                 }
             }
             // show_variables documents variable_values as a map of available
@@ -131,6 +135,7 @@ final readonly class RealisaprintConfiguratorRefresh
             // availability markers: every key in this map is selectable.
             $variableValues = $response['variable_values'] ?? null;
             $availabilitySource = is_array($variableValues) ? ($variableValues[$providerVariable] ?? null) : null;
+            $providerValuesSource = is_array($availabilitySource);
             // Keep compatibility with historic normalized responses which
             // exposed choices directly under the canonical option code.
             if (!is_array($availabilitySource)) {
@@ -139,9 +144,9 @@ final readonly class RealisaprintConfiguratorRefresh
             if (is_array($availabilitySource)) {
                 $availability[$option] = [];
                 foreach ($availabilitySource as $candidate => $_label) {
-                    $canonical = array_key_exists((string) $candidate, is_array($rule['values'] ?? null) ? $rule['values'] : [])
-                        ? (string) $candidate
-                        : ($reverse[(string) $candidate] ?? null);
+                    $canonical = $providerValuesSource
+                        ? (1 === count($reverse[(string) $candidate] ?? []) ? $reverse[(string) $candidate][0] : null)
+                        : (array_key_exists((string) $candidate, is_array($rule['values'] ?? null) ? $rule['values'] : []) ? (string) $candidate : null);
                     if (null !== $canonical) {
                         $availability[$option][] = $canonical;
                     }
@@ -156,8 +161,8 @@ final readonly class RealisaprintConfiguratorRefresh
                 $providerCurrent = (string) $providerCurrent;
                 if (array_key_exists($providerCurrent, is_array($rule['values'] ?? null) ? $rule['values'] : [])) {
                     $current[$option] = $providerCurrent;
-                } elseif (isset($reverse[$providerCurrent])) {
-                    $current[$option] = $reverse[$providerCurrent];
+                } elseif (1 === count($reverse[$providerCurrent] ?? [])) {
+                    $current[$option] = $reverse[$providerCurrent][0];
                 }
             }
         }

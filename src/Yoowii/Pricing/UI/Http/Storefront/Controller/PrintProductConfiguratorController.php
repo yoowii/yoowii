@@ -10,14 +10,16 @@ use App\Yoowii\Commerce\Domain\FulfillmentType;
 use App\Yoowii\Pricing\Application\BuiltInPrintProductDefinitionRegistry;
 use App\Yoowii\Pricing\Application\PrintConfigurationCatalog;
 use App\Yoowii\Pricing\Application\PrintQuoteService;
+use App\Yoowii\Pricing\Application\PublishedConfiguratorValues;
 use App\Yoowii\Pricing\Application\Quote\PrintQuoteStore;
 use App\Yoowii\Pricing\Application\Quote\StoredPrintQuote;
-use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
-use App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh;
 use App\Yoowii\Pricing\Application\RealisaprintAvailabilityFallback;
+use App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh;
 use App\Yoowii\Pricing\Application\RealisaprintFixedOptionResolver;
-use App\Yoowii\Pricing\Application\PublishedConfiguratorValues;
+use App\Yoowii\Pricing\Application\RealisaprintVisibleConfigurationBuilder;
+use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
+use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
 use Sylius\Component\Core\Model\ChannelInterface as CoreChannelInterface;
 use Sylius\Component\Core\Repository\ProductRepositoryInterface;
@@ -44,6 +46,7 @@ final class PrintProductConfiguratorController extends AbstractController
         RealisaprintAvailabilityFallback $availabilityFallback,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
+
         try {
             $payload = $request->toArray();
             $values = $payload['options'] ?? null;
@@ -53,7 +56,8 @@ final class PrintProductConfiguratorController extends AbstractController
             $definition = $definitions->get($this->definitionCode($product));
             $configuration = $definition->configure($publishedValues->resolve($definition, $definitions->storefrontSchema($this->definitionCode($product)), $values, $fixedOptions->forProduct($this->definitionCode($product), new \DateTimeImmutable('now', new \DateTimeZone('UTC')))));
 
-            $this->assertPricingAxesComplete($configuration, $definitions->get($this->definitionCode($product))->pricingAxes());
+            // show_variables is a display endpoint. It may run before a
+            // configuration is priceable; quote() remains the strict boundary.
             $state = $refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
             $corrected = $availabilityFallback->applyToSchema($configuration->toArray(), $state, $definitions->storefrontSchema($this->definitionCode($product)), $definition->pricingAxes());
             foreach ($corrected as $option => $value) {
@@ -61,6 +65,7 @@ final class PrintProductConfiguratorController extends AbstractController
                     $state['current'][$option] = (string) $value;
                 }
             }
+
             return new JsonResponse($state, Response::HTTP_OK, ['Cache-Control' => 'no-store']);
         } catch (\InvalidArgumentException|\DomainException $exception) {
             return new JsonResponse(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
@@ -84,6 +89,9 @@ final class PrintProductConfiguratorController extends AbstractController
         ChannelContextInterface $channelContext,
         RealisaprintFixedOptionResolver $fixedOptions,
         PublishedConfiguratorValues $publishedValues,
+        RealisaprintConfiguratorRefresh $refresh,
+        RealisaprintVisibleConfigurationBuilder $visibleConfigurationBuilder,
+        \Doctrine\ORM\EntityManagerInterface $entityManager,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
@@ -96,15 +104,6 @@ final class PrintProductConfiguratorController extends AbstractController
         $submitted = $request->request->all('print_configurator');
         $form = $this->createConfiguratorForm($productCode, $availableOptions, $request, [], $schemas);
         $form->handleRequest($request);
-
-        if (!$this->hasAvailableConfiguration($definition->pricingAxes(), $availableOptions, $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed))) {
-            return $this->quoteError(
-                $request,
-                $product,
-                'Ce produit n’a actuellement aucune configuration tarifaire disponible.',
-                'warning',
-            );
-        }
 
         if (!$form->isSubmitted() || !$form->isValid()) {
             return $this->quoteError(
@@ -124,7 +123,12 @@ final class PrintProductConfiguratorController extends AbstractController
             $values = $publishedValues->resolve($definition, $schemas, $formData, $fixed);
             /** @var array<string, mixed> $values */
             $configuration = $definition->configure($values);
-            $this->assertPricingAxesComplete($configuration, $definition->pricingAxes());
+            if ($this->hasRealisaprintMapping($definitionCode, $entityManager)) {
+                $state = $refresh->refresh($configuration, $now);
+                $configuration = $visibleConfigurationBuilder->buildVisibleProviderConfiguration($configuration, $state);
+            } else {
+                $this->assertPricingAxesComplete($configuration, $definition->pricingAxes());
+            }
             $quote = $quoteService->quote(
                 $configuration,
                 $pricingPolicyProvider->get(),
@@ -175,6 +179,7 @@ final class PrintProductConfiguratorController extends AbstractController
         RealisaprintFixedOptionResolver $fixedOptions,
         PublishedConfiguratorValues $publishedValues,
         \Doctrine\ORM\EntityManagerInterface $entityManager,
+        RealisaprintInitialDisplayStateBuilder $displayStateBuilder,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
@@ -189,7 +194,7 @@ final class PrintProductConfiguratorController extends AbstractController
         $fixed = $fixedOptions->forProduct($definitionCode, $now);
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
         $schemas = $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed);
-        $initialState = $this->initialConfiguratorState($definition, $definitionCode, $schemas, $fixed, $entityManager);
+        $initialState = $this->initialConfiguratorState($definitionCode, $entityManager, $now, $displayStateBuilder);
         $formData = is_array($configuration) && [] !== $configuration
             ? $configuration
             : $this->initialFormValues($schemas, $initialState);
@@ -212,6 +217,7 @@ final class PrintProductConfiguratorController extends AbstractController
             'fixed_fields' => $fixed,
             'pricing_axes' => $definition->pricingAxes(),
             'initial_provider_state' => $initialState,
+            'manual_quote' => $this->hasRealisaprintMapping($definitionCode, $entityManager),
         ]);
     }
 
@@ -257,7 +263,7 @@ final class PrintProductConfiguratorController extends AbstractController
             return [];
         }
 
-        $configuration = is_array($state['initial_configuration'] ?? null) ? $state['initial_configuration'] : [];
+        $configuration = is_array($state['display_configuration'] ?? null) ? $state['display_configuration'] : [];
         $current = is_array($state['current'] ?? null) ? $state['current'] : [];
         $values = [];
         foreach ($schemas as $schema) {
@@ -295,40 +301,38 @@ final class PrintProductConfiguratorController extends AbstractController
         return $schemas;
     }
 
-    /** @param list<array<string, mixed>> $schemas @param array<string, array{value: string|int|float, label: string}> $fixed
-     * @return array<string, mixed>|null */
-    private function initialConfiguratorState(\App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition $definition, string $definitionCode, array $schemas, array $fixed, \Doctrine\ORM\EntityManagerInterface $entityManager): ?array
+    /** @return array<string, mixed>|null */
+    private function initialConfiguratorState(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager, \DateTimeImmutable $now, RealisaprintInitialDisplayStateBuilder $displayStateBuilder): ?array
     {
+        $definition = $entityManager->getRepository(\App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $definitionCode]);
+        if (!$definition instanceof \App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition) {
+            return null;
+        }
         foreach ($entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
             if (!$mapping instanceof \App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion) {
                 continue;
             }
-            $validation = $entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
-            $state = $validation instanceof \App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation ? $validation->initialConfiguratorState() : null;
-            $initialFingerprint = is_array($state) ? ($state['initial_fingerprint'] ?? null) : null;
-            $initialConfiguration = is_array($state) ? ($state['initial_configuration'] ?? null) : null;
-            if (!is_array($state) || !is_string($initialFingerprint) || !is_array($initialConfiguration) || ($state['mapping_version'] ?? null) !== $mapping->version() || ($state['schema_version'] ?? null) !== $definition->schemaVersion() || !is_array($state['state'] ?? null)) {
+            if ('realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
                 continue;
             }
-            try {
-                $validatedConfiguration = $definition->configure($initialConfiguration)->toArray();
-            } catch (\Throwable) {
-                continue;
+            $state = $mapping->initialDisplayState();
+            if (is_array($state) && $displayStateBuilder->isUsable($state, $mapping, $definition, $now)) {
+                return $state;
             }
-            $fingerprint = hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $validatedConfiguration], JSON_THROW_ON_ERROR));
-            if (!hash_equals($initialFingerprint, $fingerprint)) {
-                continue;
-            }
-            foreach ($fixed as $code => $field) {
-                if (($validatedConfiguration[$code] ?? null) !== $field['value']) {
-                    continue 2;
-                }
-            }
-
-            return $state['state'] + ['initial_configuration' => $validatedConfiguration];
         }
 
         return null;
+    }
+
+    private function hasRealisaprintMapping(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager): bool
+    {
+        foreach ($entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
+            if ($mapping instanceof \App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion && 'realisaprint' === $mapping->supplierProduct()->supplier()->code()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** @param list<string> $axes */
@@ -341,6 +345,7 @@ final class PrintProductConfiguratorController extends AbstractController
             }
         }
     }
+
     /** @param list<string> $axes @param array<string, list<string|int>> $availableOptions @param list<array<string, mixed>> $fieldSchemas */
     private function hasAvailableConfiguration(array $axes, array $availableOptions, array $fieldSchemas): bool
     {

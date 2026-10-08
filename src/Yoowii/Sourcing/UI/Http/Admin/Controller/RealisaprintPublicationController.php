@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Pricing\Application\PublishedNumericMinimums;
+use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
+use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingValidator;
-use App\Yoowii\Sourcing\Application\RealisaprintValidationPreview;
 use App\Yoowii\Sourcing\Application\RealisaprintPublicationService;
+use App\Yoowii\Sourcing\Application\RealisaprintValidationPreview;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
-use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,32 +26,44 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 final class RealisaprintPublicationController extends AbstractController
 {
     #[Route('/realisaprint-publications/mappings/{id}/validate', name: 'yoowii_admin_realisaprint_mapping_validate', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function validate(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RealisaprintMappingValidator $validator): Response
+    public function validate(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RealisaprintMappingValidator $validator, PublishedNumericMinimums $numericMinimums): Response
     {
         $mapping = $this->mapping($id, $entityManager);
         $this->token($request, $csrf, 'validate_realisaprint_mapping_' . $id);
         $route = $this->route($mapping, $entityManager);
         $definition = $this->definition($mapping, $entityManager);
+
         try {
-            $sample = $this->testSample($definition, $validator, $request, $mapping);
+            $sample = $this->testSample($definition, $validator, $request, $mapping, $numericMinimums);
         } catch (\InvalidArgumentException $exception) {
             $this->addFlash('error', $exception->getMessage());
+
             return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
         }
         $validation = $validator->validate($route, $mapping, $definition, $sample, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
         $entityManager->persist($validation);
         $entityManager->flush();
 
-        if (null !== $validation->initialConfiguratorState()) {
-            $this->addFlash(
-                $validation->quotePassed() ? 'realisaprint_test_success' : 'realisaprint_test_error',
-                $validation->quotePassed()
-                    ? 'Le contrôle du prix API est terminé avec succès.'
-                    : 'Le contrôle du prix API a échoué. Consultez le diagnostic de l’appel fournisseur.',
-            );
-        } else {
-            $this->addFlash('error', 'Le contrôle du prix API a échoué avant qu’un appel Realisaprint puisse être enregistré.');
-        }
+        $flashType = $validation->quotePassed() ? 'realisaprint_test_success' : (null !== $validation->priceApiDiagnostic() ? 'realisaprint_test_error' : 'error');
+        $this->addFlash(
+            $flashType,
+            $validation->quotePassed()
+                ? 'Le contrôle du prix API est terminé avec succès.'
+                : 'Le contrôle du prix API a échoué. Consultez le résultat du contrôle.',
+        );
+
+        return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
+    }
+
+    #[Route('/realisaprint-publications/mappings/{id}/display-preview', name: 'yoowii_admin_realisaprint_mapping_display_preview', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    public function displayPreview(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RealisaprintInitialDisplayStateBuilder $builder): Response
+    {
+        $mapping = $this->mapping($id, $entityManager);
+        $this->token($request, $csrf, 'preview_realisaprint_mapping_' . $id);
+        $state = $builder->build($mapping, $this->definition($mapping, $entityManager), new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+        $mapping->storeInitialDisplayState($state);
+        $entityManager->flush();
+        $this->addFlash(isset($state['error']) ? 'warning' : 'success', isset($state['error']) ? 'L’aperçu fournisseur a échoué : le storefront utilisera le formulaire statique publié.' : 'L’aperçu du configurateur a été actualisé sans lancer de cotation.');
 
         return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
     }
@@ -67,14 +81,23 @@ final class RealisaprintPublicationController extends AbstractController
         }
         $preview = $previewBuilder->build($definition, $mapping, $catalog instanceof RealisaprintCatalogProduct ? ($catalog->configuration() ?? []) : [], $sample);
         $validUntil = $validation instanceof RealisaprintMappingValidation ? $validation->checkedAt()->modify('+30 minutes') : null;
-        $canPublish = $validation instanceof RealisaprintMappingValidation
-            && $validation->coverageComplete() && $validation->quotePassed() && $preview['covered']
-            && hash_equals($validation->testFingerprint(), $validator->fingerprint($mapping, $validation->testConfiguration()))
-            && $validUntil >= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-        $initialState = $validation instanceof RealisaprintMappingValidation ? $validation->initialConfiguratorState() : null;
+        $canPublish = $validation instanceof RealisaprintMappingValidation &&
+            $validation->coverageComplete() && $validation->quotePassed() && $preview['covered'] &&
+            hash_equals($validation->testFingerprint(), $validator->fingerprint($mapping, $validation->testConfiguration())) &&
+            $validUntil >= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $initialState = $mapping->initialDisplayState();
         $showVariablesRequest = is_array($initialState) && is_array($initialState['show_variables_request'] ?? null)
             ? $initialState['show_variables_request']
             : null;
+        $priceDiagnostic = $validation instanceof RealisaprintMappingValidation ? $validation->priceApiDiagnostic() : null;
+        $priceCalls = is_array($priceDiagnostic) && is_array($priceDiagnostic['calls'] ?? null) ? $priceDiagnostic['calls'] : [];
+        $priceDiagnostics = [];
+        foreach ($priceCalls as $call) {
+            if (!is_array($call) || !is_string($call['operation'] ?? null) || !is_array($call['request'] ?? null)) {
+                continue;
+            }
+            $priceDiagnostics[] = $call + ['curl' => $client->diagnosticCurl($call['operation'], $call['request'])];
+        }
 
         return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', [
             'mapping' => $mapping,
@@ -85,7 +108,9 @@ final class RealisaprintPublicationController extends AbstractController
             'valid_until' => $validUntil,
             'sample' => $sample,
             'test_fields' => $this->testFields($definition, $mapping),
+            'initial_display_state' => $initialState,
             'api_diagnostic_curl' => is_array($showVariablesRequest) ? $client->diagnosticCurl('show_variables', $showVariablesRequest) : null,
+            'price_api_diagnostics' => $priceDiagnostics,
         ]);
     }
 
@@ -94,6 +119,7 @@ final class RealisaprintPublicationController extends AbstractController
     {
         $mapping = $this->mapping($id, $entityManager);
         $this->token($request, $csrf, 'publish_realisaprint_mapping_' . $id);
+
         try {
             $publication->publish($mapping, $this->route($mapping, $entityManager), new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
             $this->addFlash('success', 'Publication contrôlée terminée : produit, configurateur, mapping et route sont activés.');
@@ -105,13 +131,14 @@ final class RealisaprintPublicationController extends AbstractController
     }
 
     /**  array<string, string|int|float> */
-    private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request, SupplierProductMappingVersion $mapping): array
+    private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request, SupplierProductMappingVersion $mapping, PublishedNumericMinimums $numericMinimums): array
     {
         $sample = $this->withFixedValues($validator->sample($definition), $mapping);
         $submitted = $request->request->all('test_values');
         if (!is_array($submitted)) {
             throw new \InvalidArgumentException('Les valeurs d’essai sont requises.');
         }
+        $submitted = $numericMinimums->apply($definition->storefrontSchema(), $submitted);
         foreach ($this->testFields($definition, $mapping) as $code => $field) {
             if (!$field['editable']) {
                 continue;
@@ -144,9 +171,11 @@ final class RealisaprintPublicationController extends AbstractController
             foreach ((is_array($rule['values'] ?? null) ? $rule['values'] : []) as $canonical => $provider) {
                 if ((string) $provider === (string) $rule['fixed_value']) {
                     $values[$rule['option']] = ctype_digit((string) $canonical) ? (int) $canonical : (string) $canonical;
+
                     continue 2;
                 }
             }
+
             throw new \InvalidArgumentException(sprintf('La valeur fixe de « %s » ne correspond pas au mapping publié.', $rule['option']));
         }
 

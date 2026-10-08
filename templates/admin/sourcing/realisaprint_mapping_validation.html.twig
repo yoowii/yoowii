@@ -10,6 +10,28 @@
 {% if not route.isActive %}
     <a class="btn btn-outline-primary mb-3" href="{{ path('yoowii_admin_realisaprint_draft_repair', {routeId: route.id}) }}">Prévisualiser / corriger la définition du brouillon</a>
 {% endif %}
+<div class="card mb-4">
+    <div class="card-header"><h2 class="card-title">Aperçu initial du configurateur</h2></div>
+    <div class="card-body">
+        <p class="text-secondary">Construit à partir des défauts publiés et des valeurs fixes. Cette action appelle seulement <code>show_variables</code> : elle ne lance ni <code>save_configuration</code> ni <code>get_price</code>.</p>
+        {% if initial_display_state %}
+            <dl class="row mb-3">
+                <dt class="col-sm-4">Généré le</dt><dd class="col-sm-8">{{ initial_display_state.generated_at|default('') }}</dd>
+                <dt class="col-sm-4">Configuration</dt><dd class="col-sm-8"><code>{{ initial_display_state.display_configuration|default({})|json_encode }}</code></dd>
+                <dt class="col-sm-4">Champs masqués</dt><dd class="col-sm-8"><code>{{ initial_display_state.visibility|default({})|json_encode }}</code></dd>
+                <dt class="col-sm-4">Valeurs disponibles</dt><dd class="col-sm-8"><code>{{ initial_display_state.availability|default({})|json_encode }}</code></dd>
+            </dl>
+            {% if initial_display_state.error is defined %}<div class="alert alert-warning">{{ initial_display_state.error }}</div>{% endif %}
+            {% if initial_display_state.show_variables_response is defined and api_diagnostic_curl %}<button class="btn btn-outline-dark btn-sm mb-3" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-api-diagnostic">Voir l’appel API</button>{% endif %}
+        {% else %}
+            <p class="text-secondary">Aucun aperçu enregistré : le storefront affichera le formulaire statique publié.</p>
+        {% endif %}
+        <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_display_preview', {id: mapping.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('preview_realisaprint_mapping_' ~ mapping.id) }}">
+            <button class="btn btn-outline-primary">Actualiser l’aperçu du configurateur</button>
+        </form>
+    </div>
+</div>
 <div class="card">
     <div class="card-header"><h2 class="card-title">Configuration envoyée pour le prix d'essai</h2></div>
     <div class="card-body">
@@ -47,7 +69,6 @@
                 <dt class="col-sm-4">Couverture</dt><dd class="col-sm-8">{{ validation.coverageComplete and preview.covered ? 'Complète' : 'Incomplète' }}</dd>
                 <dt class="col-sm-4">Cotation API</dt><dd class="col-sm-8">{{ validation.quotePassed ? 'Réussie' : 'Non validée' }}</dd>
                 <dt class="col-sm-4">Valeurs effectivement testées</dt><dd class="col-sm-8"><code>{{ validation.testConfiguration|json_encode }}</code></dd>
-                {% if validation.initialConfiguratorState %}<dt class="col-sm-4">État initial du configurateur</dt><dd class="col-sm-8"><code>{{ validation.initialConfiguratorState.state|json_encode }}</code></dd>{% endif %}
                 {% if validation.supplierCost is not null %}
                     <dt class="col-sm-4">Coût fournisseur de l'essai</dt><dd class="col-sm-8">{{ (validation.supplierCost / 100)|number_format(2, ',', ' ') }} EUR{% if validation.supplierBaseCost is not null and validation.supplierOptionsCost is not null %}<br><small class="text-secondary">Prix produit : {{ (validation.supplierBaseCost / 100)|number_format(2, ',', ' ') }} EUR + options : {{ (validation.supplierOptionsCost / 100)|number_format(2, ',', ' ') }} EUR</small>{% endif %}</dd>
                 {% endif %}
@@ -58,11 +79,7 @@
             {% for error in validation.coverageErrors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
             {% if validation.technicalDetail %}
                 <div class="alert alert-warning d-flex align-items-center gap-2">
-                    {% if validation.initialConfiguratorState and validation.initialConfiguratorState.show_variables_response is defined %}
-                        <button class="btn btn-outline-dark btn-sm flex-shrink-0" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-api-diagnostic">
-                            Voir l’appel API
-                        </button>
-                    {% endif %}
+                    {% if price_api_diagnostics is not empty %}<button class="btn btn-outline-dark btn-sm flex-shrink-0" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-price-api-diagnostic">Voir les appels de cotation</button>{% endif %}
                     <span>{{ validation.technicalDetail }}</span>
                 </div>
             {% endif %}
@@ -108,7 +125,7 @@
         </div>
     </div>
 </div>
-{% if validation and validation.initialConfiguratorState and validation.initialConfiguratorState.show_variables_response is defined and api_diagnostic_curl %}
+{% if initial_display_state and initial_display_state.show_variables_response is defined and api_diagnostic_curl %}
     <div class="modal modal-blur fade" id="realisaprint-api-diagnostic" tabindex="-1" aria-labelledby="realisaprint-api-diagnostic-title" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
@@ -117,16 +134,32 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-secondary">Appel <code>show_variables</code> et réponse brute reçue lors du dernier contrôle. Les identifiants restent des variables d’environnement et ne sont jamais affichés.</p>
+                    <p class="text-secondary">Appel <code>show_variables</code> et réponse brute reçue lors du dernier aperçu. Les identifiants restent des variables d’environnement et ne sont jamais affichés.</p>
                     <h3 class="h4">Commande cURL</h3>
                     <pre class="bg-dark text-light p-3 rounded small"><code>{{ api_diagnostic_curl }}</code></pre>
                     <h3 class="h4">Données envoyées</h3>
-                    <pre class="bg-dark text-light p-3 rounded small"><code>{{ validation.initialConfiguratorState.show_variables_request|default({})|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                    <pre class="bg-dark text-light p-3 rounded small"><code>{{ initial_display_state.show_variables_request|default({})|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
                     <h3 class="h4">Réponse</h3>
-                    <pre class="bg-dark text-light p-3 rounded small mb-0"><code>{{ validation.initialConfiguratorState.show_variables_response|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                    <pre class="bg-dark text-light p-3 rounded small mb-0"><code>{{ initial_display_state.show_variables_response|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
                 </div>
             </div>
         </div>
+    </div>
+{% endif %}
+{% if price_api_diagnostics is not empty %}
+    <div class="modal modal-blur fade" id="realisaprint-price-api-diagnostic" tabindex="-1" aria-labelledby="realisaprint-price-api-diagnostic-title" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title" id="realisaprint-price-api-diagnostic-title">Diagnostic de la cotation Realisaprint</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+            <div class="modal-body">
+                <p class="text-secondary">Séquence réelle de la validation. Les valeurs d’essai sont transmises à <code>save_configuration</code> ; <code>get_price</code> utilise ensuite le code de cette configuration.</p>
+                {% for call in price_api_diagnostics %}
+                    <h3 class="h4">{{ loop.index }}. <code>{{ call.operation }}</code></h3>
+                    <h4 class="h5">Commande cURL</h4><pre class="bg-dark text-light p-3 rounded small"><code>{{ call.curl }}</code></pre>
+                    <h4 class="h5">Données envoyées</h4><pre class="bg-dark text-light p-3 rounded small"><code>{{ call.request|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                    <h4 class="h5">Réponse</h4><pre class="bg-dark text-light p-3 rounded small{{ loop.last ? ' mb-0' : '' }}"><code>{{ call.response|default(null)|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                {% endfor %}
+            </div>
+        </div></div>
     </div>
 {% endif %}
 {% endblock %}

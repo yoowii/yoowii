@@ -36,6 +36,12 @@ final readonly class PrintConfiguration
         return $this->options;
     }
 
+    /** @return non-empty-list<string>|list<string> */
+    public function pricingAxes(): array
+    {
+        return $this->pricingAxes;
+    }
+
     /**
      * @return array{
      *     product_code: string,

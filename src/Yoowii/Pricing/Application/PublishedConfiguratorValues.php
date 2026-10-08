@@ -9,12 +9,17 @@ use App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition;
 /** Resolves published display rules before a configuration can reach a supplier. */
 final class PublishedConfiguratorValues
 {
+    public function __construct(private readonly ?PublishedNumericMinimums $numericMinimums = null)
+    {
+    }
+
     /** @param list<array<string, mixed>> $schemas @param array<string, mixed> $values @param array<string, array{value: string|int|float, label: string}> $fixed */
     public function resolve(PrintProductDefinition $definition, array $schemas, array $values, array $fixed = []): array
     {
         foreach ($fixed as $code => $field) {
             $values[$code] = $field['value'];
         }
+        $values = ($this->numericMinimums ?? new PublishedNumericMinimums())->apply($schemas, $values);
         foreach ($schemas as $schema) {
             $code = $schema['code'] ?? null;
             if (!is_string($code) || array_key_exists($code, $fixed)) {

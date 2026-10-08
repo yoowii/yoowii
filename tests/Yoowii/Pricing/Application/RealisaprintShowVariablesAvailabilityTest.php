@@ -54,6 +54,42 @@ final class RealisaprintShowVariablesAvailabilityTest extends TestCase
         ], $this->mapping())['visibility']['support_interieur']);
     }
 
+    public function testItNormalizesNestedProviderVisibilityToTheCanonicalOptionCode(): void
+    {
+        $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
+
+        self::assertFalse($refresh->normalizeResponse([
+            'visibility' => ['VARTICLE_SUPPORT_' => 0],
+        ], $this->mapping())['visibility']['support_interieur']);
+    }
+
+    public function testItDoesNotExposeAnAmbiguousSupplierCurrentValue(): void
+    {
+        $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
+        $mapping = new SupplierProductMappingVersion($this->createMock(SupplierProduct::class), 'PRINT_TEST', 'v2', [
+            'realisaprint' => ['product' => 'product', 'stock' => 'stock', 'variables' => [
+                'VARTICLE_SUPPORT_' => ['option' => 'support_interieur', 'values' => ['mat' => 'provider-paper', 'brillant' => 'provider-paper']],
+            ]],
+        ], new \DateTimeImmutable('2026-01-01T00:00:00+00:00'));
+
+        self::assertSame([], $refresh->normalizeResponse(['current_values' => ['VARTICLE_SUPPORT_' => 'provider-paper']], $mapping)['current']);
+    }
+
+    public function testItConvertsProviderZeroOneValueKeysToCanonicalCodes(): void
+    {
+        $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
+        $mapping = new SupplierProductMappingVersion($this->createMock(SupplierProduct::class), 'PRINT_TEST', 'v3', [
+            'realisaprint' => ['product' => 'product', 'stock' => 'stock', 'variables' => [
+                'VOPTIONS' => ['option' => 'pelliculage', 'values' => ['mat' => '1', 'brillant' => '0']],
+            ]],
+        ], new \DateTimeImmutable('2026-01-01T00:00:00+00:00'));
+
+        $availability = $refresh->normalizeResponse(['variable_values' => ['VOPTIONS' => ['1' => 'Mat']]], $mapping)['availability'];
+
+        self::assertSame(['mat'], $availability['pelliculage']);
+        self::assertNotContains('1', $availability['pelliculage']);
+    }
+
     public function testItFallsBackToThePublishedDefaultThenMapsThatCanonicalValue(): void
     {
         $definition = $this->definition('115g_m2_couche_mat');

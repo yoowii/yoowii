@@ -7,6 +7,7 @@ export default class extends Controller {
         'loading',
         'quoteResult',
         'step',
+        'option',
         'summaryItem',
     ];
 
@@ -15,6 +16,8 @@ export default class extends Controller {
         refreshUrl: String,
         pricingAxes: Array,
         initialProviderState: Object,
+        manualQuote: Boolean,
+        debug: Boolean,
     };
 
     connect() {
@@ -24,16 +27,13 @@ export default class extends Controller {
         this.refreshTimer = null;
         this.refreshSequence = 0;
         this.refreshAbortController = null;
-        this.applySchemaVisibility();
-        console.info('[print-configurator] controller connected');
-        console.log(this.hasInitialProviderStateValue);
-        console.info('[print-configurator] initial_provider_state.visibility', {
-            present: this.hasInitialProviderStateValue,
-            visibility: this.hasInitialProviderStateValue ? (this.initialProviderStateValue.visibility || {}) : null,
-        });
-        if (this.hasInitialProviderStateValue) this.applyProviderState(this.initialProviderStateValue, true);
+        this.refreshPending = false;
+        this.lastAutoQuoteFingerprint = null;
+        this.quoteRequested = false;
+        this.providerState = this.hasInitialProviderStateValue ? this.initialProviderStateValue : { visibility: {}, availability: {}, current: {} };
+        this.applyProviderState(this.providerState, { source: 'initial' });
         this.refreshSteps(false);
-        if (!this.hasInitialProviderStateValue) this.scheduleRefresh();
+        if (!this.hasInitialProviderStateValue && !this.manualQuoteValue) this.scheduleRefresh();
     }
 
     disconnect() {
@@ -53,22 +53,31 @@ export default class extends Controller {
 
         this.inputTimer = window.setTimeout(() => {
             this.inputTimer = null;
+            this.applyNumericMinimum(event.target);
             this.change(event);
         }, 600);
     }
 
     change(event) {
+        this.applyNumericMinimum(event.target);
+        this.quoteRequested = false;
         const step = event.target.closest('[data-print-configurator-target="step"]');
         const stepIndex = this.stepTargets.indexOf(step);
 
         this.clearError();
         this.clearQuote();
-        this.applySchemaVisibility();
-        // Quote and show_variables are independent requests. Start both once the
-        // visible configuration is complete; refreshSequence still discards stale
-        // provider responses.
-        this.refreshSteps(true, stepIndex);
+        this.applyProviderState(this.providerState, { source: 'client', changedStepIndex: stepIndex, applyAvailability: false });
         this.scheduleRefresh();
+    }
+
+    applyNumericMinimum(input) {
+        if (!(input instanceof HTMLInputElement) || !['number', 'text'].includes(input.type) || input.min === '') return;
+        const value = input.value.trim().replace(',', '.');
+        const minimum = Number(input.min);
+        if (!Number.isFinite(minimum)) return;
+        if (value === '' || !Number.isFinite(Number(value)) || Number(value) < minimum || (input.step === '1' && !/^-?\d+$/.test(value))) {
+            input.value = String(minimum);
+        }
     }
 
     submit(event) {
@@ -174,9 +183,11 @@ export default class extends Controller {
             if (number) number.textContent = String(index + 1);
         });
 
-        if (shouldCalculate && previousStepsComplete) {
+        if (!this.manualQuoteValue && shouldCalculate && previousStepsComplete) {
             this.scheduleCalculation();
         }
+        const quoteButton = this.element.querySelector('[data-action="print-configurator#calculate"]');
+        if (quoteButton) quoteButton.disabled = this.refreshPending || !this.isComplete();
     }
 
     visibleSteps() {
@@ -187,26 +198,22 @@ export default class extends Controller {
         return this.summaryItemTargets.find((item) => item.dataset.stepIndex === step.dataset.stepIndex);
     }
 
-    setStepVisibility(step, visible, clearValue = false) {
+    summaryForOption(code) {
+        return this.summaryItemTargets.find((item) => item.dataset.optionCode === code);
+    }
+
+    setStepVisibility(step, visible) {
         step.classList.toggle('d-none', !visible);
-        this.summaryForStep(step)?.classList.toggle('d-none', !visible);
-        if (!visible && clearValue) {
-            step.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach((input) => { input.checked = false; });
-            step.querySelectorAll('select').forEach((input) => { input.selectedIndex = -1; });
-            step.querySelectorAll('input[type="number"], input[type="text"]').forEach((input) => { input.value = ''; });
-        }
+        this.summaryForOption(step.dataset.optionCode)?.classList.toggle('d-none', !visible);
         this.setStepInputsDisabled(step, !visible);
     }
 
-    applySchemaVisibility() {
-        this.stepTargets.forEach((step) => {
-            const dependency = step.dataset.dependsOn;
-            if (!dependency) return;
-            const [parent, expected] = dependency.split(':');
-            const selected = this.formTarget.querySelector(`[name$="[${CSS.escape(parent)}]"]:checked, select[name$="[${CSS.escape(parent)}]"]`);
-            const visible = selected && selected.value === expected;
-            this.setStepVisibility(step, Boolean(visible), !visible);
-        });
+    isSchemaVisible(step) {
+        const dependency = step.dataset.dependsOn;
+        if (!dependency) return true;
+        const [parent, expected] = dependency.split(':');
+        const selected = this.formTarget.querySelector(`[name$="[${CSS.escape(parent)}]"]:checked, select[name$="[${CSS.escape(parent)}]"]`);
+        return Boolean(selected && selected.value === expected);
     }
 
     selectedLabels(step) {
@@ -228,7 +235,12 @@ export default class extends Controller {
 
     setStepInputsDisabled(step, disabled) {
         step.querySelectorAll('input:not([type="hidden"]), select').forEach((input) => {
-            input.disabled = disabled;
+            if (disabled) {
+                input.disabled = true;
+
+                return;
+            }
+            input.disabled = input.matches('input[type="radio"], input[type="checkbox"]') && input.closest('.yoowii-print-choice')?.classList.contains('d-none');
         });
     }
 
@@ -241,9 +253,9 @@ export default class extends Controller {
             if (this.element.querySelector(`[data-fixed-axis="${CSS.escape(axis)}"]`)) {
                 return true;
             }
-            const axisStep = this.stepTargets.find((step) => step.dataset.axis === axis);
-            if (axisStep && axisStep.classList.contains('d-none')) {
-                return true;
+            const axisStep = this.optionTargets.find((step) => step.dataset.optionCode === axis);
+            if (axisStep) {
+                return axisStep.classList.contains('d-none') || this.selectedLabels(axisStep).length > 0;
             }
             return [...this.formTarget.elements].some((input) => input.name.endsWith(`[${axis}]`) && !input.disabled && input.value !== '' && (input.type !== 'radio' || input.checked));
         });
@@ -255,22 +267,23 @@ export default class extends Controller {
     }
 
     scheduleRefresh() {
-        // An incomplete edit also invalidates any pending supplier response.
         this.cancelPendingRefresh();
-        if (!this.hasRefreshUrlValue || !this.isComplete()) {
+        if (!this.hasRefreshUrlValue) {
             return;
         }
-        this.refreshTimer = window.setTimeout(() => this.refreshProviderState(), 350);
+        this.refreshTimer = window.setTimeout(() => this.refreshProviderState(), 0);
     }
 
     async refreshProviderState() {
-        if (!this.isComplete() || !this.hasRefreshUrlValue) {
+        if (!this.hasRefreshUrlValue) {
             return;
         }
         this.cancelPendingRefresh();
         const abortController = new AbortController();
         this.refreshAbortController = abortController;
+        this.refreshPending = true;
         const sequence = ++this.refreshSequence;
+        let refreshSucceeded = false;
         try {
             // Symfony form keys are e.g. print_configurator[quantity]; the API
             // expects canonical option codes without the form name prefix.
@@ -290,7 +303,19 @@ export default class extends Controller {
             if (!response.ok) {
                 throw new Error(payload.message || 'Les options ne peuvent pas être mises à jour.');
             }
-            this.applyProviderState(payload);
+            const corrected = this.applyProviderState(payload);
+            if (corrected) {
+                this.scheduleRefresh();
+                return;
+            }
+            refreshSucceeded = true;
+            if (this.manualQuoteValue && this.isComplete()) {
+                const fingerprint = this.visibleConfigurationFingerprint();
+                if (fingerprint !== this.lastAutoQuoteFingerprint) {
+                    this.lastAutoQuoteFingerprint = fingerprint;
+                    this.scheduleCalculation();
+                }
+            }
         } catch (error) {
             if (sequence === this.refreshSequence && error.name !== 'AbortError') {
                 this.showError(error.message);
@@ -298,67 +323,88 @@ export default class extends Controller {
         } finally {
             if (this.refreshAbortController === abortController) {
                 this.refreshAbortController = null;
+                this.refreshPending = false;
+                if (refreshSucceeded && this.quoteRequested) {
+                    this.quoteRequested = false;
+                    this.calculate();
+                }
             }
         }
     }
 
-    applyProviderState(state, initial = false) {
-        Object.entries(state.visibility || {}).forEach(([option, visible]) => {
-            const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
-            if (!step) return;
-            this.setStepVisibility(step, visible === true, !initial && visible !== true);
+    applyProviderState(state, { source = 'refresh', changedStepIndex = -1, applyAvailability = true } = {}) {
+        this.providerState = state;
+        this.optionTargets.forEach((step) => {
+            const code = step.dataset.optionCode;
+            const visible = state.visibility?.[code] !== false && this.isSchemaVisible(step);
+            this.setStepVisibility(step, visible);
+            if (this.debugValue && state.visibility?.[code] === false) {
+                console.debug('[print-configurator] hidden provider option', {
+                    definitionCode: code,
+                    visibilityKey: code,
+                    domElement: step,
+                    appliedClass: step.classList.contains('d-none') ? 'd-none' : '',
+                    inputsDisabled: [...step.querySelectorAll('input:not([type="hidden"]), select')].every((input) => input.disabled),
+                    source,
+                });
+            }
         });
         let corrected = false;
-        Object.entries(state.availability || {}).forEach(([option, availableValues]) => {
-            const step = this.stepTargets.find((candidate) => candidate.dataset.axis === option);
-            if (!step) return;
-            const allowedValues = Array.isArray(availableValues) ? availableValues : [];
-            step.querySelectorAll('input[type="radio"]').forEach((input) => {
-                const allowed = allowedValues.includes(input.value);
-                input.closest('.yoowii-print-choice')?.classList.toggle('d-none', !allowed);
-                input.disabled = !allowed;
-            });
-            step.querySelectorAll('select option').forEach((choice) => {
-                if (choice.value === '') return;
-                const allowed = allowedValues.includes(choice.value);
-                choice.hidden = !allowed;
-                choice.disabled = !allowed;
-            });
+        if (applyAvailability) {
+            Object.entries(state.availability || {}).forEach(([option, availableValues]) => {
+                const step = this.optionTargets.find((candidate) => candidate.dataset.optionCode === option);
+                if (!step || step.classList.contains('d-none')) return;
+                const allowedValues = Array.isArray(availableValues) ? availableValues : [];
+                step.querySelectorAll('input[type="radio"]').forEach((input) => {
+                    const allowed = allowedValues.includes(input.value);
+                    input.closest('.yoowii-print-choice')?.classList.toggle('d-none', !allowed);
+                    input.disabled = !allowed;
+                });
+                step.querySelectorAll('select option').forEach((choice) => {
+                    if (choice.value === '') return;
+                    const allowed = allowedValues.includes(choice.value);
+                    choice.hidden = !allowed;
+                    choice.disabled = !allowed;
+                });
 
-            const selected = step.querySelector('input[type="radio"]:checked, select');
-            const selectedValue = selected?.value || '';
-            if (allowedValues.includes(selectedValue)) return;
+                const selected = step.querySelector('input[type="radio"]:checked, select');
+                const selectedValue = selected?.value || '';
+                if (allowedValues.includes(selectedValue)) return;
 
-            // Published default wins, then the unambiguously normalized supplier
-            // current value, then the first available value in published DOM order.
-            const candidates = [
-                step.dataset.defaultValue || '',
-                state.current?.[option] || '',
-                ...[...step.querySelectorAll('input[type="radio"], select option')].map((choice) => choice.value),
-            ];
-            const fallback = candidates.find((value) => allowedValues.includes(value));
-            if (!fallback) return;
-            const radio = step.querySelector(`input[type="radio"][value="${CSS.escape(fallback)}"]`);
-            if (radio) {
-                radio.checked = true;
-            } else {
-                const select = step.querySelector('select');
-                if (select) select.value = fallback;
-            }
-            corrected = true;
-        });
+                // Published default wins, then the unambiguously normalized supplier
+                // current value, then the first available value in published DOM order.
+                const candidates = [
+                    step.dataset.defaultValue || '',
+                    state.current?.[option] || '',
+                    ...[...step.querySelectorAll('input[type="radio"], select option')].map((choice) => choice.value),
+                ];
+                const fallback = candidates.find((value) => allowedValues.includes(value));
+                if (!fallback) return;
+                const radio = step.querySelector(`input[type="radio"][value="${CSS.escape(fallback)}"]`);
+                if (radio) {
+                    radio.checked = true;
+                } else {
+                    const select = step.querySelector('select');
+                    if (select) select.value = fallback;
+                }
+                corrected = true;
+            });
+        }
         [...(state.alerts || []), ...(state.infos || [])].forEach((message) => this.showError(message));
-        // The quote request for this edit was already started in parallel with
-        // show_variables. Do not send a duplicate quote when the refresh returns.
-        this.refreshSteps(false);
+        this.refreshSteps(false, changedStepIndex);
         if (corrected) {
             this.clearQuote();
-            this.scheduleRefresh();
         }
+        return corrected;
     }
 
     async calculate() {
+        if (this.refreshPending) {
+            this.quoteRequested = true;
+            return;
+        }
         if (!this.isComplete()) {
+            this.showError('Renseignez tous les champs visibles requis avant de calculer le prix.');
             return;
         }
 
@@ -397,6 +443,15 @@ export default class extends Controller {
                 this.setLoading(false);
             }
         }
+    }
+
+    visibleConfigurationFingerprint() {
+        const options = {};
+        for (const [name, value] of new FormData(this.formTarget).entries()) {
+            const match = name.match(/\[([^\[\]]+)\]$/);
+            if (match && match[1] !== '_token') options[match[1]] = value;
+        }
+        return JSON.stringify(options);
     }
 
     cancelPendingCalculation() {

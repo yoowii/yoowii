@@ -52,6 +52,7 @@ final class PrintConfiguratorType extends AbstractType
                     'required' => true,
                     'attr' => array_filter([
                         'data-area' => $schema['area'] ?? 1,
+                        'data-option-code' => $code,
                         'data-depends-on' => is_array($schema['depends_on'] ?? null) ? ($schema['depends_on']['option'] . ':' . $schema['depends_on']['value']) : null,
                         'min' => $schema['minimum'] ?? null,
                         'max' => $schema['maximum'] ?? null,
@@ -77,6 +78,7 @@ final class PrintConfiguratorType extends AbstractType
                 'expanded' => count($values) <= 8,
                 'attr' => [
                     'data-area' => $schema['area'] ?? 1,
+                    'data-option-code' => $code,
                     'data-depends-on' => is_array($schema['depends_on'] ?? null) ? ($schema['depends_on']['option'] . ':' . $schema['depends_on']['value']) : null,
                     'data-default-value' => $schema['default'] ?? null,
                 ],

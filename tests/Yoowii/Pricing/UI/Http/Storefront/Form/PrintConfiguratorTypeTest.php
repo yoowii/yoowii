@@ -23,6 +23,7 @@ final class PrintConfiguratorTypeTest extends TestCase
                 self::assertFalse($options['placeholder']);
                 self::assertNotEmpty($options['choices']);
                 self::assertContains($name, ['format', 'quantity']);
+                self::assertSame($name, $options['attr']['data-option-code']);
 
                 return $builder;
             })

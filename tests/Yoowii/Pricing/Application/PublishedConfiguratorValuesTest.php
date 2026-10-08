@@ -41,6 +41,23 @@ final class PublishedConfiguratorValuesTest extends TestCase
         ], ['option' => 'oui', 'format' => 'a4'])['option_zone']);
     }
 
+    public function testItReplacesInvalidOrTooSmallNumericValuesWithThePublishedMinimum(): void
+    {
+        $definition = new PrintProductDefinition('PRINT_DIMENSIONS', 'v1', 'matrix_exact', [
+            'largeur' => new PrintOptionDefinition('largeur', PrintOptionType::Float, true, [], 20),
+            'hauteur' => new PrintOptionDefinition('hauteur', PrintOptionType::Float, true, [], 10),
+            'quantite' => new PrintOptionDefinition('quantite', PrintOptionType::Integer, true, [], 100),
+        ], ['largeur', 'hauteur', 'quantite']);
+
+        $resolved = (new PublishedConfiguratorValues())->resolve($definition, [
+            ['code' => 'largeur', 'type' => 'float', 'minimum' => 20],
+            ['code' => 'hauteur', 'type' => 'float', 'minimum' => 10],
+            ['code' => 'quantite', 'type' => 'integer', 'minimum' => 100],
+        ], ['largeur' => '-3', 'hauteur' => 'incorrect', 'quantite' => '12.5']);
+
+        self::assertSame(['largeur' => 20.0, 'hauteur' => 10.0, 'quantite' => 100], $resolved);
+    }
+
 
     public function testItCreatesADependencyOnlyForAnUnambiguousPublishedYesNoPair(): void
     {

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\Application;
 
 use App\Yoowii\Pricing\Application\RealisaprintLiveQuoteCalculator;
-use App\Yoowii\Pricing\Application\RealisaprintAvailabilityFallback;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
@@ -18,7 +17,6 @@ final readonly class RealisaprintMappingValidator
 {
     public function __construct(
         private RealisaprintLiveQuoteCalculator $quotes,
-        private RealisaprintAvailabilityFallback $availabilityFallback,
         private RetailPrintPricingPolicyProvider $pricingPolicy,
         private RealisaprintMappingCompleteness $completeness,
         private \App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh $configuratorRefresh,
@@ -29,7 +27,7 @@ final readonly class RealisaprintMappingValidator
     public function validate(SupplierRoute $route, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, array $sample, \DateTimeImmutable $at): RealisaprintMappingValidation
     {
         $errors = $this->coverageErrors($mapping, $definition);
-        $initialState = null;
+        $priceDiagnostic = null;
         $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
         $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
 
@@ -47,36 +45,20 @@ final readonly class RealisaprintMappingValidator
 
         try {
             $configuration = $definition->definition()->configure($sample);
-            $initialConfiguration = $configuration->toArray();
-            // This must precede save_configuration/get_price: the supplier can constrain
-            // the exact configuration that is eligible for quotation.
+            // The price-validation path deliberately uses its own complete test
+            // configuration. It must not seed the storefront display cache.
             $diagnostic = $this->configuratorRefresh->previewWithDiagnostic($configuration, $mapping);
-            $state = $diagnostic['state'];
-            $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
-            $initialState = [
-                'product' => $provider['product'] ?? null,
-                'stock' => $provider['stock'] ?? null,
-                'mapping_version' => $mapping->version(),
-                'schema_version' => $definition->definition()->schemaVersion(),
-                // This is the exact configuration that produced state. Keep it
-                // separate from the quote configuration, which may be corrected
-                // afterwards by availabilityFallback.
-                'initial_fingerprint' => $this->fingerprint($mapping, $initialConfiguration),
-                'initial_configuration' => $initialConfiguration,
-                'state' => $state,
-                'show_variables_request' => $diagnostic['request'],
-                'show_variables_response' => $diagnostic['response'],
-            ];
-            $configuration = $definition->definition()->configure($this->availabilityFallback->apply($configuration->toArray(), $state, $definition));
-            $quote = $this->quotes->quoteDraftMapping($route, $configuration, $this->pricingPolicy->get(), 'EUR', $at, $mapping->configurationMapping(), $mapping->version());
+            $priceDiagnostic = ['calls' => [['operation' => 'show_variables', 'request' => $diagnostic['request'], 'response' => $diagnostic['response']]]];
+            $this->assertTestValuesAvailable($configuration->toArray(), $diagnostic['state']);
+            $quote = $this->quotes->quoteDraftMapping($route, $configuration, $this->pricingPolicy->get(), 'EUR', $at, $mapping->configurationMapping(), $mapping->version(), static function (string $operation, array $request, ?array $response) use (&$priceDiagnostic): void {
+                $priceDiagnostic['calls'][] = ['operation' => $operation, 'request' => $request, 'response' => $response];
+            });
 
             $fingerprint = $this->fingerprint($mapping, $configuration->toArray());
-            $initialState['fingerprint'] = $fingerprint;
-            $initialState['configuration'] = $configuration->toArray();
 
-            return new RealisaprintMappingValidation($mapping, true, true, $quote->supplierCost(), $quote->productionCost(), $quote->shippingCost(), $configuration->toArray(), $fingerprint, [], null, $at, $initialState);
+            return new RealisaprintMappingValidation($mapping, true, true, $quote->supplierCost(), $quote->productionCost(), $quote->shippingCost(), $configuration->toArray(), $fingerprint, [], null, $at, $priceDiagnostic);
         } catch (\Throwable $exception) {
-            return new RealisaprintMappingValidation($mapping, true, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), [], $this->safeDetail($exception->getMessage()), $at, $initialState);
+            return new RealisaprintMappingValidation($mapping, true, false, null, null, null, $sample, $this->fingerprint($mapping, $sample), [], $this->safeDetail($exception->getMessage()), $at, $priceDiagnostic);
         }
     }
 
@@ -147,7 +129,20 @@ final readonly class RealisaprintMappingValidator
     /**  array<string, string|int|float> $sample */
     public function fingerprint(SupplierProductMappingVersion $mapping, array $sample): string
     {
-        return hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $sample], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $sample], \JSON_THROW_ON_ERROR));
+    }
+
+    /** @param array<string, string|int|float> $configuration @param array<string, mixed> $state */
+    private function assertTestValuesAvailable(array $configuration, array $state): void
+    {
+        foreach (is_array($state['availability'] ?? null) ? $state['availability'] : [] as $option => $available) {
+            if (!is_string($option) || !is_array($available) || !array_key_exists($option, $configuration)) {
+                continue;
+            }
+            if (!in_array((string) $configuration[$option], array_map('strval', $available), true)) {
+                throw new \DomainException(sprintf('La valeur d’essai de « %s » n’est plus disponible chez Realisaprint.', $option));
+            }
+        }
     }
 
     private function safeDetail(string $message): string

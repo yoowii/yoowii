@@ -84,7 +84,7 @@ final readonly class RealisaprintLiveQuoteCalculator
      *
      * @param array<string, mixed> $mapping
      */
-    public function quoteDraftMapping(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, array $mapping, string $version): PrintQuote
+    public function quoteDraftMapping(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, array $mapping, string $version, ?callable $onApiCall = null): PrintQuote
     {
         if (!$this->supports($route)) {
             throw new RealisaprintQuoteException(QuoteFallbackReason::SupplierNotEligible, 'The Realisaprint supplier is not eligible for a live quote.');
@@ -92,41 +92,31 @@ final readonly class RealisaprintLiveQuoteCalculator
         if ('EUR' !== $currencyCode) {
             throw new RealisaprintQuoteException(QuoteFallbackReason::SupplierNotEligible, 'Realisaprint quotation is only available in EUR.');
         }
+
         try {
             $mapped = $this->configurationMapper->mapMapping($configuration, $mapping, $version);
         } catch (\DomainException $exception) {
             throw new RealisaprintQuoteException(QuoteFallbackReason::MappingIncompatible, 'The draft Realisaprint mapping cannot resolve this configuration.');
         }
 
-        return $this->quoteMapped($route, $configuration, $pricingPolicy, $currencyCode, $at, bin2hex(random_bytes(16)), $mapped);
+        return $this->quoteMapped($route, $configuration, $pricingPolicy, $currencyCode, $at, bin2hex(random_bytes(16)), $mapped, $onApiCall);
     }
 
     /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped */
-    private function quoteMapped(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, string $correlationId, array $mapped): PrintQuote
+    private function quoteMapped(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, string $correlationId, array $mapped, ?callable $onApiCall = null): PrintQuote
     {
         $key = 'yoowii.realisaprint.quote.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version'], $currencyCode]));
         $cacheMiss = false;
 
         try {
-            $response = $this->cache->get($key, function (ItemInterface $item) use ($mapped, &$cacheMiss): array {
-                $cacheMiss = true;
-                $item->expiresAfter($this->cacheTtl);
-                $saved = $this->client->post('save_configuration', [
-                    'product' => $mapped['product'],
-                    'stock' => $mapped['stock'],
-                    'variables' => $mapped['variables'],
-                ]);
-                $code = $saved['code'] ?? null;
-                if (!is_scalar($code) || '' === trim((string) $code)) {
-                    throw new RealisaprintQuoteException(QuoteFallbackReason::ApiRejectedConfiguration, 'Realisaprint did not return a configuration code.');
-                }
-                $price = $this->client->post('get_price', ['code' => (string) $code, 'quantity' => 1, 'country' => 'FR']);
-                if (isset($price['error'])) {
-                    throw new RealisaprintQuoteException(QuoteFallbackReason::ApiPriceMissing, 'Realisaprint did not return a price.');
-                }
+            $response = null !== $onApiCall
+                ? $this->requestQuote($mapped, $onApiCall)
+                : $this->cache->get($key, function (ItemInterface $item) use ($mapped, &$cacheMiss): array {
+                    $cacheMiss = true;
+                    $item->expiresAfter($this->cacheTtl);
 
-                return ['configuration' => $saved, 'price' => $price];
-            });
+                    return $this->requestQuote($mapped);
+                });
         } catch (\Throwable $exception) {
             if ($exception instanceof RealisaprintQuoteException) {
                 throw $exception;
@@ -178,6 +168,45 @@ final readonly class RealisaprintLiveQuoteCalculator
         );
 
         return new PrintQuote($snapshot, 'realisaprint', $route->supplierProduct()->code(), 'api:' . $mapped['version'], $mapped['fingerprint'], $productionCost, $optionsCost, $margin, $pricingPolicy->handlingFee());
+    }
+
+    /**
+     * @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped
+     * @param callable(string, array<string, mixed>, array<string, mixed>|null): void|null $onApiCall
+     *
+     * @return array{configuration: array<string, mixed>, price: array<string, mixed>}
+     */
+    private function requestQuote(array $mapped, ?callable $onApiCall = null): array
+    {
+        $saveRequest = ['product' => $mapped['product'], 'stock' => $mapped['stock'], 'variables' => $mapped['variables']];
+
+        try {
+            $saved = $this->client->post('save_configuration', $saveRequest);
+        } catch (\Throwable $exception) {
+            $onApiCall?->__invoke('save_configuration', $saveRequest, null);
+
+            throw $exception;
+        }
+        $onApiCall?->__invoke('save_configuration', $saveRequest, $saved);
+        $code = $saved['code'] ?? null;
+        if (!is_scalar($code) || '' === trim((string) $code)) {
+            throw new RealisaprintQuoteException(QuoteFallbackReason::ApiRejectedConfiguration, 'Realisaprint did not return a configuration code.');
+        }
+        $priceRequest = ['code' => (string) $code, 'quantity' => 1, 'country' => 'FR'];
+
+        try {
+            $price = $this->client->post('get_price', $priceRequest);
+        } catch (\Throwable $exception) {
+            $onApiCall?->__invoke('get_price', $priceRequest, null);
+
+            throw $exception;
+        }
+        $onApiCall?->__invoke('get_price', $priceRequest, $price);
+        if (isset($price['error'])) {
+            throw new RealisaprintQuoteException(QuoteFallbackReason::ApiPriceMissing, 'Realisaprint did not return a price.');
+        }
+
+        return ['configuration' => $saved, 'price' => $price];
     }
 
     private function cents(mixed $value, string $label): int

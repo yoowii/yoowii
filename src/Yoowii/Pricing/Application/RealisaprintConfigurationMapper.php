@@ -133,11 +133,17 @@ final readonly class RealisaprintConfigurationMapper
                 throw new \DomainException(sprintf('The mapping for Realisaprint variable "%s" is invalid.', $variable));
             }
             if (is_scalar($rule['fixed_value'] ?? null)) {
+                if (!array_key_exists($rule['option'], $options)) {
+                    continue;
+                }
                 $variables[$variable] = $rule['fixed_value'];
 
                 continue;
             }
             $value = $options[$rule['option']] ?? null;
+            if (!array_key_exists($rule['option'], $options)) {
+                continue;
+            }
             $values = $rule['values'] ?? null;
             if (is_array($values) && is_scalar($value) && array_key_exists((string) $value, $values)) {
                 $value = $values[(string) $value];

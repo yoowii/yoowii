@@ -38,7 +38,7 @@ class PersistedPrintProductDefinition
         return $this->productCode;
     }
 
-    /** @return array<string, array{type: string, required?: bool, allowed_values?: list<string|int|float>, minimum?: int|float|null, maximum?: int|float|null}> */
+    /** @return array<string, array<string, mixed>> */
     public function options(): array
     {
         return $this->options;
