@@ -16,6 +16,7 @@ export default class extends Controller {
         refreshUrl: String,
         pricingAxes: Array,
         initialProviderState: Object,
+        initialProviderStateStale: Boolean,
         manualQuote: Boolean,
         debug: Boolean,
     };
@@ -30,14 +31,26 @@ export default class extends Controller {
         this.refreshPending = false;
         this.lastAutoQuoteFingerprint = null;
         this.quoteRequested = false;
-        this.providerState = this.hasInitialProviderStateValue ? this.initialProviderStateValue : { visibility: {}, availability: {}, current: {} };
+        this.hasUserInteracted = false;
+        this.providerState = { visibility: {}, availability: {}, current: {} };
         this.providerVisibility = {};
-        this.applyProviderState(this.providerState, { source: 'initial' });
-        this.refreshSteps(false);
-        // An unavailable initial display state must be refreshed for manual
-        // quote products too. Otherwise their first paint silently exposes
-        // every provider-controlled option until the customer changes a field.
-        if (!this.hasInitialProviderStateValue) this.scheduleRefresh();
+        if (this.debugValue) {
+            console.debug('[print-configurator] initial provider state', {
+                hasInitialProviderStateValue: this.hasInitialProviderStateValue,
+                initialProviderStateVisibility: this.initialProviderStateValue?.visibility,
+                initialProviderStateStaleValue: this.initialProviderStateStaleValue,
+            });
+        }
+        if (this.hasInitialProviderStateValue) {
+            this.applyProviderState(this.initialProviderStateValue, { source: 'initial' });
+        } else {
+            this.refreshSteps(false);
+        }
+        // An old compatible snapshot is rendered first, then show_variables
+        // refreshes it. A failed refresh intentionally leaves that state intact.
+        if (!this.hasInitialProviderStateValue || this.initialProviderStateStaleValue) {
+            this.scheduleRefresh();
+        }
     }
 
     disconnect() {
@@ -63,6 +76,7 @@ export default class extends Controller {
     }
 
     change(event) {
+        this.hasUserInteracted = true;
         this.applyNumericMinimum(event.target);
         this.quoteRequested = false;
         const step = event.target.closest('[data-print-configurator-target="step"]');
@@ -326,7 +340,7 @@ export default class extends Controller {
                 return;
             }
             refreshSucceeded = true;
-            if (this.manualQuoteValue && this.isComplete()) {
+            if (this.manualQuoteValue && this.hasUserInteracted && this.isComplete()) {
                 const fingerprint = this.visibleConfigurationFingerprint();
                 if (fingerprint !== this.lastAutoQuoteFingerprint) {
                     this.lastAutoQuoteFingerprint = fingerprint;

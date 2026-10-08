@@ -21,6 +21,7 @@
     {% if initial_provider_state is not null %}
         data-print-configurator-initial-provider-state-value="{{ initial_provider_state|json_encode|e('html_attr') }}"
     {% endif %}
+    data-print-configurator-initial-provider-state-stale-value="{{ initial_provider_state_stale|default(false) ? 'true' : 'false' }}"
 >
     <div class="mb-4">
         <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>

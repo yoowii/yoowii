@@ -20,6 +20,7 @@ use App\Yoowii\Pricing\Application\RealisaprintVisibleConfigurationBuilder;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
 use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
+use Psr\Log\LoggerInterface;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
 use Sylius\Component\Core\Model\ChannelInterface as CoreChannelInterface;
 use Sylius\Component\Core\Repository\ProductRepositoryInterface;
@@ -28,6 +29,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class PrintProductConfiguratorController extends AbstractController
@@ -180,6 +182,8 @@ final class PrintProductConfiguratorController extends AbstractController
         PublishedConfiguratorValues $publishedValues,
         \Doctrine\ORM\EntityManagerInterface $entityManager,
         RealisaprintInitialDisplayStateBuilder $displayStateBuilder,
+        KernelInterface $kernel,
+        LoggerInterface $logger,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
@@ -194,7 +198,8 @@ final class PrintProductConfiguratorController extends AbstractController
         $fixed = $fixedOptions->forProduct($definitionCode, $now);
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
         $schemas = $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed);
-        $initialState = $this->initialConfiguratorState($definitionCode, $entityManager, $now, $displayStateBuilder);
+        $initialSnapshot = $this->initialConfiguratorState($definitionCode, $entityManager, $now, $displayStateBuilder, $kernel, $logger);
+        $initialState = $initialSnapshot['state'];
         $formData = is_array($configuration) && [] !== $configuration
             ? $configuration
             : $this->initialFormValues($schemas, $initialState);
@@ -217,6 +222,7 @@ final class PrintProductConfiguratorController extends AbstractController
             'fixed_fields' => $fixed,
             'pricing_axes' => $definition->pricingAxes(),
             'initial_provider_state' => $initialState,
+            'initial_provider_state_stale' => $initialSnapshot['stale'],
             'manual_quote' => $this->hasRealisaprintMapping($definitionCode, $entityManager),
         ]);
     }
@@ -301,12 +307,12 @@ final class PrintProductConfiguratorController extends AbstractController
         return $schemas;
     }
 
-    /** @return array<string, mixed>|null */
-    private function initialConfiguratorState(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager, \DateTimeImmutable $now, RealisaprintInitialDisplayStateBuilder $displayStateBuilder): ?array
+    /** @return array{state: array<string, mixed>|null, stale: bool} */
+    private function initialConfiguratorState(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager, \DateTimeImmutable $now, RealisaprintInitialDisplayStateBuilder $displayStateBuilder, KernelInterface $kernel, LoggerInterface $logger): array
     {
         $definition = $entityManager->getRepository(\App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $definitionCode]);
         if (!$definition instanceof \App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition) {
-            return null;
+            return ['state' => null, 'stale' => false];
         }
         foreach ($entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
             if (!$mapping instanceof \App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion) {
@@ -316,12 +322,59 @@ final class PrintProductConfiguratorController extends AbstractController
                 continue;
             }
             $state = $mapping->initialDisplayState();
-            if (is_array($state) && $displayStateBuilder->isUsable($state, $mapping, $definition, $now)) {
-                return $state;
+            if (!is_array($state)) {
+                $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
+                    'definition_code' => $definitionCode,
+                    'mapping_id' => $mapping->id(),
+                    'reason' => 'state_not_array',
+                ]);
+                if ('dev' === $kernel->getEnvironment()) {
+                    $logger->debug('Realisaprint initial display state diagnostic.', [
+                        'definition_code' => $definitionCode,
+                        'mapping_id' => $mapping->id(),
+                        'raw_initial_display_state' => $state,
+                        'checks' => ['json_shape' => false, 'reason' => 'state_not_array'],
+                        'initial_provider_state' => null,
+                        'initial_provider_state_stale' => false,
+                    ]);
+                }
+
+                continue;
+            }
+
+            $compatibilityReason = $displayStateBuilder->compatibilityReason($state, $mapping, $definition);
+            $freshnessReason = $displayStateBuilder->freshnessReason($state, $now);
+            $compatible = null === $compatibilityReason;
+            $fresh = null === $freshnessReason;
+            if ('dev' === $kernel->getEnvironment()) {
+                $checks = $displayStateBuilder->compatibilityChecks($state, $mapping, $definition);
+                $logger->debug('Realisaprint initial display state diagnostic.', [
+                    'definition_code' => $definitionCode,
+                    'mapping_id' => $mapping->id(),
+                    'raw_initial_display_state' => $state,
+                    'checks' => [
+                        ...$checks,
+                        'expiration' => $fresh,
+                        'compatibility_reason' => $compatibilityReason,
+                        'freshness_reason' => $freshnessReason,
+                    ],
+                    'initial_provider_state' => $compatible ? $state : null,
+                    'initial_provider_state_stale' => $compatible && !$fresh,
+                ]);
+            }
+            if (!$compatible) {
+                $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
+                    'definition_code' => $definitionCode,
+                    'mapping_id' => $mapping->id(),
+                    'reason' => $compatibilityReason,
+                ]);
+            }
+            if ($compatible) {
+                return ['state' => $state, 'stale' => !$fresh];
             }
         }
 
-        return null;
+        return ['state' => null, 'stale' => false];
     }
 
     private function hasRealisaprintMapping(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager): bool

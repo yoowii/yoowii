@@ -83,7 +83,7 @@ final readonly class RealisaprintInitialDisplayStateBuilder
     /** @param array<string, mixed> $state */
     public function isUsable(array $state, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, \DateTimeImmutable $now): bool
     {
-        $reason = $this->unusableReason($state, $mapping, $definition, $now);
+        $reason = $this->compatibilityReason($state, $mapping, $definition) ?? $this->freshnessReason($state, $now);
         if (null !== $reason) {
             $this->logger->debug('Realisaprint initial display state was rejected for the storefront.', [
                 'mapping_id' => $mapping->id(),
@@ -94,45 +94,100 @@ final readonly class RealisaprintInitialDisplayStateBuilder
         return null === $reason;
     }
 
+    /**
+     * Checks whether a persisted state still describes this exact published
+     * mapping and schema. Deliberately does not inspect its age: an old, but
+     * compatible, state is safe to render while show_variables is refreshed.
+     *
+     * @param array<string, mixed> $state
+     */
+    public function isCompatible(array $state, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, \DateTimeImmutable $now): bool
+    {
+        return null === $this->compatibilityReason($state, $mapping, $definition);
+    }
+
+    /**
+     * Checks only the timestamp and TTL of a persisted state.
+     *
+     * @param array<string, mixed> $state
+     */
+    public function isFresh(array $state, \DateTimeImmutable $now): bool
+    {
+        return null === $this->freshnessReason($state, $now);
+    }
+
     /** @param array<string, mixed> $state */
     public function unusableReason(array $state, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, \DateTimeImmutable $now): ?string
     {
-        $generatedAt = isset($state['generated_at']) && is_string($state['generated_at']) ? \DateTimeImmutable::createFromFormat(\DATE_ATOM, $state['generated_at']) : false;
+        return $this->compatibilityReason($state, $mapping, $definition) ?? $this->freshnessReason($state, $now);
+    }
+
+    /** @param array<string, mixed> $state */
+    public function compatibilityReason(array $state, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition): ?string
+    {
+        foreach ($this->compatibilityChecks($state, $mapping, $definition) as $check => $passed) {
+            if ($passed) {
+                continue;
+            }
+
+            return match ($check) {
+                'json_shape' => 'json_shape_invalid',
+                'build_error' => 'build_error',
+                'mapping' => 'mapping_version_mismatch',
+                'schema' => 'schema_version_mismatch',
+                'stock' => 'stock_mismatch',
+                'display_configuration' => 'display_configuration_mismatch',
+                'fingerprint' => 'fingerprint_mismatch',
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Exposes each independent compatibility check for the development
+     * diagnostic. The order also defines the public rejection reason.
+     *
+     * @param array<string, mixed> $state
+     *
+     * @return array{json_shape: bool, build_error: bool, mapping: bool, schema: bool, stock: bool, display_configuration: bool, fingerprint: bool}
+     */
+    public function compatibilityChecks(array $state, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition): array
+    {
         $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
-        if (!$generatedAt instanceof \DateTimeImmutable) {
-            return 'generated_at_invalid';
-        }
-        if ($generatedAt < $now->modify('-' . $this->timeToLive . ' seconds')) {
-            return 'expired';
-        }
-        if (isset($state['error'])) {
-            return 'build_error';
-        }
-        if (($state['mapping_version'] ?? null) !== $mapping->version()) {
-            return 'mapping_version_mismatch';
-        }
-        if (($state['schema_version'] ?? null) !== $definition->definition()->schemaVersion()) {
-            return 'schema_version_mismatch';
-        }
-        if (($state['stock'] ?? null) !== (is_array($provider) && is_scalar($provider['stock'] ?? null) ? (string) $provider['stock'] : null)) {
-            return 'stock_mismatch';
-        }
-        if (!is_array($state['display_configuration'] ?? null) || !is_string($state['display_fingerprint'] ?? null) ||
-            !is_array($state['visibility'] ?? null) || !is_array($state['availability'] ?? null) || !is_array($state['current'] ?? null)) {
-            return 'json_shape_invalid';
-        }
+        $jsonShape = is_array($state['display_configuration'] ?? null) && is_string($state['display_fingerprint'] ?? null) &&
+            is_array($state['visibility'] ?? null) && is_array($state['availability'] ?? null) && is_array($state['current'] ?? null);
+        $displayConfiguration = false;
+        $fingerprint = false;
 
         try {
             $configuration = $this->displayConfiguration($mapping, $definition);
+            $displayConfiguration = $configuration === ($state['display_configuration'] ?? null);
+            $fingerprint = is_string($state['display_fingerprint'] ?? null) && hash_equals($state['display_fingerprint'], $this->fingerprint($mapping, $configuration));
         } catch (\Throwable) {
-            return 'display_configuration_invalid';
+            // Invalid current mapping/defaults cannot safely reuse a snapshot.
         }
 
-        if ($configuration !== $state['display_configuration']) {
-            return 'display_configuration_mismatch';
+        return [
+            'json_shape' => $jsonShape,
+            'build_error' => !array_key_exists('error', $state),
+            'mapping' => ($state['mapping_version'] ?? null) === $mapping->version(),
+            'schema' => ($state['schema_version'] ?? null) === $definition->definition()->schemaVersion(),
+            'stock' => ($state['stock'] ?? null) === (is_array($provider) && is_scalar($provider['stock'] ?? null) ? (string) $provider['stock'] : null),
+            'display_configuration' => $displayConfiguration,
+            'fingerprint' => $fingerprint,
+        ];
+    }
+
+    /** @param array<string, mixed> $state */
+    public function freshnessReason(array $state, \DateTimeImmutable $now): ?string
+    {
+        $generatedAt = isset($state['generated_at']) && is_string($state['generated_at']) ? \DateTimeImmutable::createFromFormat(\DATE_ATOM, $state['generated_at']) : false;
+        if (!$generatedAt instanceof \DateTimeImmutable) {
+            return 'generated_at_invalid';
         }
 
-        return hash_equals($state['display_fingerprint'], $this->fingerprint($mapping, $configuration)) ? null : 'fingerprint_mismatch';
+        return $generatedAt < $now->modify('-' . $this->timeToLive . ' seconds') ? 'expired' : null;
     }
 
     /** @return array<string, string|int|float> */
