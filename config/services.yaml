@@ -150,6 +150,7 @@ services:
         arguments:
             $cache: '@cache.app'
             $cacheTtl: '%yoowii.realisaprint.quote_cache_ttl%'
+            $configurationCacheTtl: '%yoowii.realisaprint.configuration_cache_ttl%'
             $enabled: '%yoowii.realisaprint.quote_enabled%'
 
     App\Yoowii\Pricing\Application\RealisaprintVariableStateCache:

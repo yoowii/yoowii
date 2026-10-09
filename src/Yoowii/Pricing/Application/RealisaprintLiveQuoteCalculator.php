@@ -25,10 +25,11 @@ final readonly class RealisaprintLiveQuoteCalculator
         private RealisaprintClient $client,
         private CacheInterface $cache,
         private int $cacheTtl,
+        private int $configurationCacheTtl,
         private bool $enabled,
     ) {
-        if ($this->cacheTtl < 15) {
-            throw new \InvalidArgumentException('The Realisaprint quote cache TTL must be at least 15 seconds.');
+        if ($this->cacheTtl < 15 || $this->configurationCacheTtl < 15) {
+            throw new \InvalidArgumentException('The Realisaprint quote and configuration cache TTLs must be at least 15 seconds.');
         }
     }
 
@@ -105,12 +106,12 @@ final readonly class RealisaprintLiveQuoteCalculator
     /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped */
     private function quoteMapped(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, string $correlationId, array $mapped, ?callable $onApiCall = null): PrintQuote
     {
-        $key = 'yoowii.realisaprint.quote.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version'], $currencyCode]));
+        $key = 'yoowii.realisaprint.price.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version'], $currencyCode, '1', 'FR']));
         $cacheMiss = false;
 
         try {
             $response = null !== $onApiCall
-                ? $this->requestQuote($mapped, $onApiCall)
+                ? $this->requestQuote($mapped, $onApiCall, false)
                 : $this->cache->get($key, function (ItemInterface $item) use ($mapped, &$cacheMiss): array {
                     $cacheMiss = true;
                     $item->expiresAfter($this->cacheTtl);
@@ -159,6 +160,7 @@ final readonly class RealisaprintLiveQuoteCalculator
                 'provider_price' => $productionCost,
                 'provider_options_cost' => $optionsCost,
                 'quote_cache_ttl' => $this->cacheTtl,
+                'configuration_cache_ttl' => $this->configurationCacheTtl,
             ]]),
             ['provider_price' => $productionCost, 'provider_options' => $optionsCost, 'margin' => $margin, 'handling_fee' => $pricingPolicy->handlingFee(), 'total' => $total],
             $total,
@@ -176,18 +178,17 @@ final readonly class RealisaprintLiveQuoteCalculator
      *
      * @return array{configuration: array<string, mixed>, price: array<string, mixed>}
      */
-    private function requestQuote(array $mapped, ?callable $onApiCall = null): array
+    private function requestQuote(array $mapped, ?callable $onApiCall = null, bool $useConfigurationCache = true): array
     {
         $saveRequest = ['product' => $mapped['product'], 'stock' => $mapped['stock'], 'variables' => $mapped['variables']];
 
-        try {
-            $saved = $this->client->post('save_configuration', $saveRequest);
-        } catch (\Throwable $exception) {
-            $onApiCall?->__invoke('save_configuration', $saveRequest, null);
+        $saved = $useConfigurationCache
+            ? $this->cache->get($this->configurationCacheKey($mapped), function (ItemInterface $item) use ($saveRequest): array {
+                $item->expiresAfter($this->configurationCacheTtl);
 
-            throw $exception;
-        }
-        $onApiCall?->__invoke('save_configuration', $saveRequest, $saved);
+                return $this->saveConfiguration($saveRequest);
+            })
+            : $this->saveConfiguration($saveRequest, $onApiCall);
         $code = $saved['code'] ?? null;
         if (!is_scalar($code) || '' === trim((string) $code)) {
             throw new RealisaprintQuoteException(QuoteFallbackReason::ApiRejectedConfiguration, 'Realisaprint did not return a configuration code.');
@@ -207,6 +208,27 @@ final readonly class RealisaprintLiveQuoteCalculator
         }
 
         return ['configuration' => $saved, 'price' => $price];
+    }
+
+    /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped */
+    private function configurationCacheKey(array $mapped): string
+    {
+        return 'yoowii.realisaprint.configuration.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version']]));
+    }
+
+    /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>} $saveRequest */
+    private function saveConfiguration(array $saveRequest, ?callable $onApiCall = null): array
+    {
+        try {
+            $saved = $this->client->post('save_configuration', $saveRequest);
+        } catch (\Throwable $exception) {
+            $onApiCall?->__invoke('save_configuration', $saveRequest, null);
+
+            throw $exception;
+        }
+        $onApiCall?->__invoke('save_configuration', $saveRequest, $saved);
+
+        return $saved;
     }
 
     private function cents(mixed $value, string $label): int
