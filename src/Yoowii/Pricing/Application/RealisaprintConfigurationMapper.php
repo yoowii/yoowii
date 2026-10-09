@@ -48,6 +48,7 @@ final readonly class RealisaprintConfigurationMapper
         /** @var array<string, mixed> $typedRules */
         $typedRules = $rules;
         $variables = $this->variables($typedRules, $configuration->toArray());
+        ksort($variables, \SORT_STRING);
         $payload = ['product' => (string) $product, 'stock' => (string) $stock, 'variables' => $variables];
 
         return $payload + [

@@ -19,6 +19,7 @@ final readonly class RealisaprintConfiguratorRefresh
         private EntityManagerInterface $entityManager,
         private RealisaprintConfigurationMapper $mapper,
         private RealisaprintClient $client,
+        private RealisaprintVariableStateCache $variableStateCache,
     ) {
     }
 
@@ -34,14 +35,16 @@ final readonly class RealisaprintConfiguratorRefresh
                 continue;
             }
             $mapped = $this->mapper->map($configuration, $route->supplierProduct(), $at);
-            $response = $this->client->post('show_variables', [
-                'product' => $mapped['product'],
-                'stock' => $mapped['stock'],
-                'variables' => $mapped['variables'],
-                'retry' => 1,
-            ]);
+            return $this->variableStateCache->get($configuration, $mapped, function () use ($mapped, $mapping): array {
+                $response = $this->client->post('show_variables', [
+                    'product' => $mapped['product'],
+                    'stock' => $mapped['stock'],
+                    'variables' => $mapped['variables'],
+                    'retry' => 1,
+                ]);
 
-            return $this->normalizeResponse($response, $mapping);
+                return $this->normalizeResponse($response, $mapping);
+            });
         }
 
         throw new \DomainException('Aucune route Realisaprint compatible ne permet de rafraîchir cette configuration.');

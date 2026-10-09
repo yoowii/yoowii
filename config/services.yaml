@@ -145,6 +145,11 @@ services:
             $cacheTtl: '%yoowii.realisaprint.quote_cache_ttl%'
             $enabled: '%yoowii.realisaprint.quote_enabled%'
 
+    App\Yoowii\Pricing\Application\RealisaprintVariableStateCache:
+        arguments:
+            $cache: '@cache.app'
+            $timeToLive: '%yoowii.realisaprint.variable_state_cache_ttl%'
+
     App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder:
         arguments:
             $timeToLive: '%yoowii.realisaprint.initial_display_state_ttl%'
