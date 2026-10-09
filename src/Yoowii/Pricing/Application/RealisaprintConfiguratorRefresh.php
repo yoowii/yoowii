@@ -118,6 +118,7 @@ final readonly class RealisaprintConfiguratorRefresh
     {
         $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
         $rules = is_array($provider) && is_array($provider['variables'] ?? null) ? $provider['variables'] : [];
+        $this->assertUsableShowVariablesResponse($response, $rules);
         $visibility = [];
         $availability = [];
         $current = [];
@@ -181,6 +182,47 @@ final readonly class RealisaprintConfiguratorRefresh
             'alerts' => $this->messages($response['alerts'] ?? []),
             'infos' => $this->messages($response['infos'] ?? []),
         ];
+    }
+
+    /**
+     * The HTTP client adds _http_status to every live provider response. A
+     * failed (or structurally empty) show_variables response must never be
+     * normalized with the historical "visible by default" compatibility
+     * fallback: that would reveal every storefront field and overwrite a
+     * previously valid browser state.
+     *
+     * @param array<string, mixed> $response
+     * @param array<string, mixed> $rules
+     */
+    private function assertUsableShowVariablesResponse(array $response, array $rules): void
+    {
+        if (!array_key_exists('_http_status', $response)) {
+            return;
+        }
+
+        $status = $response['_http_status'];
+        if (!is_int($status) || $status < 200 || $status >= 300) {
+            throw new \DomainException('Realisaprint ne peut pas mettre à jour les options pour le moment.');
+        }
+
+        $visibility = $response['visibility'] ?? $response['variable_visibility'] ?? null;
+        $values = $response['variable_values'] ?? null;
+        foreach ($rules as $providerVariable => $rule) {
+            if (!is_string($providerVariable) || !is_array($rule)) {
+                continue;
+            }
+            $option = $rule['option'] ?? null;
+            if (
+                array_key_exists($providerVariable, $response)
+                || (is_string($option) && array_key_exists($option, $response))
+                || (is_array($visibility) && (array_key_exists($providerVariable, $visibility) || (is_string($option) && array_key_exists($option, $visibility))))
+                || (is_array($values) && array_key_exists($providerVariable, $values))
+            ) {
+                return;
+            }
+        }
+
+        throw new \DomainException('Realisaprint a renvoyé un état de configuration incomplet.');
     }
 
     private function isAvailable(mixed $value): bool

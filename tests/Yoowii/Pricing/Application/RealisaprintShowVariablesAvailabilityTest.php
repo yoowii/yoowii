@@ -63,6 +63,26 @@ final class RealisaprintShowVariablesAvailabilityTest extends TestCase
         ], $this->mapping())['visibility']['support_interieur']);
     }
 
+    public function testItRejectsAnEmptyLiveProviderResponse(): void
+    {
+        $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('état de configuration incomplet');
+
+        $refresh->normalizeResponse(['_http_status' => 200], $this->mapping());
+    }
+
+    public function testItRejectsANonSuccessfulLiveProviderResponse(): void
+    {
+        $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('ne peut pas mettre à jour les options');
+
+        $refresh->normalizeResponse(['_http_status' => 429], $this->mapping());
+    }
+
     public function testItDoesNotExposeAnAmbiguousSupplierCurrentValue(): void
     {
         $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
