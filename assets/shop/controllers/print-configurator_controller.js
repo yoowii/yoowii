@@ -357,6 +357,9 @@ export default class extends Controller {
             if (!response.ok) {
                 throw new Error(payload.message || 'Les options ne peuvent pas être mises à jour.');
             }
+            if (!this.isUsableProviderState(payload)) {
+                throw new Error('Realisaprint a renvoyé un état de configuration incomplet.');
+            }
             this.storeProviderState(options, payload);
             this.applyProviderState(payload);
             // An automatic selection is directly derived from this very
@@ -401,15 +404,16 @@ export default class extends Controller {
             return null;
         }
 
-        return `yoowii:realisaprint:show-variables:${mappingVersion}:${schemaVersion}:${this.refreshUrlValue}:${cacheKey}`;
+        return `yoowii:realisaprint:show-variables:v2:${mappingVersion}:${schemaVersion}:${this.refreshUrlValue}:${cacheKey}`;
     }
 
     cachedProviderState(options) {
         const cacheKey = this.providerStateCacheKey(options);
         const inMemory = this.providerStateCache.get(cacheKey);
-        if (inMemory) {
+        if (inMemory && this.isUsableProviderState(inMemory)) {
             return inMemory;
         }
+        this.providerStateCache.delete(cacheKey);
         const sessionKey = this.providerStateSessionKey(cacheKey);
         if (!sessionKey) {
             return null;
@@ -423,6 +427,11 @@ export default class extends Controller {
             if (!state || typeof state !== 'object') {
                 return null;
             }
+            if (!this.isUsableProviderState(state)) {
+                window.sessionStorage.removeItem(sessionKey);
+
+                return null;
+            }
             this.providerStateCache.set(cacheKey, state);
 
             return state;
@@ -432,6 +441,9 @@ export default class extends Controller {
     }
 
     storeProviderState(options, state) {
+        if (!this.isUsableProviderState(state)) {
+            return;
+        }
         const cacheKey = this.providerStateCacheKey(options);
         this.providerStateCache.set(cacheKey, state);
         const sessionKey = this.providerStateSessionKey(cacheKey);
@@ -443,6 +455,26 @@ export default class extends Controller {
         } catch (_) {
             // Browsers may deny storage in private or constrained contexts.
         }
+    }
+
+    isUsableProviderState(state) {
+        if (!state || typeof state !== 'object' || !state.visibility || typeof state.visibility !== 'object') {
+            return false;
+        }
+        const visibility = Object.entries(state.visibility);
+        if (visibility.length === 0) {
+            return false;
+        }
+        const availability = state.availability && typeof state.availability === 'object' ? Object.keys(state.availability) : [];
+        const current = state.current && typeof state.current === 'object' ? Object.keys(state.current) : [];
+        const messages = [...(state.alerts || []), ...(state.infos || [])];
+
+        // This is the legacy fallback shape produced when show_variables gave
+        // no variable payload at all. It is not a usable supplier state.
+        return availability.length > 0
+            || current.length > 0
+            || messages.length > 0
+            || visibility.some(([, visible]) => visible === false);
     }
 
     scheduleAutomaticQuote() {

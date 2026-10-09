@@ -44,6 +44,17 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringNotContainsString('this.applyProviderState({ visibility: {}', $refreshMethod);
     }
 
+    public function testItRejectsAndInvalidatesTheLegacyAllVisibleFallbackState(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('isUsableProviderState(payload)', $controller);
+        self::assertStringContainsString('Realisaprint a renvoyé un état de configuration incomplet.', $controller);
+        self::assertStringContainsString('show-variables:v2:', $controller);
+        self::assertStringContainsString('window.sessionStorage.removeItem(sessionKey);', $controller);
+        self::assertStringContainsString('visibility.some(([, visible]) => visible === false)', $controller);
+    }
+
     public function testInitialRefreshNeverCalculatesAPrice(): void
     {
         self::assertStringContainsString('this.manualQuoteValue && this.hasUserInteracted && this.isComplete()', $this->controller());
