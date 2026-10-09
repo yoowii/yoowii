@@ -69,6 +69,14 @@ final readonly class PrintQuoteService
             } catch (RealisaprintQuoteException $exception) {
                 $fallbackReason = $exception->reason();
                 $safeDetail = $exception->safeDetail();
+                $this->logger->warning('Realisaprint real-time quote failed; matrix fallback will be attempted.', [
+                    'correlation_id' => $correlationId,
+                    'product_code' => $configuration->productCode(),
+                    'supplier_code' => $route->supplierProduct()->supplier()->code(),
+                    'supplier_product_code' => $route->supplierProduct()->code(),
+                    'fallback_reason' => $fallbackReason->value,
+                    'technical_detail' => $safeDetail,
+                ]);
 
                 break;
             }
