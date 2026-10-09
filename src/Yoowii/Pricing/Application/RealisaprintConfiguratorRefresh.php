@@ -196,6 +196,10 @@ final readonly class RealisaprintConfiguratorRefresh
      */
     private function assertUsableShowVariablesResponse(array $response, array $rules): void
     {
+        if (true === ($response['simulation'] ?? false)) {
+            throw new \DomainException('Le rafraîchissement des options nécessite l’activation de l’API Realisaprint.');
+        }
+
         if (!array_key_exists('_http_status', $response)) {
             return;
         }

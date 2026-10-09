@@ -73,6 +73,16 @@ final class RealisaprintShowVariablesAvailabilityTest extends TestCase
         $refresh->normalizeResponse(['_http_status' => 200], $this->mapping());
     }
 
+    public function testItRejectsASimulatedProviderResponse(): void
+    {
+        $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('activation de l’API Realisaprint');
+
+        $refresh->normalizeResponse(['simulation' => true], $this->mapping());
+    }
+
     public function testItRejectsANonSuccessfulLiveProviderResponse(): void
     {
         $refresh = (new \ReflectionClass(RealisaprintConfiguratorRefresh::class))->newInstanceWithoutConstructor();
