@@ -27,6 +27,7 @@ final readonly class RealisaprintLiveQuoteCalculator
         private int $cacheTtl,
         private int $configurationCacheTtl,
         private RealisaprintVariableStateLock $lock,
+        private RealisaprintConfigurationPopularity $popularity,
         private bool $enabled,
     ) {
         if ($this->cacheTtl < 15 || $this->configurationCacheTtl < 15) {
@@ -146,6 +147,7 @@ final readonly class RealisaprintLiveQuoteCalculator
             throw new RealisaprintQuoteException(QuoteFallbackReason::ApiResponseInvalid, 'Realisaprint returned an invalid price response.');
         }
         $supplierCost = $productionCost + $optionsCost;
+        $this->popularity->record($mapped['fingerprint'], $mapped['version']);
         $margin = $pricingPolicy->calculateMargin($supplierCost);
         $total = $supplierCost + $margin + $pricingPolicy->handlingFee();
         $snapshot = new PricingSnapshot(

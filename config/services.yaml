@@ -152,6 +152,7 @@ services:
             $cacheTtl: '%yoowii.realisaprint.quote_cache_ttl%'
             $configurationCacheTtl: '%yoowii.realisaprint.configuration_cache_ttl%'
             $lock: '@App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock'
+            $popularity: '@App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintConfigurationPopularity'
             $enabled: '%yoowii.realisaprint.quote_enabled%'
 
     App\Yoowii\Pricing\Application\RealisaprintVariableStateCache:
@@ -164,6 +165,11 @@ services:
     App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock:
         arguments:
             $redisDsn: '%env(default:yoowii.realisaprint.default_redis_dsn:YOOWII_REDIS_DSN)%'
+
+    App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintConfigurationPopularity:
+        arguments:
+            $redisDsn: '%env(default:yoowii.realisaprint.default_redis_dsn:YOOWII_REDIS_DSN)%'
+            $logger: '@logger'
 
     App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder:
         arguments:
