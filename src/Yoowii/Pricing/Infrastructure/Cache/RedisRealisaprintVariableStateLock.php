@@ -15,8 +15,8 @@ use Symfony\Component\Cache\Adapter\RedisAdapter;
  */
 final class RedisRealisaprintVariableStateLock implements RealisaprintVariableStateLock
 {
-    private const int LOCK_TTL_MILLISECONDS = 60_000;
-    private const int WAIT_TIMEOUT_MILLISECONDS = 75_000;
+    private const int LOCK_TTL_MILLISECONDS = 180_000;
+    private const int WAIT_TIMEOUT_MILLISECONDS = 210_000;
     private const int RETRY_DELAY_MICROSECONDS = 100_000;
 
     private ?\Redis $connection = null;

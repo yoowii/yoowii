@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Yoowii\PrintProduction\Infrastructure\Realisaprint;
 
-use Symfony\Contracts\Cache\CacheInterface;
-use Symfony\Contracts\Cache\ItemInterface;
+use App\Yoowii\PrintProduction\Application\RealisaprintRequestThrottle;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class RealisaprintClient
 {
-    public function __construct(private HttpClientInterface $client, private CacheInterface $cache, private string $shopId, private string $apiKey, private bool $enabled, private string $baseUrl)
+    public function __construct(private HttpClientInterface $client, private RealisaprintRequestThrottle $throttle, private string $shopId, private string $apiKey, private bool $enabled, private string $baseUrl)
     {
     }
 
@@ -62,7 +61,7 @@ final readonly class RealisaprintClient
             return ['simulation' => true, 'operation' => $operation, 'payload' => $this->redact($parameters)];
         }
 
-        $this->guardInterval($operation);
+        $this->throttle->acquire($operation);
 
         $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . '/' . rawurlencode($operation), [
             'body' => ['shop_id' => $this->shopId, 'api_key' => $this->apiKey] + $parameters,
@@ -90,19 +89,5 @@ final readonly class RealisaprintClient
         unset($parameters['api_key']);
 
         return $parameters;
-    }
-
-    private function guardInterval(string $operation): void
-    {
-        $reserved = false;
-        $this->cache->get('yoowii.realisaprint.rate_limit.' . hash('sha256', $operation), function (ItemInterface $item) use (&$reserved): bool {
-            $reserved = true;
-            $item->expiresAfter(15);
-
-            return true;
-        });
-        if (!$reserved) {
-            throw new \RuntimeException(sprintf('Realisaprint rate limit: wait 15 seconds before calling "%s" again.', $operation));
-        }
     }
 }

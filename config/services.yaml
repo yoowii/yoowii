@@ -124,11 +124,15 @@ services:
     # which otherwise replaces this definition during service discovery.
     App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient:
         arguments:
-            $cache: '@cache.app'
+            $throttle: '@App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RedisRealisaprintRequestThrottle'
             $shopId: '%yoowii.realisaprint.shop_id%'
             $apiKey: '%yoowii.realisaprint.api_key%'
             $enabled: '%yoowii.realisaprint.enabled%'
             $baseUrl: '%yoowii.realisaprint.base_url%'
+
+    App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RedisRealisaprintRequestThrottle:
+        arguments:
+            $redisDsn: '%env(default:yoowii.realisaprint.default_redis_dsn:YOOWII_REDIS_DSN)%'
 
     App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintFtpTransport:
         arguments:

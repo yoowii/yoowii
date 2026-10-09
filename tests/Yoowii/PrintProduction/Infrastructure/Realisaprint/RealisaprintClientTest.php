@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Yoowii\PrintProduction\Infrastructure\Realisaprint;
 
+use App\Yoowii\PrintProduction\Application\RealisaprintRequestThrottle;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use PHPUnit\Framework\TestCase;
-use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class RealisaprintClientTest extends TestCase
@@ -15,7 +15,7 @@ final class RealisaprintClientTest extends TestCase
     {
         $client = new RealisaprintClient(
             $this->createMock(HttpClientInterface::class),
-            $this->createMock(CacheInterface::class),
+            $this->createMock(RealisaprintRequestThrottle::class),
             'shop-123',
             'private-api-key',
             true,
@@ -33,5 +33,21 @@ final class RealisaprintClientTest extends TestCase
         self::assertStringContainsString("'product=booklet'", $command);
         self::assertStringContainsString("'variables[FORMAT]=A4'", $command);
         self::assertStringNotContainsString('private-api-key', $command);
+    }
+
+    public function testDisabledClientDoesNotReserveAProviderCall(): void
+    {
+        $throttle = $this->createMock(RealisaprintRequestThrottle::class);
+        $throttle->expects(self::never())->method('acquire');
+        $client = new RealisaprintClient(
+            $this->createMock(HttpClientInterface::class),
+            $throttle,
+            'shop-123',
+            'private-api-key',
+            false,
+            'https://api.example.test/',
+        );
+
+        self::assertSame(['simulation' => true, 'operation' => 'show_variables', 'payload' => []], $client->post('show_variables', []));
     }
 }

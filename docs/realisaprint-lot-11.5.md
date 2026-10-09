@@ -8,8 +8,8 @@ Ce lot garantit qu'une configuration technique Realisaprint manquante ne déclen
 
 - une clé dérivée de la clé canonique `show_variables` ;
 - un jeton aléatoire, vérifié dans un script Lua avant la libération ;
-- une durée de vie de 60 secondes, pour éviter un verrou bloqué après l'arrêt d'un worker ;
-- une attente maximale de 75 secondes.
+- une durée de vie de 180 secondes, pour couvrir l'attente éventuelle du throttle global avant l'appel fournisseur tout en évitant un verrou bloqué après l'arrêt d'un worker ;
+- une attente maximale de 210 secondes.
 
 Lorsqu'une seconde requête obtient le verrou après la première, elle relit d'abord `cache.app`. Elle récupère donc la réponse que le premier worker a déjà stockée, sans appeler Realisaprint une seconde fois.
 
