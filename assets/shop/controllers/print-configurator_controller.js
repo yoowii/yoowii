@@ -60,9 +60,11 @@ export default class extends Controller {
         } else {
             this.refreshSteps(false);
         }
-        // An old compatible snapshot is rendered first, then show_variables
-        // refreshes it. A failed refresh intentionally leaves that state intact.
-        if (!this.hasInitialProviderStateValue || this.initialProviderStateStaleValue) {
+        // A compatible published snapshot is the authoritative initial state.
+        // Do not refresh it on page load: the first customer choice is what
+        // supplies the configuration required by show_variables. Refreshing a
+        // partial/empty form here can incorrectly reveal conditional fields.
+        if (!this.hasInitialProviderStateValue) {
             this.scheduleRefresh();
         }
     }

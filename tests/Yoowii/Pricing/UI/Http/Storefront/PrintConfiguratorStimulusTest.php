@@ -20,16 +20,17 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringContainsString("this.applyProviderState(this.initialProviderStateValue, { source: 'initial' });", $controller);
         self::assertStringContainsString("this.applyProviderState(this.initialProviderStateValue, { source: 'initial-dom-ready' });", $controller);
         self::assertStringContainsString('window.requestAnimationFrame', $controller);
-        self::assertStringContainsString('if (!this.hasInitialProviderStateValue || this.initialProviderStateStaleValue) {', $controller);
+        self::assertStringContainsString('if (!this.hasInitialProviderStateValue) {', $controller);
         self::assertLessThan(
             strpos($controller, 'this.scheduleRefresh();'),
             strpos($controller, "this.applyProviderState(this.initialProviderStateValue, { source: 'initial' });"),
         );
     }
 
-    public function testARefreshIsOnlyScheduledWhenTheSnapshotIsMissingOrStale(): void
+    public function testARefreshIsOnlyScheduledWhenTheSnapshotIsMissing(): void
     {
-        self::assertStringContainsString('if (!this.hasInitialProviderStateValue || this.initialProviderStateStaleValue) {', $this->controller());
+        self::assertStringContainsString('if (!this.hasInitialProviderStateValue) {', $this->controller());
+        self::assertStringNotContainsString('if (!this.hasInitialProviderStateValue || this.initialProviderStateStaleValue) {', $this->controller());
     }
 
     public function testRefreshFailureDoesNotResetTheAppliedProviderVisibility(): void
