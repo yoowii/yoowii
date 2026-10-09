@@ -26,6 +26,7 @@ final readonly class RealisaprintLiveQuoteCalculator
         private CacheInterface $cache,
         private int $cacheTtl,
         private int $configurationCacheTtl,
+        private RealisaprintVariableStateLock $lock,
         private bool $enabled,
     ) {
         if ($this->cacheTtl < 15 || $this->configurationCacheTtl < 15) {
@@ -112,9 +113,8 @@ final readonly class RealisaprintLiveQuoteCalculator
         try {
             $response = null !== $onApiCall
                 ? $this->requestQuote($mapped, $onApiCall, false)
-                : $this->cache->get($key, function (ItemInterface $item) use ($mapped, &$cacheMiss): array {
+                : $this->cached($key, $this->cacheTtl, function () use ($mapped, &$cacheMiss): array {
                     $cacheMiss = true;
-                    $item->expiresAfter($this->cacheTtl);
 
                     return $this->requestQuote($mapped);
                 });
@@ -183,11 +183,7 @@ final readonly class RealisaprintLiveQuoteCalculator
         $saveRequest = ['product' => $mapped['product'], 'stock' => $mapped['stock'], 'variables' => $mapped['variables']];
 
         $saved = $useConfigurationCache
-            ? $this->cache->get($this->configurationCacheKey($mapped), function (ItemInterface $item) use ($saveRequest): array {
-                $item->expiresAfter($this->configurationCacheTtl);
-
-                return $this->saveConfiguration($saveRequest);
-            })
+            ? $this->cached($this->configurationCacheKey($mapped), $this->configurationCacheTtl, fn (): array => $this->saveConfiguration($saveRequest))
             : $this->saveConfiguration($saveRequest, $onApiCall);
         $code = $saved['code'] ?? null;
         if (!is_scalar($code) || '' === trim((string) $code)) {
@@ -214,6 +210,26 @@ final readonly class RealisaprintLiveQuoteCalculator
     private function configurationCacheKey(array $mapped): string
     {
         return 'yoowii.realisaprint.configuration.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version']]));
+    }
+
+    /** @param callable(): array<string, mixed> $refresh
+     * @return array<string, mixed>
+     */
+    private function cached(string $key, int $timeToLive, callable $refresh): array
+    {
+        return $this->cache->get($key, function (ItemInterface $item) use ($key, $timeToLive, $refresh): array {
+            $item->expiresAfter($timeToLive);
+
+            return $this->lock->synchronized($key, function () use ($key, $timeToLive, $refresh): array {
+                // The first worker may have populated Redis while this worker
+                // waited for the distributed lock.
+                return $this->cache->get($key, function (ItemInterface $item) use ($timeToLive, $refresh): array {
+                    $item->expiresAfter($timeToLive);
+
+                    return $refresh();
+                }, 0.0);
+            });
+        }, 0.0);
     }
 
     /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>} $saveRequest */

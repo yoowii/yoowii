@@ -27,7 +27,7 @@ final class RedisRealisaprintVariableStateLock implements RealisaprintVariableSt
 
     public function synchronized(string $resource, callable $callback): mixed
     {
-        $key = 'yoowii.realisaprint.show_variables.lock.' . hash('sha256', $resource);
+        $key = 'yoowii.realisaprint.lock.' . hash('sha256', $resource);
         $token = bin2hex(random_bytes(16));
         $deadline = (microtime(true) * 1000) + self::WAIT_TIMEOUT_MILLISECONDS;
 
