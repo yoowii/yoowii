@@ -56,6 +56,17 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringNotContainsString('state.current?.[option] || \'\'', $controller);
     }
 
+    public function testAutomaticCorrectionsDoNotTriggerASecondProviderRefresh(): void
+    {
+        $controller = $this->controller();
+        $refreshMethod = substr($controller, strpos($controller, 'async refreshProviderState()'), strpos($controller, 'applyProviderState(state') - strpos($controller, 'async refreshProviderState()'));
+
+        self::assertStringContainsString('this.applyProviderState(payload);', $refreshMethod);
+        self::assertStringContainsString('Do not immediately call the supplier', $refreshMethod);
+        self::assertStringNotContainsString('if (corrected)', $refreshMethod);
+        self::assertStringNotContainsString('this.scheduleRefresh();', $refreshMethod);
+    }
+
     private function controller(): string
     {
         $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/print-configurator_controller.js');

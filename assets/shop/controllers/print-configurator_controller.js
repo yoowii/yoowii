@@ -334,11 +334,10 @@ export default class extends Controller {
             if (!response.ok) {
                 throw new Error(payload.message || 'Les options ne peuvent pas être mises à jour.');
             }
-            const corrected = this.applyProviderState(payload);
-            if (corrected) {
-                this.scheduleRefresh();
-                return;
-            }
+            this.applyProviderState(payload);
+            // An automatic selection is directly derived from this very
+            // show_variables response. Do not immediately call the supplier
+            // again just to echo that deterministic correction.
             refreshSucceeded = true;
             if (this.manualQuoteValue && this.hasUserInteracted && this.isComplete()) {
                 const fingerprint = this.visibleConfigurationFingerprint();
