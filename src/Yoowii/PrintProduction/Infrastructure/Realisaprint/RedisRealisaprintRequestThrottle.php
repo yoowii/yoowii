@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\PrintProduction\Infrastructure\Realisaprint;
 
 use App\Yoowii\PrintProduction\Application\RealisaprintRequestThrottle;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 
 /**
@@ -18,7 +19,7 @@ final class RedisRealisaprintRequestThrottle implements RealisaprintRequestThrot
 
     private ?\Redis $connection = null;
 
-    public function __construct(private readonly string $redisDsn)
+    public function __construct(private readonly string $redisDsn, private readonly LoggerInterface $logger)
     {
     }
 
@@ -26,6 +27,7 @@ final class RedisRealisaprintRequestThrottle implements RealisaprintRequestThrot
     {
         $key = 'yoowii.realisaprint.rate_limit.' . hash('sha256', $operation);
         $deadline = (microtime(true) * 1000) + self::MAXIMUM_WAIT_MILLISECONDS;
+        $waitedMilliseconds = 0;
 
         do {
             $remaining = (int) $this->redis()->eval(<<<'LUA'
@@ -39,10 +41,19 @@ final class RedisRealisaprintRequestThrottle implements RealisaprintRequestThrot
                 return ttl
                 LUA, [$key, (string) self::MINIMUM_INTERVAL_MILLISECONDS], 1);
             if (0 === $remaining) {
+                if (0 < $waitedMilliseconds) {
+                    $this->logger->info('Realisaprint request waited for a rate-limit slot.', [
+                        'operation' => $operation,
+                        'waited_milliseconds' => $waitedMilliseconds,
+                    ]);
+                }
+
                 return;
             }
 
-            usleep(min($remaining, self::MAXIMUM_SLEEP_MILLISECONDS) * 1_000);
+            $sleepMilliseconds = min($remaining, self::MAXIMUM_SLEEP_MILLISECONDS);
+            $waitedMilliseconds += $sleepMilliseconds;
+            usleep($sleepMilliseconds * 1_000);
         } while ((microtime(true) * 1000) < $deadline);
 
         throw new \RuntimeException(sprintf('Realisaprint rate limit: timed out while waiting for "%s".', $operation));

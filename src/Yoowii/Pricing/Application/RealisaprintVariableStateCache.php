@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Pricing\Application;
 
 use App\Yoowii\Pricing\Domain\Print\PrintConfiguration;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
@@ -21,6 +22,7 @@ final readonly class RealisaprintVariableStateCache
         private CacheInterface $cache,
         private int $timeToLive,
         private RealisaprintVariableStateLock $lock,
+        private LoggerInterface $logger,
     ) {
         if ($this->timeToLive < 15) {
             throw new \InvalidArgumentException('The Realisaprint variable-state cache TTL must be at least 15 seconds.');
@@ -36,20 +38,29 @@ final readonly class RealisaprintVariableStateCache
     public function get(PrintConfiguration $configuration, array $mapped, callable $refresh): array
     {
         $key = $this->key($configuration, $mapped);
+        $refreshed = false;
 
-        return $this->cache->get($key, function (ItemInterface $item) use ($key, $refresh): array {
+        $state = $this->cache->get($key, function (ItemInterface $item) use ($key, $refresh, &$refreshed): array {
             $item->expiresAfter($this->timeToLive);
 
-            return $this->lock->synchronized($key, function () use ($key, $refresh): array {
+            return $this->lock->synchronized($key, function () use ($key, $refresh, &$refreshed): array {
                 // A process that waited for the Redis lock must reuse the value
                 // written by the first process instead of calling the supplier.
-                return $this->cache->get($key, function (ItemInterface $item) use ($refresh): array {
+                return $this->cache->get($key, function (ItemInterface $item) use ($refresh, &$refreshed): array {
+                    $refreshed = true;
                     $item->expiresAfter($this->timeToLive);
 
                     return $refresh();
                 }, 0.0);
             });
         }, 0.0);
+        $this->logger->debug('Realisaprint show_variables state resolved.', [
+            'cache_outcome' => $refreshed ? 'miss' : 'hit',
+            'cache_key_hash' => hash('sha256', $key),
+            'product_code' => $configuration->productCode(),
+        ]);
+
+        return $state;
     }
 
     /**

@@ -133,6 +133,7 @@ services:
     App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RedisRealisaprintRequestThrottle:
         arguments:
             $redisDsn: '%env(default:yoowii.realisaprint.default_redis_dsn:YOOWII_REDIS_DSN)%'
+            $logger: '@logger'
 
     App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintFtpTransport:
         arguments:
@@ -154,6 +155,7 @@ services:
             $cache: '@cache.app'
             $timeToLive: '%yoowii.realisaprint.variable_state_cache_ttl%'
             $lock: '@App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock'
+            $logger: '@logger'
 
     App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock:
         arguments:
