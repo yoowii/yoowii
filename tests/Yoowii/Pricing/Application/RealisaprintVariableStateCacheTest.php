@@ -25,7 +25,7 @@ final class RealisaprintVariableStateCacheTest extends TestCase
                 $this->records[] = ['message' => $message, 'context' => $context];
             }
         };
-        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, $this->lock(), $logger);
+        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, 7200, $this->lock(), $logger);
         $configuration = new PrintConfiguration('PRINT_FLYER', 'schema-v3', ['format' => 'a5'], ['format']);
         $calls = 0;
 
@@ -48,7 +48,7 @@ final class RealisaprintVariableStateCacheTest extends TestCase
 
     public function testItsKeyChangesWhenMappingOrSchemaChanges(): void
     {
-        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, $this->lock(), new NullLogger());
+        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, 7200, $this->lock(), new NullLogger());
         $mapped = $this->mapped(['VARTICLE_FORMAT' => 'A5']);
 
         $schemaV1 = new PrintConfiguration('PRINT_FLYER', 'schema-v1', ['format' => 'a5'], ['format']);
@@ -73,7 +73,7 @@ final class RealisaprintVariableStateCacheTest extends TestCase
                 return $callback();
             }
         };
-        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, $lock, new NullLogger());
+        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, 7200, $lock, new NullLogger());
         $configuration = new PrintConfiguration('PRINT_FLYER', 'schema-v3', ['format' => 'a5'], ['format']);
         $mapped = $this->mapped(['VARTICLE_FORMAT' => 'A5']);
 
@@ -84,7 +84,7 @@ final class RealisaprintVariableStateCacheTest extends TestCase
 
     public function testItWarmsAnAlreadyVerifiedProviderState(): void
     {
-        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, $this->lock(), new NullLogger());
+        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, 7200, $this->lock(), new NullLogger());
         $configuration = new PrintConfiguration('PRINT_FLYER', 'schema-v3', ['format' => 'a5'], ['format']);
         $mapped = $this->mapped(['VARTICLE_FORMAT' => 'A5']);
         $state = $this->state();
@@ -92,6 +92,19 @@ final class RealisaprintVariableStateCacheTest extends TestCase
         $cache->warm($configuration, $mapped, $state);
 
         self::assertSame($state, $cache->get($configuration, $mapped, fn (): array => throw new \LogicException('The warm state should be reused.')));
+    }
+
+    public function testItFallsBackToTheStaleStateWhenARefreshFails(): void
+    {
+        $adapter = new ArrayAdapter();
+        $cache = new RealisaprintVariableStateCache($adapter, 3600, 7200, $this->lock(), new NullLogger());
+        $configuration = new PrintConfiguration('PRINT_FLYER', 'schema-v3', ['format' => 'a5'], ['format']);
+        $mapped = $this->mapped(['VARTICLE_FORMAT' => 'A5']);
+        $state = $this->state();
+        $cache->warm($configuration, $mapped, $state);
+        $adapter->delete($cache->key($configuration, $mapped));
+
+        self::assertSame($state, $cache->get($configuration, $mapped, fn (): array => throw new \RuntimeException('Supplier unavailable.')));
     }
 
     /** @param array<string, bool|float|int|string> $variables

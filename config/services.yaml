@@ -159,6 +159,7 @@ services:
         arguments:
             $cache: '@cache.app'
             $timeToLive: '%yoowii.realisaprint.variable_state_cache_ttl%'
+            $staleTimeToLive: '%yoowii.realisaprint.variable_state_stale_ttl%'
             $lock: '@App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock'
             $logger: '@logger'
 

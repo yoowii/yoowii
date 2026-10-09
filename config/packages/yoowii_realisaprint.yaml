@@ -14,6 +14,7 @@ parameters:
     yoowii.realisaprint.quote_cache_ttl: '%env(int:YOOWII_REALISAPRINT_QUOTE_CACHE_TTL)%'
     yoowii.realisaprint.configuration_cache_ttl: 2592000
     yoowii.realisaprint.variable_state_cache_ttl: 2592000
+    yoowii.realisaprint.variable_state_stale_ttl: 7776000
     yoowii.realisaprint.default_redis_dsn: 'redis://redis:6379'
     yoowii.realisaprint.http_idle_timeout: 10
     yoowii.realisaprint.http_max_duration: 30

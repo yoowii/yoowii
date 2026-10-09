@@ -21,11 +21,12 @@ final readonly class RealisaprintVariableStateCache
     public function __construct(
         private CacheInterface $cache,
         private int $timeToLive,
+        private int $staleTimeToLive,
         private RealisaprintVariableStateLock $lock,
         private LoggerInterface $logger,
     ) {
-        if ($this->timeToLive < 15) {
-            throw new \InvalidArgumentException('The Realisaprint variable-state cache TTL must be at least 15 seconds.');
+        if ($this->timeToLive < 15 || $this->staleTimeToLive < $this->timeToLive) {
+            throw new \InvalidArgumentException('The Realisaprint variable-state stale TTL must be greater than or equal to the cache TTL of at least 15 seconds.');
         }
     }
 
@@ -39,23 +40,38 @@ final readonly class RealisaprintVariableStateCache
     {
         $key = $this->key($configuration, $mapped);
         $refreshed = false;
+        $staleReused = false;
 
-        $state = $this->cache->get($key, function (ItemInterface $item) use ($key, $refresh, &$refreshed): array {
-            $item->expiresAfter($this->timeToLive);
+        try {
+            $state = $this->cache->get($key, function (ItemInterface $item) use ($key, $refresh, &$refreshed): array {
+                $item->expiresAfter($this->timeToLive);
 
-            return $this->lock->synchronized($key, function () use ($key, $refresh, &$refreshed): array {
-                // A process that waited for the Redis lock must reuse the value
-                // written by the first process instead of calling the supplier.
-                return $this->cache->get($key, function (ItemInterface $item) use ($refresh, &$refreshed): array {
-                    $refreshed = true;
-                    $item->expiresAfter($this->timeToLive);
+                return $this->lock->synchronized($key, function () use ($key, $refresh, &$refreshed): array {
+                    // A process that waited for the Redis lock must reuse the value
+                    // written by the first process instead of calling the supplier.
+                    return $this->cache->get($key, function (ItemInterface $item) use ($key, $refresh, &$refreshed): array {
+                        $refreshed = true;
+                        $item->expiresAfter($this->timeToLive);
+                        $state = $refresh();
+                        $this->replaceStale($key, $state);
 
-                    return $refresh();
-                }, 0.0);
-            });
-        }, 0.0);
+                        return $state;
+                    }, 0.0);
+                });
+            }, 0.0);
+        } catch (\Throwable $exception) {
+            $state = $this->stale($key);
+            if (null === $state) {
+                throw $exception;
+            }
+            $staleReused = true;
+            $this->logger->warning('Realisaprint show_variables refresh failed; stale state was reused.', [
+                'cache_key_hash' => hash('sha256', $key),
+                'exception_class' => $exception::class,
+            ]);
+        }
         $this->logger->debug('Realisaprint show_variables state resolved.', [
-            'cache_outcome' => $refreshed ? 'miss' : 'hit',
+            'cache_outcome' => $staleReused ? 'stale' : ($refreshed ? 'miss' : 'hit'),
             'cache_key_hash' => hash('sha256', $key),
             'product_code' => $configuration->productCode(),
         ]);
@@ -72,11 +88,13 @@ final readonly class RealisaprintVariableStateCache
      */
     public function warm(PrintConfiguration $configuration, array $mapped, array $state): void
     {
-        $this->cache->get($this->key($configuration, $mapped), function (ItemInterface $item) use ($state): array {
+        $key = $this->key($configuration, $mapped);
+        $this->cache->get($key, function (ItemInterface $item) use ($state): array {
             $item->expiresAfter($this->timeToLive);
 
             return $state;
         }, 0.0);
+        $this->replaceStale($key, $state);
     }
 
     /**
@@ -95,5 +113,29 @@ final readonly class RealisaprintVariableStateCache
         ];
 
         return 'yoowii.realisaprint.show_variables.' . hash('sha256', json_encode($payload, \JSON_THROW_ON_ERROR));
+    }
+
+    /** @param array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>} $state */
+    private function replaceStale(string $key, array $state): void
+    {
+        $staleKey = $key . '.stale';
+        $this->cache->delete($staleKey);
+        $this->cache->get($staleKey, function (ItemInterface $item) use ($state): array {
+            $item->expiresAfter($this->staleTimeToLive);
+
+            return $state;
+        }, 0.0);
+    }
+
+    /** @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}|null */
+    private function stale(string $key): ?array
+    {
+        $state = $this->cache->get($key . '.stale', static function (ItemInterface $item, bool &$save): null {
+            $save = false;
+
+            return null;
+        }, 0.0);
+
+        return is_array($state) ? $state : null;
     }
 }
