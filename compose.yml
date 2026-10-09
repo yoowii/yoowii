@@ -20,6 +20,13 @@ services:
             MYSQL_ALLOW_EMPTY_PASSWORD: 1
         cap_add:
             - SYS_NICE # prevent "mbind: Operation not permitted" errors
+    redis:
+        image: redis:7.4-alpine
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            timeout: 3s
+            interval: 1s
+            retries: 10
     nginx:
         image: ghcr.io/sylius/sylius-nginx:latest
         volumes:

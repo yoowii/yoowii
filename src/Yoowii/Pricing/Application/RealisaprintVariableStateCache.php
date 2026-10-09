@@ -34,11 +34,14 @@ final readonly class RealisaprintVariableStateCache
      */
     public function get(PrintConfiguration $configuration, array $mapped, callable $refresh): array
     {
+        // CacheInterface protects callback computations against a stampede. The
+        // production Redis adapter also makes the computed value visible to every
+        // PHP-FPM worker and application instance.
         return $this->cache->get($this->key($configuration, $mapped), function (ItemInterface $item) use ($refresh): array {
             $item->expiresAfter($this->timeToLive);
 
             return $refresh();
-        });
+        }, 1.0);
     }
 
     /**

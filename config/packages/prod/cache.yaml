@@ -1,0 +1,7 @@
+framework:
+    cache:
+        # Redis makes the Realisaprint variable-state cache shared by all PHP-FPM
+        # workers and application instances. The CacheInterface callback used by
+        # RealisaprintVariableStateCache then coalesces concurrent cache misses.
+        app: cache.adapter.redis
+        default_redis_provider: '%env(YOOWII_REDIS_DSN)%'
