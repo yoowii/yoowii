@@ -18,6 +18,8 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringContainsString('initialProviderStateVisibility: this.initialProviderStateValue?.visibility', $controller);
         self::assertStringContainsString('initialProviderStateStaleValue: this.initialProviderStateStaleValue', $controller);
         self::assertStringContainsString("this.applyProviderState(this.initialProviderStateValue, { source: 'initial' });", $controller);
+        self::assertStringContainsString("this.applyProviderState(this.initialProviderStateValue, { source: 'initial-dom-ready' });", $controller);
+        self::assertStringContainsString('window.requestAnimationFrame', $controller);
         self::assertStringContainsString('if (!this.hasInitialProviderStateValue || this.initialProviderStateStaleValue) {', $controller);
         self::assertLessThan(
             strpos($controller, 'this.scheduleRefresh();'),

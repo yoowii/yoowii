@@ -30,6 +30,7 @@ export default class extends Controller {
         this.refreshTimer = null;
         this.refreshSequence = 0;
         this.refreshAbortController = null;
+        this.initialStateFrame = null;
         this.refreshPending = false;
         this.lastAutoQuoteFingerprint = null;
         this.quoteRequested = false;
@@ -46,6 +47,16 @@ export default class extends Controller {
         }
         if (this.hasInitialProviderStateValue) {
             this.applyProviderState(this.initialProviderStateValue, { source: 'initial' });
+            // A Live Component can finish hydrating immediately after this
+            // controller connects. Reapply the server-provided state on the
+            // next frame so its DOM replacement cannot expose provider-hidden
+            // fields until the customer makes a first choice.
+            this.initialStateFrame = window.requestAnimationFrame(() => {
+                this.initialStateFrame = null;
+                if (!this.hasUserInteracted) {
+                    this.applyProviderState(this.initialProviderStateValue, { source: 'initial-dom-ready' });
+                }
+            });
         } else {
             this.refreshSteps(false);
         }
@@ -57,6 +68,10 @@ export default class extends Controller {
     }
 
     disconnect() {
+        if (this.initialStateFrame !== null) {
+            window.cancelAnimationFrame(this.initialStateFrame);
+            this.initialStateFrame = null;
+        }
         this.cancelPendingCalculation();
         this.cancelPendingInputChange();
         this.cancelPendingRefresh();
