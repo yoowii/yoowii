@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+const REFRESH_DEBOUNCE_MILLISECONDS = 400;
+
 export default class extends Controller {
     static targets = [
         'error',
@@ -72,11 +74,11 @@ export default class extends Controller {
         this.inputTimer = window.setTimeout(() => {
             this.inputTimer = null;
             this.applyNumericMinimum(event.target);
-            this.change(event);
-        }, 600);
+            this.change(event, 0);
+        }, REFRESH_DEBOUNCE_MILLISECONDS);
     }
 
-    change(event) {
+    change(event, refreshDelay = REFRESH_DEBOUNCE_MILLISECONDS) {
         this.hasUserInteracted = true;
         this.applyNumericMinimum(event.target);
         this.quoteRequested = false;
@@ -86,7 +88,7 @@ export default class extends Controller {
         this.clearError();
         this.clearQuote();
         this.applyProviderState(this.providerState, { source: 'client', changedStepIndex: stepIndex, applyAvailability: false });
-        this.scheduleRefresh();
+        this.scheduleRefresh(refreshDelay);
     }
 
     applyNumericMinimum(input) {
@@ -298,12 +300,12 @@ export default class extends Controller {
         this.calculationTimer = window.setTimeout(() => this.calculate(), 250);
     }
 
-    scheduleRefresh() {
+    scheduleRefresh(delay = REFRESH_DEBOUNCE_MILLISECONDS) {
         this.cancelPendingRefresh();
         if (!this.hasRefreshUrlValue) {
             return;
         }
-        this.refreshTimer = window.setTimeout(() => this.refreshProviderState(), 0);
+        this.refreshTimer = window.setTimeout(() => this.refreshProviderState(), delay);
     }
 
     async refreshProviderState() {

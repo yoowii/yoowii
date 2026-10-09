@@ -35,7 +35,7 @@ final class PrintConfiguratorStimulusTest extends TestCase
         $controller = $this->controller();
         $refreshMethod = substr($controller, strpos($controller, 'async refreshProviderState()'), strpos($controller, 'applyProviderState(state') - strpos($controller, 'async refreshProviderState()'));
 
-        self::assertStringContainsString('const corrected = this.applyProviderState(payload);', $refreshMethod);
+        self::assertStringContainsString('this.applyProviderState(payload);', $refreshMethod);
         self::assertStringContainsString('this.showError(error.message);', $refreshMethod);
         self::assertStringNotContainsString('this.providerVisibility = {};', $refreshMethod);
         self::assertStringNotContainsString('this.applyProviderState({ visibility: {}', $refreshMethod);
@@ -77,6 +77,17 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringContainsString('window.sessionStorage.setItem(sessionKey, JSON.stringify(state))', $controller);
         self::assertStringContainsString('mapping_version', $controller);
         self::assertStringContainsString('schema_version', $controller);
+    }
+
+    public function testItDebouncesEveryProviderRefreshForFourHundredMilliseconds(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('const REFRESH_DEBOUNCE_MILLISECONDS = 400;', $controller);
+        self::assertStringContainsString('change(event, refreshDelay = REFRESH_DEBOUNCE_MILLISECONDS)', $controller);
+        self::assertStringContainsString('this.change(event, 0);', $controller);
+        self::assertStringContainsString('scheduleRefresh(delay = REFRESH_DEBOUNCE_MILLISECONDS)', $controller);
+        self::assertStringContainsString('window.setTimeout(() => this.refreshProviderState(), delay)', $controller);
     }
 
     private function controller(): string
