@@ -46,6 +46,16 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringContainsString('this.manualQuoteValue && this.hasUserInteracted && this.isComplete()', $this->controller());
     }
 
+    public function testRefreshOnlyAutoSelectsWhenOneChoiceRemains(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('if (allowedValues.length !== 1)', $controller);
+        self::assertStringContainsString('input.checked = false', $controller);
+        self::assertStringNotContainsString('step.dataset.defaultValue || \'\'', $controller);
+        self::assertStringNotContainsString('state.current?.[option] || \'\'', $controller);
+    }
+
     private function controller(): string
     {
         $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/print-configurator_controller.js');

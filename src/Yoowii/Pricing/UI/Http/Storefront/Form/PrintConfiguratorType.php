@@ -59,7 +59,6 @@ final class PrintConfiguratorType extends AbstractType
                         'step' => 'float' === $schema['type'] ? 'any' : null,
                         'maxlength' => 'text' === $schema['type'] ? 255 : null,
                     ], static fn (mixed $value): bool => null !== $value),
-                    'data' => $schema['default'],
                     'required' => false,
                 ]);
 
@@ -80,11 +79,9 @@ final class PrintConfiguratorType extends AbstractType
                     'data-area' => $schema['area'] ?? 1,
                     'data-option-code' => $code,
                     'data-depends-on' => is_array($schema['depends_on'] ?? null) ? ($schema['depends_on']['option'] . ':' . $schema['depends_on']['value']) : null,
-                    'data-default-value' => $schema['default'] ?? null,
                 ],
                 'required' => false,
-                'data' => is_array($schema) && 'checkbox' === ($schema['type'] ?? null) && is_string($schema['default'] ?? null) ? $schema['default'] : (1 === count($values) ? ($schema['default'] ?? $values[0]) : null),
-                'placeholder' => false,
+                'placeholder' => count($values) <= 8 ? false : 'Choisissez une option',
             ]);
         }
     }

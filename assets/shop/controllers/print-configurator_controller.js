@@ -403,15 +403,17 @@ export default class extends Controller {
                 const selectedValue = selected?.value || '';
                 if (allowedValues.includes(selectedValue)) return;
 
-                // Published default wins, then the unambiguously normalized supplier
-                // current value, then the first available value in published DOM order.
-                const candidates = [
-                    step.dataset.defaultValue || '',
-                    state.current?.[option] || '',
-                    ...[...step.querySelectorAll('input[type="radio"], select option')].map((choice) => choice.value),
-                ];
-                const fallback = candidates.find((value) => allowedValues.includes(value));
-                if (!fallback) return;
+                // A supplier default/current value is technical state, never a
+                // customer selection. Only choose automatically when there is
+                // genuinely no alternative left after a refresh.
+                if (allowedValues.length !== 1) {
+                    step.querySelectorAll('input[type="radio"]:checked').forEach((input) => { input.checked = false; });
+                    const select = step.querySelector('select');
+                    if (select) select.value = '';
+                    corrected = true;
+                    return;
+                }
+                const fallback = allowedValues[0];
                 const radio = step.querySelector(`input[type="radio"][value="${CSS.escape(fallback)}"]`);
                 if (radio) {
                     radio.checked = true;

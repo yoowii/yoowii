@@ -18,6 +18,7 @@ use App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh;
 use App\Yoowii\Pricing\Application\RealisaprintFixedOptionResolver;
 use App\Yoowii\Pricing\Application\RealisaprintVisibleConfigurationBuilder;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
+use App\Yoowii\Pricing\Application\StorefrontInitialConfiguratorValues;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
 use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
 use Psr\Log\LoggerInterface;
@@ -127,6 +128,7 @@ final class PrintProductConfiguratorController extends AbstractController
             $configuration = $definition->configure($values);
             if ($this->hasRealisaprintMapping($definitionCode, $entityManager)) {
                 $state = $refresh->refresh($configuration, $now);
+                $this->assertCustomerPricingAxesComplete($formData, $definition->pricingAxes(), $fixed, $state);
                 $configuration = $visibleConfigurationBuilder->buildVisibleProviderConfiguration($configuration, $state);
             } else {
                 $this->assertPricingAxesComplete($configuration, $definition->pricingAxes());
@@ -182,6 +184,7 @@ final class PrintProductConfiguratorController extends AbstractController
         PublishedConfiguratorValues $publishedValues,
         \Doctrine\ORM\EntityManagerInterface $entityManager,
         RealisaprintInitialDisplayStateBuilder $displayStateBuilder,
+        StorefrontInitialConfiguratorValues $initialValues,
         KernelInterface $kernel,
         LoggerInterface $logger,
     ): Response {
@@ -202,7 +205,7 @@ final class PrintProductConfiguratorController extends AbstractController
         $initialState = $initialSnapshot['state'];
         $formData = is_array($configuration) && [] !== $configuration
             ? $configuration
-            : $this->initialFormValues($schemas, $initialState);
+            : $initialValues->resolve($definition, $schemas, $fixed, $initialState);
         $form = $this->createConfiguratorForm(
             $productCode,
             $availableOptions,
@@ -256,37 +259,6 @@ final class PrintProductConfiguratorController extends AbstractController
     {
         foreach ($fixed as $code => $field) {
             $values[$code] = $field['value'];
-        }
-
-        return $values;
-    }
-
-    /** @param list<array<string, mixed>> $schemas @param array<string, mixed>|null $state
-     * @return array<string, string|int|float> */
-    private function initialFormValues(array $schemas, ?array $state): array
-    {
-        if (null === $state) {
-            return [];
-        }
-
-        $configuration = is_array($state['display_configuration'] ?? null) ? $state['display_configuration'] : [];
-        $current = is_array($state['current'] ?? null) ? $state['current'] : [];
-        $values = [];
-        foreach ($schemas as $schema) {
-            $code = $schema['code'] ?? null;
-            if (!is_string($code) || true === ($schema['fixed'] ?? false)) {
-                continue;
-            }
-            $candidate = $configuration[$code] ?? $current[$code] ?? $schema['default'] ?? null;
-            if (!is_string($candidate) && !is_int($candidate) && !is_float($candidate)) {
-                continue;
-            }
-            $allowed = $schema['allowed_values'] ?? [];
-            $allowedValues = is_array($allowed) ? array_map('strval', $allowed) : [];
-            if ([] !== $allowedValues && !in_array((string) $candidate, $allowedValues, true)) {
-                continue;
-            }
-            $values[$code] = $candidate;
         }
 
         return $values;
@@ -395,6 +367,21 @@ final class PrintProductConfiguratorController extends AbstractController
         foreach ($axes as $axis) {
             if (!array_key_exists($axis, $values) || '' === trim((string) $values[$axis])) {
                 throw new \InvalidArgumentException(sprintf('L’axe de prix « %s » doit être renseigné.', $axis));
+            }
+        }
+    }
+
+    /** @param array<string, mixed> $submitted @param list<string> $axes @param array<string, array{value: string|int|float, label: string}> $fixed @param array<string, mixed> $state */
+    private function assertCustomerPricingAxesComplete(array $submitted, array $axes, array $fixed, array $state): void
+    {
+        $visibility = is_array($state['visibility'] ?? null) ? $state['visibility'] : [];
+        foreach ($axes as $axis) {
+            if (isset($fixed[$axis]) || false === ($visibility[$axis] ?? true)) {
+                continue;
+            }
+            $value = $submitted[$axis] ?? null;
+            if (null === $value || (is_string($value) && '' === trim($value))) {
+                throw new \InvalidArgumentException(sprintf('Renseignez le champ requis « %s » avant de calculer le prix.', $axis));
             }
         }
     }
