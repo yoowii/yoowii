@@ -24,7 +24,8 @@ final readonly class RealisaprintConfiguratorRefresh
     }
 
     /** @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>} */
-    public function refresh(PrintConfiguration $configuration, \DateTimeImmutable $at): array
+    /** @param array<string, mixed>|null $selectedOptions Canonical choices explicitly submitted by the storefront. */
+    public function refresh(PrintConfiguration $configuration, \DateTimeImmutable $at, ?array $selectedOptions = null): array
     {
         foreach ($this->routes->findCandidates($configuration->productCode(), $at) as $route) {
             if ('realisaprint' !== $route->supplierProduct()->supplier()->code()) {
@@ -34,7 +35,7 @@ final readonly class RealisaprintConfiguratorRefresh
             if (!$mapping instanceof SupplierProductMappingVersion) {
                 continue;
             }
-            $mapped = $this->mapper->map($configuration, $route->supplierProduct(), $at);
+            $mapped = $this->mapper->map($configuration, $route->supplierProduct(), $at, $selectedOptions);
             return $this->variableStateCache->get($configuration, $mapped, function () use ($mapped, $mapping): array {
                 $response = $this->client->post('show_variables', [
                     'product' => $mapped['product'],

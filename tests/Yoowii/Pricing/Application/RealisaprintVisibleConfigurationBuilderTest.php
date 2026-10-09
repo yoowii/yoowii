@@ -41,4 +41,19 @@ final class RealisaprintVisibleConfigurationBuilderTest extends TestCase
             ['visibility' => ['quantite' => true]],
         );
     }
+
+    public function testItMapsOnlyExplicitStorefrontChoicesForShowVariables(): void
+    {
+        $payload = (new RealisaprintConfigurationMapper($this->createMock(EntityManagerInterface::class)))->mapMapping(
+            new PrintConfiguration('PRINT_TEST', 'v1', ['format' => 'a4', 'quantite' => 100], ['format', 'quantite']),
+            ['realisaprint' => ['product' => 'product', 'stock' => 'stock', 'variables' => [
+                'FORMAT' => ['option' => 'format', 'values' => ['a4' => 'A4']],
+                'QTE' => ['option' => 'quantite', 'values' => []],
+            ]]],
+            'v1',
+            ['format' => 'a4'],
+        );
+
+        self::assertSame(['FORMAT' => 'A4'], $payload['variables']);
+    }
 }

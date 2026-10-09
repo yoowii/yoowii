@@ -61,7 +61,8 @@ final class PrintProductConfiguratorController extends AbstractController
 
             // show_variables is a display endpoint. It may run before a
             // configuration is priceable; quote() remains the strict boundary.
-            $state = $refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+            $selectedOptions = array_filter($values, static fn (mixed $value): bool => is_scalar($value) && '' !== trim((string) $value));
+            $state = $refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $selectedOptions);
             $corrected = $availabilityFallback->applyToSchema($configuration->toArray(), $state, $definitions->storefrontSchema($this->definitionCode($product)), $definition->pricingAxes());
             foreach ($corrected as $option => $value) {
                 if ((string) ($configuration->toArray()[$option] ?? '') !== (string) $value) {

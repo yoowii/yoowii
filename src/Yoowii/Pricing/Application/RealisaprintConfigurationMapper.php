@@ -17,10 +17,11 @@ final readonly class RealisaprintConfigurationMapper
     }
 
     /** @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} */
-    public function map(PrintConfiguration $configuration, SupplierProduct $supplierProduct, \DateTimeImmutable $at): array
+    /** @param array<string, mixed>|null $selectedOptions Canonical storefront choices explicitly supplied by the customer. */
+    public function map(PrintConfiguration $configuration, SupplierProduct $supplierProduct, \DateTimeImmutable $at, ?array $selectedOptions = null): array
     {
         $mapping = $this->mapping($configuration->productCode(), $supplierProduct, $at);
-        return $this->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
+        return $this->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version(), $selectedOptions);
     }
 
     /**
@@ -30,7 +31,7 @@ final readonly class RealisaprintConfigurationMapper
      *
      * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string}
      */
-    public function mapMapping(PrintConfiguration $configuration, array $configurationMapping, string $version): array
+    public function mapMapping(PrintConfiguration $configuration, array $configurationMapping, string $version, ?array $selectedOptions = null): array
     {
         $provider = $configurationMapping['realisaprint'] ?? null;
 
@@ -47,7 +48,7 @@ final readonly class RealisaprintConfigurationMapper
 
         /** @var array<string, mixed> $typedRules */
         $typedRules = $rules;
-        $variables = $this->variables($typedRules, $configuration->toArray());
+        $variables = $this->variables($typedRules, $configuration->toArray(), $selectedOptions);
         ksort($variables, \SORT_STRING);
         $payload = ['product' => (string) $product, 'stock' => (string) $stock, 'variables' => $variables];
 
@@ -116,9 +117,10 @@ final readonly class RealisaprintConfigurationMapper
      * @param array<string, mixed>      $rules
      * @param array<string, string|int> $options
      *
+     * @param array<string, mixed>|null $selectedOptions
      * @return array<string, bool|float|int|string>
      */
-    private function variables(array $rules, array $options): array
+    private function variables(array $rules, array $options, ?array $selectedOptions = null): array
     {
         $variables = [];
         foreach ($rules as $variable => $rule) {
@@ -132,6 +134,9 @@ final readonly class RealisaprintConfigurationMapper
             }
             if (!is_array($rule) || !isset($rule['option']) || !is_string($rule['option'])) {
                 throw new \DomainException(sprintf('The mapping for Realisaprint variable "%s" is invalid.', $variable));
+            }
+            if (null !== $selectedOptions && !array_key_exists($rule['option'], $selectedOptions) && !is_scalar($rule['fixed_value'] ?? null)) {
+                continue;
             }
             if (is_scalar($rule['fixed_value'] ?? null)) {
                 if (!array_key_exists($rule['option'], $options)) {
