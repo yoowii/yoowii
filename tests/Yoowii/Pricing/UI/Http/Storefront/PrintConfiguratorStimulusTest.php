@@ -67,6 +67,18 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringNotContainsString('this.scheduleRefresh();', $refreshMethod);
     }
 
+    public function testItReusesProviderStatesFromMemoryAndSessionStorage(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('this.providerStateCache = new Map();', $controller);
+        self::assertStringContainsString("{ source: 'browser-cache' }", $controller);
+        self::assertStringContainsString('window.sessionStorage.getItem(sessionKey)', $controller);
+        self::assertStringContainsString('window.sessionStorage.setItem(sessionKey, JSON.stringify(state))', $controller);
+        self::assertStringContainsString('mapping_version', $controller);
+        self::assertStringContainsString('schema_version', $controller);
+    }
+
     private function controller(): string
     {
         $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/print-configurator_controller.js');

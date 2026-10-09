@@ -32,6 +32,7 @@ export default class extends Controller {
         this.lastAutoQuoteFingerprint = null;
         this.quoteRequested = false;
         this.hasUserInteracted = false;
+        this.providerStateCache = new Map();
         this.providerState = { visibility: {}, availability: {}, current: {} };
         this.providerVisibility = {};
         if (this.debugValue) {
@@ -318,10 +319,13 @@ export default class extends Controller {
         try {
             // Symfony form keys are e.g. print_configurator[quantity]; the API
             // expects canonical option codes without the form name prefix.
-            const options = {};
-            for (const [name, value] of new FormData(this.formTarget).entries()) {
-                const match = name.match(/\[([^\[\]]+)\]$/);
-                if (match && match[1] !== '_token') options[match[1]] = value;
+            const options = this.providerOptions();
+            const cachedState = this.cachedProviderState(options);
+            if (cachedState) {
+                this.applyProviderState(cachedState, { source: 'browser-cache' });
+                refreshSucceeded = true;
+                this.scheduleAutomaticQuote();
+                return;
             }
             const response = await fetch(this.refreshUrlValue, {
                 method: 'POST',
@@ -334,18 +338,13 @@ export default class extends Controller {
             if (!response.ok) {
                 throw new Error(payload.message || 'Les options ne peuvent pas être mises à jour.');
             }
+            this.storeProviderState(options, payload);
             this.applyProviderState(payload);
             // An automatic selection is directly derived from this very
             // show_variables response. Do not immediately call the supplier
             // again just to echo that deterministic correction.
             refreshSucceeded = true;
-            if (this.manualQuoteValue && this.hasUserInteracted && this.isComplete()) {
-                const fingerprint = this.visibleConfigurationFingerprint();
-                if (fingerprint !== this.lastAutoQuoteFingerprint) {
-                    this.lastAutoQuoteFingerprint = fingerprint;
-                    this.scheduleCalculation();
-                }
-            }
+            this.scheduleAutomaticQuote();
         } catch (error) {
             if (sequence === this.refreshSequence && error.name !== 'AbortError') {
                 this.showError(error.message);
@@ -359,6 +358,82 @@ export default class extends Controller {
                     this.calculate();
                 }
             }
+        }
+    }
+
+    providerOptions() {
+        const options = {};
+        for (const [name, value] of new FormData(this.formTarget).entries()) {
+            const match = name.match(/\[([^\[\]]+)\]$/);
+            if (match && match[1] !== '_token') options[match[1]] = value;
+        }
+
+        return options;
+    }
+
+    providerStateCacheKey(options) {
+        return JSON.stringify(Object.fromEntries(Object.entries(options).sort(([left], [right]) => left.localeCompare(right))));
+    }
+
+    providerStateSessionKey(cacheKey) {
+        const mappingVersion = this.initialProviderStateValue?.mapping_version;
+        const schemaVersion = this.initialProviderStateValue?.schema_version;
+        if (!mappingVersion || !schemaVersion) {
+            return null;
+        }
+
+        return `yoowii:realisaprint:show-variables:${mappingVersion}:${schemaVersion}:${this.refreshUrlValue}:${cacheKey}`;
+    }
+
+    cachedProviderState(options) {
+        const cacheKey = this.providerStateCacheKey(options);
+        const inMemory = this.providerStateCache.get(cacheKey);
+        if (inMemory) {
+            return inMemory;
+        }
+        const sessionKey = this.providerStateSessionKey(cacheKey);
+        if (!sessionKey) {
+            return null;
+        }
+        try {
+            const serialized = window.sessionStorage.getItem(sessionKey);
+            if (!serialized) {
+                return null;
+            }
+            const state = JSON.parse(serialized);
+            if (!state || typeof state !== 'object') {
+                return null;
+            }
+            this.providerStateCache.set(cacheKey, state);
+
+            return state;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    storeProviderState(options, state) {
+        const cacheKey = this.providerStateCacheKey(options);
+        this.providerStateCache.set(cacheKey, state);
+        const sessionKey = this.providerStateSessionKey(cacheKey);
+        if (!sessionKey) {
+            return;
+        }
+        try {
+            window.sessionStorage.setItem(sessionKey, JSON.stringify(state));
+        } catch (_) {
+            // Browsers may deny storage in private or constrained contexts.
+        }
+    }
+
+    scheduleAutomaticQuote() {
+        if (!this.manualQuoteValue || !this.hasUserInteracted || !this.isComplete()) {
+            return;
+        }
+        const fingerprint = this.visibleConfigurationFingerprint();
+        if (fingerprint !== this.lastAutoQuoteFingerprint) {
+            this.lastAutoQuoteFingerprint = fingerprint;
+            this.scheduleCalculation();
         }
     }
 
