@@ -22,6 +22,7 @@ services:
             - SYS_NICE # prevent "mbind: Operation not permitted" errors
     redis:
         image: redis:7.4-alpine
+        command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             timeout: 3s
