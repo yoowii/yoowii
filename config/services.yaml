@@ -129,6 +129,8 @@ services:
             $apiKey: '%yoowii.realisaprint.api_key%'
             $enabled: '%yoowii.realisaprint.enabled%'
             $baseUrl: '%yoowii.realisaprint.base_url%'
+            $idleTimeout: '%yoowii.realisaprint.http_idle_timeout%'
+            $maxDuration: '%yoowii.realisaprint.http_max_duration%'
 
     App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RedisRealisaprintRequestThrottle:
         arguments:

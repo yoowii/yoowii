@@ -20,6 +20,8 @@ final class RealisaprintClientTest extends TestCase
             'private-api-key',
             true,
             'https://api.example.test/',
+            10,
+            30,
         );
 
         $command = $client->diagnosticCurl('show_variables', [
@@ -46,8 +48,26 @@ final class RealisaprintClientTest extends TestCase
             'private-api-key',
             false,
             'https://api.example.test/',
+            10,
+            30,
         );
 
         self::assertSame(['simulation' => true, 'operation' => 'show_variables', 'payload' => []], $client->post('show_variables', []));
+    }
+
+    public function testItRejectsAnInconsistentHttpTimeoutConfiguration(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new RealisaprintClient(
+            $this->createMock(HttpClientInterface::class),
+            $this->createMock(RealisaprintRequestThrottle::class),
+            'shop-123',
+            'private-api-key',
+            true,
+            'https://api.example.test/',
+            10,
+            9,
+        );
     }
 }

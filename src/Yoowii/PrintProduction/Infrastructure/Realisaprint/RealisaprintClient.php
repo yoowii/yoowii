@@ -9,8 +9,19 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class RealisaprintClient
 {
-    public function __construct(private HttpClientInterface $client, private RealisaprintRequestThrottle $throttle, private string $shopId, private string $apiKey, private bool $enabled, private string $baseUrl)
-    {
+    public function __construct(
+        private HttpClientInterface $client,
+        private RealisaprintRequestThrottle $throttle,
+        private string $shopId,
+        private string $apiKey,
+        private bool $enabled,
+        private string $baseUrl,
+        private int $idleTimeout,
+        private int $maxDuration,
+    ) {
+        if ($this->idleTimeout <= 0 || $this->maxDuration < $this->idleTimeout) {
+            throw new \InvalidArgumentException('Realisaprint HTTP timeouts must be positive and the maximum duration must exceed the idle timeout.');
+        }
     }
 
     public function isEnabled(): bool
@@ -65,6 +76,8 @@ final readonly class RealisaprintClient
 
         $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . '/' . rawurlencode($operation), [
             'body' => ['shop_id' => $this->shopId, 'api_key' => $this->apiKey] + $parameters,
+            'timeout' => $this->idleTimeout,
+            'max_duration' => $this->maxDuration,
         ]);
 
         $body = $response->getContent(false);
