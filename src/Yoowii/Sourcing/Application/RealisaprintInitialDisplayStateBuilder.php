@@ -37,7 +37,7 @@ final readonly class RealisaprintInitialDisplayStateBuilder
             $configuration = $this->displayConfiguration($mapping, $definition);
             $state['display_configuration'] = $configuration;
             $state['display_fingerprint'] = $this->fingerprint($mapping, $configuration);
-            $diagnostic = $this->configuratorRefresh->previewWithDiagnostic($definition->definition()->configure($configuration), $mapping);
+            $diagnostic = $this->configuratorRefresh->previewWithDiagnostic($definition->definition()->configure($configuration), $mapping, true);
             $state += $diagnostic['state'];
             $state['show_variables_request'] = $diagnostic['request'];
             $state['show_variables_response'] = $diagnostic['response'];

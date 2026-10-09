@@ -64,6 +64,22 @@ final readonly class RealisaprintVariableStateCache
     }
 
     /**
+     * Stores a state already obtained from Realisaprint without overwriting a
+     * value that another worker has just cached for the same canonical query.
+     *
+     * @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped
+     * @param array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>} $state
+     */
+    public function warm(PrintConfiguration $configuration, array $mapped, array $state): void
+    {
+        $this->cache->get($this->key($configuration, $mapped), function (ItemInterface $item) use ($state): array {
+            $item->expiresAfter($this->timeToLive);
+
+            return $state;
+        }, 0.0);
+    }
+
+    /**
      * @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped
      */
     public function key(PrintConfiguration $configuration, array $mapped): string

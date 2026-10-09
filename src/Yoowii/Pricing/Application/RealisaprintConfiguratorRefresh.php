@@ -71,7 +71,7 @@ final readonly class RealisaprintConfiguratorRefresh
      *
      * @return array{state: array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}, request: array{product: string|int|float|bool|null, stock: string|int|float|bool|null, variables: array<string, mixed>, retry: int}, response: array<string, mixed>}
      */
-    public function previewWithDiagnostic(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping): array
+    public function previewWithDiagnostic(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping, bool $warm = false): array
     {
         $mapped = $this->mapper->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
         $request = [
@@ -81,9 +81,13 @@ final readonly class RealisaprintConfiguratorRefresh
             'retry' => 1,
         ];
         $response = $this->client->post('show_variables', $request);
+        $state = $this->normalizeResponse($response, $mapping);
+        if ($warm) {
+            $this->variableStateCache->warm($configuration, $mapped, $state);
+        }
 
         return [
-            'state' => $this->normalizeResponse($response, $mapping),
+            'state' => $state,
             'request' => $request,
             'response' => $response,
         ];

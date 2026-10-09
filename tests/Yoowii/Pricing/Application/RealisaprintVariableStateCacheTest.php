@@ -82,6 +82,18 @@ final class RealisaprintVariableStateCacheTest extends TestCase
         self::assertSame([$cache->key($configuration, $mapped)], $lock->resources);
     }
 
+    public function testItWarmsAnAlreadyVerifiedProviderState(): void
+    {
+        $cache = new RealisaprintVariableStateCache(new ArrayAdapter(), 3600, $this->lock(), new NullLogger());
+        $configuration = new PrintConfiguration('PRINT_FLYER', 'schema-v3', ['format' => 'a5'], ['format']);
+        $mapped = $this->mapped(['VARTICLE_FORMAT' => 'A5']);
+        $state = $this->state();
+
+        $cache->warm($configuration, $mapped, $state);
+
+        self::assertSame($state, $cache->get($configuration, $mapped, fn (): array => throw new \LogicException('The warm state should be reused.')));
+    }
+
     /** @param array<string, bool|float|int|string> $variables
      * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string}
      */
