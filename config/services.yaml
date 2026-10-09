@@ -149,6 +149,11 @@ services:
         arguments:
             $cache: '@cache.app'
             $timeToLive: '%yoowii.realisaprint.variable_state_cache_ttl%'
+            $lock: '@App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock'
+
+    App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock:
+        arguments:
+            $redisDsn: '%env(default:yoowii.realisaprint.default_redis_dsn:YOOWII_REDIS_DSN)%'
 
     App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder:
         arguments:

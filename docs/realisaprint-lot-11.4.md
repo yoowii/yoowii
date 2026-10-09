@@ -6,7 +6,7 @@ Le cache de `show_variables` devient partagé en environnement `prod`. Tous les 
 
 `RealisaprintVariableStateCache` passe l'appel fournisseur dans le callback de `CacheInterface`. Symfony protège ce callback contre le *cache stampede* : sur une même instance, un seul worker calcule une valeur manquante. Redis rend ensuite cette valeur immédiatement visible à tous les workers et toutes les instances Yoowii.
 
-La protection implicite de Symfony est locale à l'hôte ; deux instances différentes qui rencontrent exactement le même cache miss au même instant peuvent encore chacune faire un appel fournisseur. Le prochain lot ajoutera un verrou distribué Redis explicite (`symfony/lock`) pour coalescer également ce cas rare. La clé de cache reste déjà canonique : produit, stock, variables Realisaprint triées, version de mapping et version de schéma.
+La protection implicite de Symfony est locale à l'hôte ; deux instances différentes qui rencontrent exactement le même cache miss au même instant peuvent encore chacune faire un appel fournisseur. Le lot 11.5 complète donc ce point avec un verrou Redis distribué explicite. La clé de cache reste déjà canonique : produit, stock, variables Realisaprint triées, version de mapping et version de schéma.
 
 ## Configuration de déploiement
 

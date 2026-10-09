@@ -13,3 +13,4 @@ parameters:
     yoowii.realisaprint.quote_enabled: '%env(bool:YOOWII_REALISAPRINT_QUOTE_ENABLED)%'
     yoowii.realisaprint.quote_cache_ttl: '%env(int:YOOWII_REALISAPRINT_QUOTE_CACHE_TTL)%'
     yoowii.realisaprint.variable_state_cache_ttl: 2592000
+    yoowii.realisaprint.default_redis_dsn: 'redis://redis:6379'
