@@ -72,7 +72,7 @@ final readonly class RealisaprintLiveQuoteCalculator
         }
 
         try {
-            $mapped = $this->configurationMapper->map($configuration, $route->supplierProduct(), $at);
+            $mapped = $this->configurationMapper->mapForQuote($configuration, $route->supplierProduct(), $at);
         } catch (\DomainException $exception) {
             $reason = str_contains($exception->getMessage(), 'No active') ? QuoteFallbackReason::MappingMissing : QuoteFallbackReason::MappingIncompatible;
 
@@ -97,7 +97,7 @@ final readonly class RealisaprintLiveQuoteCalculator
         }
 
         try {
-            $mapped = $this->configurationMapper->mapMapping($configuration, $mapping, $version);
+            $mapped = $this->configurationMapper->mapMappingForQuote($configuration, $mapping, $version);
         } catch (\DomainException $exception) {
             throw new RealisaprintQuoteException(QuoteFallbackReason::MappingIncompatible, 'The draft Realisaprint mapping cannot resolve this configuration.');
         }
@@ -105,10 +105,10 @@ final readonly class RealisaprintLiveQuoteCalculator
         return $this->quoteMapped($route, $configuration, $pricingPolicy, $currencyCode, $at, bin2hex(random_bytes(16)), $mapped, $onApiCall);
     }
 
-    /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped */
+    /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string, quote_quantity: int} $mapped */
     private function quoteMapped(SupplierRoute $route, PrintConfiguration $configuration, PrintPricingPolicy $pricingPolicy, string $currencyCode, \DateTimeImmutable $at, string $correlationId, array $mapped, ?callable $onApiCall = null): PrintQuote
     {
-        $key = 'yoowii.realisaprint.price.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version'], $currencyCode, '1', 'FR']));
+        $key = 'yoowii.realisaprint.price.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version'], $currencyCode, (string) $mapped['quote_quantity'], 'FR']));
         $cacheMiss = false;
 
         try {
@@ -191,7 +191,7 @@ final readonly class RealisaprintLiveQuoteCalculator
         if (!is_scalar($code) || '' === trim((string) $code)) {
             throw new RealisaprintQuoteException(QuoteFallbackReason::ApiRejectedConfiguration, 'Realisaprint did not return a configuration code.');
         }
-        $priceRequest = ['code' => (string) $code, 'quantity' => 1, 'country' => 'FR'];
+        $priceRequest = ['code' => (string) $code, 'quantity' => $mapped['quote_quantity'], 'country' => 'FR'];
 
         try {
             $price = $this->client->post('get_price', $priceRequest);
@@ -208,7 +208,7 @@ final readonly class RealisaprintLiveQuoteCalculator
         return ['configuration' => $saved, 'price' => $price];
     }
 
-    /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped */
+    /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string, quote_quantity: int} $mapped */
     private function configurationCacheKey(array $mapped): string
     {
         return 'yoowii.realisaprint.configuration.' . hash('sha256', implode('|', [$mapped['fingerprint'], $mapped['version']]));

@@ -95,6 +95,9 @@ final readonly class RealisaprintDraftCreator
                 'option' => $code,
                 'values' => is_array($option['provider_values'] ?? null) ? $option['provider_values'] : [],
             ];
+            if (true === ($catalogProduct->configuration()['variables'][$option['provider_variable']]['quantity'] ?? false)) {
+                $rule['quantity'] = true;
+            }
             if (is_string($option['provider_fixed_value'] ?? null)) {
                 $rule['fixed_value'] = $option['provider_fixed_value'];
             }

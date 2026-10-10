@@ -54,8 +54,8 @@ final class RealisaprintMappingController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             try {
-                $variables = $this->variables($data);
                 $configuration = $catalogProduct->configuration();
+                $variables = $this->variables($data, $configuration);
                 $completeness->assertComplete($definition, $configuration, ['stock' => trim($data->stock), 'variables' => $variables]);
                 $mapping = new SupplierProductMappingVersion(
                     $route->supplierProduct(),
@@ -136,8 +136,11 @@ final class RealisaprintMappingController extends AbstractController
         }
     }
 
-    /** @return array<string, array{option: string, values: array<string, bool|float|int|string>}> */
-    private function variables(RealisaprintMappingData $data): array
+    /**
+     * @param array<string, mixed> $configuration
+     * @return array<string, array{option: string, values: array<string, bool|float|int|string>, quantity?: true}>
+     */
+    private function variables(RealisaprintMappingData $data, array $configuration): array
     {
         if ('' === trim($data->stock)) {
             throw new \InvalidArgumentException('Le stock Realisaprint est obligatoire.');
@@ -156,7 +159,12 @@ final class RealisaprintMappingController extends AbstractController
                     throw new \InvalidArgumentException(sprintf('Les valeurs de %s sont invalides.', $row->providerVariable));
                 }
             }
-            $variables[trim($row->providerVariable)] = ['option' => trim($row->option), 'values' => $values];
+            $providerVariable = trim($row->providerVariable);
+            $rule = ['option' => trim($row->option), 'values' => $values];
+            if (true === ($configuration['variables'][$providerVariable]['quantity'] ?? false)) {
+                $rule['quantity'] = true;
+            }
+            $variables[$providerVariable] = $rule;
         }
 
         return $variables;

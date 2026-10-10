@@ -35,7 +35,7 @@ final readonly class RealisaprintConfiguratorRefresh
             if (!$mapping instanceof SupplierProductMappingVersion) {
                 continue;
             }
-            $mapped = $this->mapper->map($configuration, $route->supplierProduct(), $at, $selectedOptions);
+            $mapped = $this->mapper->mapForQuote($configuration, $route->supplierProduct(), $at, $selectedOptions);
             return $this->variableStateCache->get($configuration, $mapped, function () use ($mapped, $mapping): array {
                 $response = $this->client->post('show_variables', [
                     'product' => $mapped['product'],
@@ -54,7 +54,7 @@ final readonly class RealisaprintConfiguratorRefresh
     /** @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>} */
     public function preview(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping): array
     {
-        $mapped = $this->mapper->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
+        $mapped = $this->mapper->mapMappingForQuote($configuration, $mapping->configurationMapping(), $mapping->version());
         $response = $this->client->post('show_variables', [
             'product' => $mapped['product'],
             'stock' => $mapped['stock'],
@@ -74,7 +74,7 @@ final readonly class RealisaprintConfiguratorRefresh
      */
     public function previewWithDiagnostic(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping, bool $warm = false): array
     {
-        $mapped = $this->mapper->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version());
+        $mapped = $this->mapper->mapMappingForQuote($configuration, $mapping->configurationMapping(), $mapping->version());
         $request = [
             'product' => $mapped['product'],
             'stock' => $mapped['stock'],

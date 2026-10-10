@@ -56,4 +56,19 @@ final class RealisaprintVisibleConfigurationBuilderTest extends TestCase
 
         self::assertSame(['FORMAT' => 'A4'], $payload['variables']);
     }
+
+    public function testItExcludesTheProviderQuantityFromSharedConfigurationAndUsesItForPrice(): void
+    {
+        $payload = (new RealisaprintConfigurationMapper($this->createMock(EntityManagerInterface::class)))->mapMappingForQuote(
+            new PrintConfiguration('PRINT_TEST', 'v1', ['format' => 'a4', 'quantite' => 250], ['format', 'quantite']),
+            ['realisaprint' => ['product' => 'product', 'stock' => 'stock', 'variables' => [
+                'FORMAT' => ['option' => 'format', 'values' => ['a4' => 'A4']],
+                'QTE' => ['option' => 'quantite', 'values' => [], 'quantity' => true],
+            ]]],
+            'v1',
+        );
+
+        self::assertSame(['FORMAT' => 'A4'], $payload['variables']);
+        self::assertSame(250, $payload['quote_quantity']);
+    }
 }

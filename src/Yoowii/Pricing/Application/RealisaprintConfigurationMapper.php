@@ -25,6 +25,22 @@ final readonly class RealisaprintConfigurationMapper
     }
 
     /**
+     * Resolves the supplier configuration shared by show_variables and
+     * save_configuration. Realisaprint identifies the actual print run with
+     * its quantity variable; that value belongs exclusively to get_price.
+     *
+     * @param array<string, mixed>|null $selectedOptions
+     *
+     * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string, quote_quantity: int}
+     */
+    public function mapForQuote(PrintConfiguration $configuration, SupplierProduct $supplierProduct, \DateTimeImmutable $at, ?array $selectedOptions = null): array
+    {
+        $mapping = $this->mapping($configuration->productCode(), $supplierProduct, $at);
+
+        return $this->mapMappingForQuote($configuration, $mapping->configurationMapping(), $mapping->version(), $selectedOptions);
+    }
+
+    /**
      * Maps a draft mapping without making it eligible for live orders.
      *
      * @param array<string, mixed> $configurationMapping
@@ -56,6 +72,28 @@ final readonly class RealisaprintConfigurationMapper
             'version' => $version,
             'fingerprint' => hash('sha256', json_encode($payload, \JSON_THROW_ON_ERROR)),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $configurationMapping
+     *
+     * @param array<string, mixed>|null $selectedOptions
+     *
+     * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string, quote_quantity: int}
+     */
+    public function mapMappingForQuote(PrintConfiguration $configuration, array $configurationMapping, string $version, ?array $selectedOptions = null): array
+    {
+        $provider = $configurationMapping['realisaprint'] ?? null;
+        $rules = is_array($provider) ? ($provider['variables'] ?? null) : null;
+        if (!is_array($rules)) {
+            throw new \DomainException('The Realisaprint mapping must define product, stock and variables.');
+        }
+
+        $quoteQuantity = $this->quoteQuantity($rules, $configuration->toArray());
+        $withoutQuantity = $this->withoutQuantityRules($rules);
+        $mapped = $this->mapMapping($configuration, ['realisaprint' => array_merge($provider, ['variables' => $withoutQuantity])], $version, $selectedOptions);
+
+        return $mapped + ['quote_quantity' => $quoteQuantity];
     }
 
     /** @return array<string, list<string|int>> */
@@ -161,5 +199,42 @@ final readonly class RealisaprintConfigurationMapper
         }
 
         return $variables;
+    }
+
+    /** @param array<string, mixed> $rules
+     * @return array<string, mixed>
+     */
+    private function withoutQuantityRules(array $rules): array
+    {
+        foreach ($rules as $variable => $rule) {
+            if (is_array($rule) && true === ($rule['quantity'] ?? false)) {
+                unset($rules[$variable]);
+            }
+        }
+
+        return $rules;
+    }
+
+    /** @param array<string, mixed> $rules
+     * @param array<string, string|int> $options
+     */
+    private function quoteQuantity(array $rules, array $options): int
+    {
+        foreach ($rules as $variable => $rule) {
+            if (!is_string($variable) || !is_array($rule) || true !== ($rule['quantity'] ?? false) || !is_string($rule['option'] ?? null)) {
+                continue;
+            }
+            $quantity = $options[$rule['option']] ?? null;
+            if (is_int($quantity) && $quantity > 0) {
+                return $quantity;
+            }
+            if (is_string($quantity) && 1 === preg_match('/^[1-9][0-9]*$/D', $quantity)) {
+                return (int) $quantity;
+            }
+
+            throw new \DomainException(sprintf('The Realisaprint quantity variable "%s" cannot be resolved.', $variable));
+        }
+
+        return 1;
     }
 }
