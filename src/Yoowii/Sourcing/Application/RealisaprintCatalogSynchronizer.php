@@ -41,6 +41,26 @@ final readonly class RealisaprintCatalogSynchronizer
                 $product->refresh((string) $name, $at);
             }
         }
+        $prescript = $this->client->post('products_for_prescript', []);
+        $prescriptProducts = $prescript['products'] ?? null;
+        if (!is_array($prescriptProducts)) {
+            throw new \DomainException('Realisaprint did not return its Prescript catalogue.');
+        }
+        foreach ($products as $id => $_name) {
+            $product = $repository->findOneBy(['providerProductId' => (string) $id]);
+            if (!$product instanceof RealisaprintCatalogProduct) {
+                continue;
+            }
+            $entry = $prescriptProducts[(string) $id] ?? null;
+            $stocks = is_array($entry) && is_array($entry['stocks'] ?? null) ? $entry['stocks'] : [];
+            $available = [];
+            foreach ($stocks as $stockId => $stockName) {
+                if (is_scalar($stockName) && '' !== trim((string) $stockId)) {
+                    $available[(string) $stockId] = (string) $stockName;
+                }
+            }
+            $product->refreshPrescriptStocks($available);
+        }
         foreach ($repository->findAll() as $product) {
             if (!isset($seen[$product->providerProductId()])) {
                 $product->archive();

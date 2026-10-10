@@ -28,6 +28,11 @@ final class RealisaprintDraftType extends AbstractType
                 'required' => true,
                 'placeholder' => false,
             ])
+            ->add('configuratorMode', ChoiceType::class, [
+                'label' => 'Configurateur storefront',
+                'choices' => ['API classique Yoowii' => 'classic', 'API Préscript Realisaprint' => 'prescript'],
+                'help' => 'Préscript est disponible uniquement pour les stocks signalés compatibles dans le catalogue fournisseur.',
+            ])
             ->add('options', TextareaType::class, [
                 'label' => 'Options du configurateur',
                 'attr' => ['rows' => 14, 'class' => 'font-monospace'],

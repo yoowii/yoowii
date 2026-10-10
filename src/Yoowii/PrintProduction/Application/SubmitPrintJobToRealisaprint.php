@@ -49,46 +49,54 @@ final readonly class SubmitPrintJobToRealisaprint
             return $submission;
         }
 
-        $configuration = $this->configurationMapper->map($job, $now);
-        $configurationPayload = [
-            'product' => $configuration['product'],
-            'stock' => $configuration['stock'],
-            'variables' => $configuration['variables'],
-        ];
-        $orderPayload = $this->orderPayload($job);
+        $prescript = $this->prescriptConfiguration($job);
+        $configurationPayload = null;
+        if (null === $prescript) {
+            $configuration = $this->configurationMapper->map($job, $now);
+            $configurationPayload = [
+                'product' => $configuration['product'],
+                'stock' => $configuration['stock'],
+                'variables' => $configuration['variables'],
+            ];
+        }
+        $orderPayload = $this->orderPayload($job, $prescript['quantity'] ?? null);
 
         try {
             if (!$this->client->isEnabled()) {
-                $submission->recordSimulation(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload], [
+                $submission->recordSimulation(array_filter(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload]), [
                     'simulation' => true,
-                    'operations' => ['save_configuration', 'create_order'],
+                    'operations' => null === $prescript ? ['save_configuration', 'create_order'] : ['create_order'],
                 ], $now);
             } else {
-                $configurationResponse = $this->client->post('save_configuration', $configurationPayload);
-                $configurationCode = $configurationResponse['code'] ?? null;
+                $configurationResponse = null;
+                $configurationCode = $prescript['code'] ?? null;
+                if (null === $prescript) {
+                    $configurationResponse = $this->client->post('save_configuration', $configurationPayload ?? []);
+                    $configurationCode = $configurationResponse['code'] ?? null;
+                }
                 if (!is_scalar($configurationCode) || '' === trim((string) $configurationCode)) {
-                    $submission->recordFailure(['save_configuration' => $configurationPayload], $this->error($configurationResponse, 'Realisaprint did not return a configuration code.'), $now);
+                    $submission->recordFailure(array_filter(['save_configuration' => $configurationPayload]), null === $prescript ? $this->error($configurationResponse ?? [], 'Realisaprint did not return a configuration code.') : 'Le code Préscript est invalide.', $now);
 
                     return $submission;
                 }
                 $response = $this->client->post('create_order', ['code' => (string) $configurationCode] + $orderPayload);
                 $supplierOrderId = $this->supplierOrderId($response);
                 if (null === $supplierOrderId) {
-                    $submission->recordFailure(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload], $this->error($response, 'Realisaprint did not return a supplier order identifier.'), $now);
+                    $submission->recordFailure(array_filter(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload]), $this->error($response, 'Realisaprint did not return a supplier order identifier.'), $now);
                 } else {
-                    $submission->recordSuccess(['save_configuration' => $configurationPayload, 'create_order' => ['code' => (string) $configurationCode] + $orderPayload], ['save_configuration' => $configurationResponse, 'create_order' => $response], $supplierOrderId, $now);
+                    $submission->recordSuccess(array_filter(['save_configuration' => $configurationPayload, 'create_order' => ['code' => (string) $configurationCode] + $orderPayload]), array_filter(['save_configuration' => $configurationResponse, 'create_order' => $response]), $supplierOrderId, $now);
                     $job->registerSupplierOrder($supplierOrderId, $now);
                 }
             }
         } catch (\Throwable $exception) {
-            $submission->recordFailure(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload], $exception->getMessage(), $now);
+            $submission->recordFailure(array_filter(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload]), $exception->getMessage(), $now);
         }
 
         return $submission;
     }
 
     /** @return array<string, scalar> */
-    private function orderPayload(PrintJob $job): array
+    private function orderPayload(PrintJob $job, ?int $providerQuantity = null): array
     {
         $order = $job->orderItem()->getOrder();
         if (!$order instanceof Order || null === ($address = $order->getShippingAddress())) {
@@ -105,7 +113,7 @@ final readonly class SubmitPrintJobToRealisaprint
 
         return [
             'reference' => $job->reference(),
-            'quantity' => $job->orderItem()->getQuantity(),
+            'quantity' => $providerQuantity ?? $job->orderItem()->getQuantity(),
             'control_file' => false,
             'company' => $address->getCompany() ?? '',
             'name' => $address->getLastName() ?? '',
@@ -117,6 +125,24 @@ final readonly class SubmitPrintJobToRealisaprint
             'city' => $address->getCity() ?? '',
             'country' => $address->getCountryCode() ?? '',
         ];
+    }
+
+    /** @return array{code: string, quantity: int}|null */
+    private function prescriptConfiguration(PrintJob $job): ?array
+    {
+        $pricing = $job->productionSnapshot()['pricing'] ?? null;
+        $configuration = is_array($pricing) ? ($pricing['configuration'] ?? null) : null;
+        $sourcing = is_array($configuration) ? ($configuration['sourcing'] ?? null) : null;
+        if (!is_array($sourcing) || 'prescript' !== ($sourcing['configurator'] ?? null)) {
+            return null;
+        }
+        $code = $sourcing['provider_configuration_code'] ?? null;
+        $quantity = $sourcing['provider_quantity'] ?? null;
+        if (!is_string($code) || '' === trim($code) || !is_int($quantity) || $quantity < 1) {
+            throw new \DomainException('The production snapshot does not contain a valid Prescript configuration.');
+        }
+
+        return ['code' => $code, 'quantity' => $quantity];
     }
 
     /** @param array<string, mixed> $response */

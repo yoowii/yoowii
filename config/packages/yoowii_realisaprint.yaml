@@ -18,3 +18,4 @@ parameters:
     yoowii.realisaprint.default_redis_dsn: 'redis://redis:6379'
     yoowii.realisaprint.http_idle_timeout: 10
     yoowii.realisaprint.http_max_duration: 30
+    yoowii.realisaprint.prescript_template_cache_ttl: 21600

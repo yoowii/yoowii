@@ -93,6 +93,32 @@ final readonly class RealisaprintClient
     }
 
     /**
+     * Posts to a non-JSON Realisaprint endpoint, notably the Prescript HTML template.
+     * Credentials are always injected server-side and never exposed to the browser.
+     *
+     * @param array<string, bool|float|int|string|array<array-key, bool|float|int|string>> $parameters
+     */
+    public function postContent(string $operation, array $parameters): string
+    {
+        if (!$this->enabled) {
+            throw new \DomainException('Realisaprint is disabled.');
+        }
+
+        $this->throttle->acquire($operation);
+        $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . '/' . rawurlencode($operation), [
+            'body' => ['shop_id' => $this->shopId, 'api_key' => $this->apiKey] + $parameters,
+            'timeout' => $this->idleTimeout,
+            'max_duration' => $this->maxDuration,
+        ]);
+        $content = $response->getContent(false);
+        if ($response->getStatusCode() >= 400 || '' === trim($content)) {
+            throw new \RuntimeException(sprintf('Realisaprint did not return a Prescript template (HTTP %d).', $response->getStatusCode()));
+        }
+
+        return $content;
+    }
+
+    /**
      * @param array<string, bool|float|int|string|array<array-key, bool|float|int|string>> $parameters
      *
      * @return array<string, bool|float|int|string|array<array-key, bool|float|int|string>>

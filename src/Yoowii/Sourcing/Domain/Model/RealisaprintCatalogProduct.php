@@ -23,6 +23,10 @@ class RealisaprintCatalogProduct
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $configuration = null;
 
+    /** @var array<string, string> */
+    #[ORM\Column(name: 'prescript_stocks', type: Types::JSON)]
+    private array $prescriptStocks = [];
+
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $archived = false;
 
@@ -78,6 +82,17 @@ class RealisaprintCatalogProduct
         return $this->configuration;
     }
 
+    /** @return array<string, string> stock identifier => supplier label */
+    public function prescriptStocks(): array
+    {
+        return $this->prescriptStocks;
+    }
+
+    public function supportsPrescriptStock(string $stock): bool
+    {
+        return isset($this->prescriptStocks[$stock]);
+    }
+
     public function refresh(string $name, \DateTimeImmutable $seenAt): void
     {
         $this->name = $name;
@@ -90,6 +105,12 @@ class RealisaprintCatalogProduct
     {
         $this->configuration = $configuration;
         $this->configurationSyncedAt = $at;
+    }
+
+    /** @param array<string, string> $stocks */
+    public function refreshPrescriptStocks(array $stocks): void
+    {
+        $this->prescriptStocks = $stocks;
     }
 
     public function archive(): void

@@ -23,6 +23,7 @@ final class RealisaprintDraftCreatorTest extends TestCase
             'PRINT_AGENDA',
             'Agenda',
             '1228',
+            'classic',
             [],
             ['format'],
         );
@@ -40,6 +41,25 @@ final class RealisaprintDraftCreatorTest extends TestCase
             'PRINT_AGENDA',
             'Agenda',
             '837',
+            'classic',
+            [],
+            ['format'],
+        );
+    }
+
+    public function testItRejectsPrescriptForAStockNotAdvertisedByThePrescriptCatalogue(): void
+    {
+        $catalogProduct = $this->catalogProduct(['837' => 'Agenda']);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('n’est pas disponible dans l’API Préscript');
+
+        (new RealisaprintDraftCreator($this->createMock(EntityManagerInterface::class)))->create(
+            $catalogProduct,
+            'PRINT_AGENDA',
+            'Agenda',
+            '837',
+            'prescript',
             [],
             ['format'],
         );

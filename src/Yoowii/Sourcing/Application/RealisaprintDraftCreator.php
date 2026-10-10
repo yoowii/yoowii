@@ -26,7 +26,7 @@ final readonly class RealisaprintDraftCreator
      * @param array<string, array<string, mixed>> $options
      * @param non-empty-list<string> $pricingAxes
      */
-    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, array $options, array $pricingAxes): Product
+    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, string $configuratorMode, array $options, array $pricingAxes): Product
     {
         if (null === $catalogProduct->configuration()) {
             throw new \DomainException('Charge d’abord la configuration Realisaprint avant de créer le brouillon.');
@@ -41,6 +41,12 @@ final readonly class RealisaprintDraftCreator
         }
         if ('' === $stock || !in_array($stock, $availableStocks, true)) {
             throw new \InvalidArgumentException('Le stock Realisaprint sélectionné n’appartient pas à la configuration synchronisée du produit fournisseur.');
+        }
+        if (!in_array($configuratorMode, ['classic', 'prescript'], true)) {
+            throw new \InvalidArgumentException('Le mode de configurateur Realisaprint est invalide.');
+        }
+        if ('prescript' === $configuratorMode && !$catalogProduct->supportsPrescriptStock($stock)) {
+            throw new \DomainException('Le stock Realisaprint sélectionné n’est pas disponible dans l’API Préscript.');
         }
         if (null !== $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $productCode])) {
             throw new \DomainException('Un produit Sylius utilise déjà ce code.');
@@ -103,7 +109,7 @@ final readonly class RealisaprintDraftCreator
             }
             $variables[$option['provider_variable']] = $rule;
         }
-        $configurationMapping = ['realisaprint' => ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'variables' => $variables]];
+        $configurationMapping = ['realisaprint' => ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'configurator' => $configuratorMode, 'variables' => $variables]];
         (new RealisaprintMappingCompleteness())->assertComplete($definition, $catalogProduct->configuration(), $configurationMapping['realisaprint']);
         $mapping = new SupplierProductMappingVersion(
             $supplierProduct,

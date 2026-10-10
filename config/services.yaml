@@ -176,6 +176,11 @@ services:
         arguments:
             $timeToLive: '%yoowii.realisaprint.initial_display_state_ttl%'
 
+    App\Yoowii\Pricing\Application\RealisaprintPrescriptTemplateProvider:
+        arguments:
+            $cache: '@cache.app'
+            $timeToLive: '%yoowii.realisaprint.prescript_template_cache_ttl%'
+
     App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
         alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository
 

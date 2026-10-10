@@ -109,6 +109,7 @@ final class RealisaprintCatalogController extends AbstractController
             $providerMapping = is_array($mappingConfiguration['realisaprint'] ?? null) ? $mappingConfiguration['realisaprint'] : [];
             $stock = $providerMapping['stock'] ?? null;
             $stock = is_string($stock) ? $stock : '—';
+            $configuratorMode = 'prescript' === ($providerMapping['configurator'] ?? 'classic') ? 'prescript' : 'classic';
             $stockLabel = is_scalar($stocks[$stock] ?? null) ? (string) $stocks[$stock] : 'Stock inconnu';
             $mappingStatus = 'absent';
             $configurationStatus = 'À vérifier';
@@ -129,7 +130,7 @@ final class RealisaprintCatalogController extends AbstractController
             if ($mapping instanceof SupplierProductMappingVersion) {
                 $mappingStatus = $route->isActive() && $mapping->isEffectiveAt(new \DateTimeImmutable('now', new \DateTimeZone('UTC'))) ? 'actif' : ($validation instanceof RealisaprintMappingValidation && $validation->coverageComplete() && $validation->quotePassed() ? 'validé' : 'brouillon');
             }
-            $items[$route->yoowiiProductCode()] = ['product' => $product, 'stock' => $stock . ' — ' . $stockLabel, 'mapping_status' => $mappingStatus, 'route_status' => $route->isActive() ? 'publiée' : 'brouillon', 'configuration_status' => $configurationStatus, 'mapping' => $mapping instanceof SupplierProductMappingVersion ? $mapping : null, 'route' => $route];
+            $items[$route->yoowiiProductCode()] = ['product' => $product, 'stock' => $stock . ' — ' . $stockLabel, 'configurator_mode' => $configuratorMode, 'mapping_status' => $mappingStatus, 'route_status' => $route->isActive() ? 'publiée' : 'brouillon', 'configuration_status' => $configurationStatus, 'mapping' => $mapping instanceof SupplierProductMappingVersion ? $mapping : null, 'route' => $route];
         }
         return array_values($items);
     }

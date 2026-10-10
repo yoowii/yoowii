@@ -15,7 +15,7 @@ final class RealisaprintDraftTypeTest extends TestCase
     {
         $builder = $this->createMock(FormBuilderInterface::class);
         $builder
-            ->expects(self::exactly(5))
+            ->expects(self::exactly(6))
             ->method('add')
             ->willReturnCallback(static function (string $name, string $type, array $options) use ($builder): FormBuilderInterface {
                 if ('stock' === $name) {

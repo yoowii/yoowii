@@ -16,11 +16,13 @@ use App\Yoowii\Pricing\Application\Quote\StoredPrintQuote;
 use App\Yoowii\Pricing\Application\RealisaprintAvailabilityFallback;
 use App\Yoowii\Pricing\Application\RealisaprintConfiguratorRefresh;
 use App\Yoowii\Pricing\Application\RealisaprintFixedOptionResolver;
+use App\Yoowii\Pricing\Application\RealisaprintPrescriptTemplateProvider;
 use App\Yoowii\Pricing\Application\RealisaprintVisibleConfigurationBuilder;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Application\StorefrontInitialConfiguratorValues;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
 use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
+use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use Psr\Log\LoggerInterface;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
 use Sylius\Component\Core\Model\ChannelInterface as CoreChannelInterface;
@@ -30,8 +32,10 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\UriSigner;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 final class PrintProductConfiguratorController extends AbstractController
 {
@@ -188,9 +192,33 @@ final class PrintProductConfiguratorController extends AbstractController
         StorefrontInitialConfiguratorValues $initialValues,
         KernelInterface $kernel,
         LoggerInterface $logger,
+        RealisaprintPrescriptTemplateProvider $prescriptTemplates,
+        UriSigner $uriSigner,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
+        $prescriptMapping = $this->prescriptMapping($definitionCode, $entityManager);
+        if ($prescriptMapping instanceof SupplierProductMappingVersion) {
+            $provider = $prescriptMapping->configurationMapping()['realisaprint'];
+            $callbackUrl = $uriSigner->sign($this->generateUrl('yoowii_shop_realisaprint_prescript_save_configuration', [
+                'productCode' => $productCode,
+                '_locale' => $request->getLocale(),
+            ], UrlGeneratorInterface::ABSOLUTE_URL));
+
+            try {
+                $template = $prescriptTemplates->template((string) $provider['product'], (string) $provider['stock'], 1.0, 'FR', $callbackUrl);
+            } catch (\Throwable) {
+                return $this->render('shop/product/show/realisaprint_prescript_configurator.html.twig', [
+                    'product' => $product,
+                    'prescript_template' => '<div class="alert alert-warning" role="alert">Le configurateur fournisseur est momentanément indisponible.</div>',
+                ]);
+            }
+
+            return $this->render('shop/product/show/realisaprint_prescript_configurator.html.twig', [
+                'product' => $product,
+                'prescript_template' => $template,
+            ]);
+        }
         $definition = $definitions->get($definitionCode);
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $availableOptions = $configurationCatalog->availableOptions(
@@ -359,6 +387,22 @@ final class PrintProductConfiguratorController extends AbstractController
         }
 
         return false;
+    }
+
+    private function prescriptMapping(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager): ?SupplierProductMappingVersion
+    {
+        foreach ($entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
+            if (!$mapping instanceof SupplierProductMappingVersion || 'realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
+                continue;
+            }
+            $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
+            if (is_array($provider) && 'prescript' === ($provider['configurator'] ?? 'classic') &&
+                is_string($provider['product'] ?? null) && is_string($provider['stock'] ?? null)) {
+                return $mapping;
+            }
+        }
+
+        return null;
     }
 
     /** @param list<string> $axes */

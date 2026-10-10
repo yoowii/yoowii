@@ -12,6 +12,9 @@ final class RealisaprintDraftData
 
     public string $stock = '';
 
+    /** @var 'classic'|'prescript' */
+    public string $configuratorMode = 'classic';
+
     /** @var string JSON object keyed by canonical Yoowii option code. */
     public string $options = '{}';
 

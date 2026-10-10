@@ -46,7 +46,7 @@ final class RealisaprintDraftController extends AbstractController
                 if (!is_array($options) || !is_array($axes) || [] === $axes) {
                     throw new \InvalidArgumentException('Les options doivent être un objet et les axes de prix une liste non vide.');
                 }
-                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $options, $axes);
+                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $data->configuratorMode, $options, $axes);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
                 return $this->redirectToRoute('yoowii_admin_realisaprint_catalog_show', ['id' => $id]);
