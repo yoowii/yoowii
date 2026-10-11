@@ -1,7 +1,7 @@
 {% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
 <div class="flex items-center justify-between mb-6">
-    <p class="heading-4">{{ 'sylius.ui.cart'|trans }}</p>
-    <button type="button" class="btn btn-primary" js-close-cart aria-label="Close cart">
+    <p class="text-xl font-bold">{{ 'sylius.ui.cart'|trans }}</p>
+    <button type="button" class="btn btn-ghost btn-sm btn-square" js-close-cart aria-label="{{ 'sylius.ui.close'|trans }}">
         {{ icon('x-mark') }}
     </button>
 </div>

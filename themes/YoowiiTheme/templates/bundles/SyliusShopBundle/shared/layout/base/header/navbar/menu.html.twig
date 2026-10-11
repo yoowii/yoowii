@@ -19,8 +19,8 @@
         </label>
 
         {% if taxons|length > 0 %}
-            <nav>
-                <ul class="menu lg:menu-horizontal" {{ sylius_test_html_attribute('menu') }}>
+            <nav aria-label="{{ 'sylius.ui.menu'|trans }}">
+                <ul class="menu gap-1 lg:menu-horizontal lg:justify-center lg:gap-2" {{ sylius_test_html_attribute('menu') }}>
                     {% hook 'menu' with {taxons} %}
                 </ul>
             </nav>

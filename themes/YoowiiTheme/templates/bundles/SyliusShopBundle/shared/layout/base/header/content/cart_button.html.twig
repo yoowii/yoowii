@@ -2,15 +2,14 @@
 
 <div {{ sylius_test_html_attribute('cart-button') }}>
     {% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
-    <button class="flex items-center px-0 relative">
+    <button class="btn btn-ghost btn-sm relative gap-2 px-2" js-cart-opener type="button" aria-label="{{ 'sylius.ui.cart'|trans }}">
         {{ icon('cart') }}
-        hello
-        <span class="hidden lg:block" {{ sylius_test_html_attribute('cart-total') }}>
+        <span class="hidden text-sm font-medium lg:block" {{ sylius_test_html_attribute('cart-total') }}>
             {{- money.convertAndFormat(cart.itemsTotal) -}}
             {{- 'sylius.ui.item.choice'|trans({'%count%': cart.totalQuantity}) }}
         </span>
         {% if cart.totalQuantity > 0 %}
-            <span class="absolute top-0 start-0 badge rounded bg-primary">
+            <span class="badge badge-primary absolute -right-1 -top-1 min-w-5 px-1">
                 {{ cart.totalQuantity }}
             </span>
         {% endif %}

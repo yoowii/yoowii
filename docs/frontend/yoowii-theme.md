@@ -73,6 +73,13 @@ La confirmation de commande, la consultation de commande, les erreurs 403/404/
 retours vers la boutique. Les routes et les données de commande restent celles
 de Sylius.
 
+## Enveloppe storefront
+
+L'en-tête, la navigation mobile, le mini-panier et le pied de page sont
+maintenant conçus pour Yoowii. Les liens ou marques fictifs du thème de base
+ont été retirés ; les mentions légales et réseaux sociaux seront ajoutés quand
+leurs pages et URLs Yoowii seront disponibles.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its
