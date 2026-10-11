@@ -1,0 +1,16 @@
+{
+  "entrypoints": {
+    "app": {
+      "css": [
+        "/themes/yoowii-theme/app.27753c04.css"
+      ],
+      "js": [
+        "/themes/yoowii-theme/app.cca6e427.js"
+      ]
+    }
+  },
+  "integrity": {
+    "/themes/yoowii-theme/app.27753c04.css": "sha384-eFkjtzOZwBdtChhdoUbRwSuM7tUxoZv1Hx5pM5OubbY3gMtkVVcpIJqbsQBFSF+l",
+    "/themes/yoowii-theme/app.cca6e427.js": "sha384-jp3aAKhVXfVJ3Og30GPhRCDIHVMj6Cli7PfeArhnm7QU3mbiazfHiyS8D6SdHPqY"
+  }
+}
