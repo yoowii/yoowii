@@ -8,10 +8,10 @@
         {% set options = pricing_snapshot.configuration.options|default({}) %}
 
         {% if options is not empty %}
-            <div class="mt-2 small text-body-secondary" data-test-print-configuration>
-                <strong>{{ 'yoowii.storefront.print_summary'|trans }} :</strong>
+            <div class="mt-2 text-sm text-base-content/65" data-test-print-configuration>
+                <strong class="font-medium text-base-content">{{ 'yoowii.storefront.print_summary'|trans }} :</strong>
                 {% for option, value in options %}
-                    <span class="d-inline-block me-2">
+                    <span class="mr-2 inline-block">
                         {{ option|replace({'_': ' '})|capitalize }}: {{ value }}
                     </span>
                 {% endfor %}

@@ -1,9 +1,11 @@
 {# Rendered with \Sylius\Bundle\ShopBundle\Twig\Component\Cart\SummaryComponent #}
 
 <div class="relative" {{ attributes }}>
-    <div class="p-4 bg-neutral mb-4 rounded">
-        <h3 class="heading-5 mb-4">{{ 'sylius.ui.summary'|trans }}</h3>
-        {% hook 'summary' with {cart} %}
+    <div class="card border border-base-300 bg-base-100 shadow-sm">
+        <div class="card-body p-5">
+            <h3 class="mb-4 border-b border-base-300 pb-3 text-lg font-semibold">{{ 'sylius.ui.summary'|trans }}</h3>
+            {% hook 'summary' with {cart} %}
+        </div>
     </div>
 </div>
 

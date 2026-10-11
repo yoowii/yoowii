@@ -2,29 +2,29 @@
 {% set form_promotion_coupon = form.promotionCoupon %}
 
 {% if form_promotion_coupon is defined %}
-    <div class="my-4">
-        <div class="p-4 bg-neutral rounded">
+    <div class="my-5">
+        <div class="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
             <div class="" {{ sylius_test_html_attribute('cart-promotion-coupon') }}>
                 {% if form_promotion_coupon.vars.value is not empty and form_promotion_coupon.vars.valid %}
-                    <div class="card flex flex-row justify-content-between align-items-center w-100 py-2 px-3">
-                        <div class="flex flex-wrap" style="gap: .5rem 0;">
-                            <span class="me-2">{{ 'sylius.ui.applied_coupon'|trans }}:</span>
-                            <span class="badge flex items-center text-secondary">
+                    <div class="flex items-center justify-between gap-3 rounded-btn bg-success/10 px-3 py-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span>{{ 'sylius.ui.applied_coupon'|trans }}:</span>
+                            <span class="badge badge-success">
                                 {{ form_promotion_coupon.vars.value }}
                             </span>
                         </div>
-                        <button type="button" class="btn btn-sm btn-transparent flex items-center p-0"
+                        <button type="button" class="btn btn-ghost btn-sm btn-square"
                             data-action="live#action:prevent"
                             data-live-action-param="removeCoupon"
                             {{ sylius_test_html_attribute('cart-promotion-remove-coupon') }}
                         >
-                            {{ ux_icon('tabler:trash', {class: 'icon icon-sm'}) }}
+                            {{ ux_icon('tabler:trash', {class: 'size-4'}) }}
                         </button>
                     </div>
                 {% else %}
                     <div class="join field">
                         {{ form_widget(form_promotion_coupon, sylius_test_form_attribute('cart-promotion-coupon-input')|sylius_merge_recursive({'attr': {'data-model': 'norender|sylius_shop_cart[promotionCoupon]', 'form': form.vars.id, 'placeholder': 'sylius.ui.enter_your_code'|trans ~ '...', 'class': 'input join-item'}})) }}
-                        <button class="btn btn-primary join-item rounded-r-lg" type="button" {{ sylius_test_html_attribute('apply-coupon-button') }} data-action="live#$render">{{ 'sylius.ui.apply_coupon'|trans }}</button>
+                        <button class="btn btn-primary join-item" type="button" {{ sylius_test_html_attribute('apply-coupon-button') }} data-action="live#$render">{{ 'sylius.ui.apply_coupon'|trans }}</button>
                     </div>
                     <div>{{ form_errors(form_promotion_coupon) }}</div>
                 {% endif %}

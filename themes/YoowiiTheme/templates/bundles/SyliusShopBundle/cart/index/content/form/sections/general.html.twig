@@ -1,5 +1,5 @@
-<div class="grid grid-cols-12 gap-6">
-    <div class="col-span-12 lg:col-span-8 mb-4 relative">
+<div class="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10">
+    <div class="relative min-w-0">
         <div data-loading>
             <div class="sylius-shop-loader">
                 <img src="{{ asset('build/shop/images/loader.gif', 'shop') }}" alt="{{ 'sylius.ui.loading'|trans }}"/>
@@ -7,7 +7,7 @@
         </div>
         {% hook 'general#left' %}
     </div>
-    <div class="col-span-12 lg:col-span-4 mb-4">
+    <aside class="lg:sticky lg:top-6 lg:self-start">
         {% hook 'general#right' %}
-    </div>
+</aside>
 </div>

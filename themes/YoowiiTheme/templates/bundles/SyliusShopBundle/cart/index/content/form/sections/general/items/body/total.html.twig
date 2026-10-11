@@ -2,6 +2,6 @@
 
 {% set item = hookable_metadata.context.item %}
 
-<td>
-    <span {{ sylius_test_html_attribute('cart-product-subtotal') }} class="font-bold text-end">{{ money.convertAndFormat(item.subtotal) }}</span>
+<td class="text-right whitespace-nowrap">
+    <span {{ sylius_test_html_attribute('cart-product-subtotal') }} class="font-bold">{{ money.convertAndFormat(item.subtotal) }}</span>
 </td>

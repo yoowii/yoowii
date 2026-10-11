@@ -1,5 +1,5 @@
-<div class="overflow-auto mb-4 lg:mb-0">
-    <table class="table" {{ sylius_test_html_attribute('cart-items') }}>
+<div class="overflow-x-auto rounded-box border border-base-300 bg-base-100 shadow-sm">
+    <table class="table table-zebra" {{ sylius_test_html_attribute('cart-items') }}>
         {% hook 'items' %}
     </table>
 </div>

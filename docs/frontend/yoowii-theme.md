@@ -53,6 +53,13 @@ The Yoowii overrides add responsive product cards, a contained taxon visual, a
 sticky taxonomy navigation and daisyUI pagination; no product query, filter
 name or pagination route is changed.
 
+## Panier et checkout
+
+Le panier conserve ses composants Live et le tunnel ses routes, formulaires,
+étapes et moyens de paiement Sylius. Les surcharges Yoowii se limitent à la
+mise en page responsive, aux cartes de récapitulatif et à l'affichage de la
+configuration print déjà présente dans le snapshot de l'article.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its
