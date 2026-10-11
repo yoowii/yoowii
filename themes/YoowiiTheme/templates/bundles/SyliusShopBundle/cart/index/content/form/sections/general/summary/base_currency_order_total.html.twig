@@ -3,8 +3,8 @@
 {% set cart = hookable_metadata.context.cart %}
 
 {% if cart.currencyCode is not same as(sylius.currencyCode) %}
-    <div class="flex gap-2 border-t pt-3 mt-3">
-        <div class="heading-5 pt-4 mt-4">{{ 'sylius.ui.base_currency_order_total'|trans }}:</div>
-        <div class="ml-auto heading-5 pt-4 mt-4 text-right" {{ sylius_test_html_attribute('cart-base-grand-total') }}>{{ money.format(cart.total, cart.currencyCode) }}</div>
+    <div class="mt-3 flex items-center justify-between gap-2 border-t border-base-300 pt-3 text-sm">
+        <div class="font-medium">{{ 'sylius.ui.base_currency_order_total'|trans }}:</div>
+        <div class="font-semibold text-right" {{ sylius_test_html_attribute('cart-base-grand-total') }}>{{ money.format(cart.total, cart.currencyCode) }}</div>
     </div>
 {% endif %}

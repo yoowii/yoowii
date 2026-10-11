@@ -278,6 +278,7 @@
         padding: 0.9rem 1rem;
         cursor: pointer;
         list-style: none;
+        font-size: 1rem;
     }
 
     .yoowii-print-configurator .yoowii-print-step.is-disabled summary {
@@ -329,7 +330,7 @@
         overflow: hidden;
         margin-left: auto;
         color: color-mix(in srgb, var(--color-base-content) 65%, transparent);
-        font-size: 0.875rem;
+        font-size: 0.9375rem;
         text-align: right;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -374,6 +375,7 @@
         border: 1px solid var(--color-base-300);
         border-radius: var(--radius-field);
         cursor: pointer;
+        font-size: 1rem;
         transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
     }
 
@@ -442,7 +444,7 @@
         align-items: center;
         padding: 0.7rem 0;
         border-bottom: 1px solid var(--color-base-300);
-        font-size: 0.875rem;
+        font-size: 0.9375rem;
     }
 
     .yoowii-print-configurator .yoowii-print-summary-check {

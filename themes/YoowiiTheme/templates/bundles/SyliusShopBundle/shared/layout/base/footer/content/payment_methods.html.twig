@@ -1,4 +1,10 @@
-<div class="flex flex-col gap-3">
-    <h6 class="footer-title">{{ 'sylius.ui.payment_methods'|trans }}</h6>
-    <p class="text-sm text-base-content/65">{{ 'sylius.ui.secure_payment'|trans }}</p>
+<div class="flex flex-col gap-4 lg:col-span-3">
+    <div>
+        <h6 class="footer-title">{{ 'sylius.ui.payment_methods'|trans }}</h6>
+        <div class="flex flex-wrap gap-2">
+            <span class="btn btn-ghost btn-sm h-auto px-2 py-1"><img width="64" height="18" src="{{ asset('build/shop/images/paypal-logo.svg', 'shop') }}" alt="PayPal" /></span>
+            <span class="btn btn-ghost btn-sm h-auto px-2 py-1"><img width="64" height="18" src="{{ asset('build/shop/images/adyen-logo.svg', 'shop') }}" alt="Adyen" /></span>
+            <span class="btn btn-ghost btn-sm h-auto px-2 py-1"><img width="64" height="18" src="{{ asset('build/shop/images/mollie-logo.svg', 'shop') }}" alt="Mollie" /></span>
+        </div>
+    </div>
 </div>

@@ -5,14 +5,14 @@
 {% set tax_excluded = cart.getTaxExcludedTotal() %}
 
 
-<div class="flex items-center justify-between gap-2 mb-2" {% if tax_included and not tax_excluded %}class=""{% endif %}>
+<div class="mb-2 flex items-center justify-between gap-2 text-sm">
     <div>
         {{ 'sylius.ui.taxes_total'|trans }}:
         {% if tax_included %}
             <div><small>({{ 'sylius.ui.included_in_price'|trans }})</small></div>
         {% endif %}
     </div>
-    <div class="text-end">
+    <div class="text-right">
         {% if not tax_included and not tax_excluded %}
             <div {{ sylius_test_html_attribute('cart-no-tax') }}>{{ money.convertAndFormat(0) }}</div>
         {% endif %}

@@ -2,7 +2,7 @@
 
 {% set cart = hookable_metadata.context.cart %}
 
-<div class="flex items-center justify-between gap-2 mb-2">
+<div class="mb-2 flex items-center justify-between gap-2 text-sm">
     <div>{{ 'sylius.ui.items_total'|trans }}:</div>
-    <div class="ms-auto text-end" {{ sylius_test_html_attribute('cart-items-total') }}>{{ money.convertAndFormat(cart.getItemsSubtotal()) }}</div>
+    <div class="text-right" {{ sylius_test_html_attribute('cart-items-total') }}>{{ money.convertAndFormat(cart.getItemsSubtotal()) }}</div>
 </div>

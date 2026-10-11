@@ -3,9 +3,9 @@
 {% set cart = hookable_metadata.context.cart %}
 
 {% if cart.shipments is not empty %}
-    <div class="flex items-center justify-between gap-2 mb-2">
+    <div class="mb-2 flex items-center justify-between gap-2 text-sm">
         <div>{{ 'sylius.ui.shipping_estimated_cost'|trans }}:</div>
-        <div class="text-end">
+        <div class="text-right">
             {% if cart.getAdjustmentsTotal('shipping') > cart.shippingTotal %}
                 <del>{{ money.convertAndFormat(cart.getAdjustmentsTotal('shipping')) }}</del>
             {% endif %}

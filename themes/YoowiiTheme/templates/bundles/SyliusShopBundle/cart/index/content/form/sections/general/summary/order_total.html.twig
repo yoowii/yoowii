@@ -2,7 +2,7 @@
 
 {% set cart = hookable_metadata.context.cart %}
 
-<div class="flex items-center justify-between gap-2 border-top pt-4 mt-4">
-    <div class="heading-6">{{ 'sylius.ui.order_total'|trans }}:</div>
-    <div class="heading-6 text-end" {{ sylius_test_html_attribute('cart-grand-total') }}>{{ money.convertAndFormat(cart.total) }}</div>
+<div class="mt-4 flex items-center justify-between gap-2 border-t border-base-300 pt-4">
+    <div class="text-lg font-semibold">{{ 'sylius.ui.order_total'|trans }}:</div>
+    <div class="text-lg font-semibold text-right" {{ sylius_test_html_attribute('cart-grand-total') }}>{{ money.convertAndFormat(cart.total) }}</div>
 </div>
