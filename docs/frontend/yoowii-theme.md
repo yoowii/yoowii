@@ -15,6 +15,14 @@ The source files are intentionally copied into this repository. They are not a
 runtime Composer dependency: all Yoowii overrides, print configurators and
 supplier integrations remain local and reviewable.
 
+## Activation
+
+Sylius discovers the theme from `themes/YoowiiTheme/composer.json`. To activate
+it, edit the Yoowii channel in the administration under `Configuration >
+Channels > Look & feel`, then select **Yoowii Theme**. Do not remove the
+`app.shop` build: it still loads the Stimulus controllers used by price matrices
+and supplier configurators.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its
@@ -27,6 +35,12 @@ After pulling this branch in a fully initialized local environment:
 ```bash
 corepack yarn install
 corepack yarn build:prod
+```
+
+For a focused check of the theme build only:
+
+```bash
+./node_modules/.bin/encore production --config themes/YoowiiTheme/webpack.config.js
 ```
 
 ## Upstream maintenance

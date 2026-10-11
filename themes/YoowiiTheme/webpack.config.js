@@ -1,3 +1,5 @@
+const Encore = require('@symfony/webpack-encore');
+
 Encore
   .setOutputPath('public/themes/yoowii-theme')
   .setPublicPath('/themes/yoowii-theme')
