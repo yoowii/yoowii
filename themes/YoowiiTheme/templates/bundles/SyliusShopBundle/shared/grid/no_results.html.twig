@@ -3,5 +3,7 @@
 {% set resources = hookable_metadata.context.resources %}
 
 {% if resources.data|length == 0 %}
-    {{ messages.info('sylius.ui.no_results_to_display') }}
+    <div class="rounded-box border border-dashed border-base-300 bg-base-100 px-6 py-10 text-center">
+        {{ messages.info('sylius.ui.no_results_to_display') }}
+    </div>
 {% endif %}

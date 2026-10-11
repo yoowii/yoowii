@@ -2,7 +2,7 @@
 
 {% if payment != false %}
     {% if payment.method.instructions is not null %}
-        <div {{ sylius_test_html_attribute('payment-method-instructions') }}>
+        <div class="mt-5 rounded-box bg-base-200 p-4 text-left text-sm" {{ sylius_test_html_attribute('payment-method-instructions') }}>
             {{ payment.method.instructions }}
         </div>
     {% endif %}

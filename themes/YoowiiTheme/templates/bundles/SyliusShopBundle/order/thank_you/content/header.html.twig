@@ -1,2 +1,5 @@
-<h1 class="heading-3 mb-4" {{ sylius_test_html_attribute('thank-you') }}>{{ 'sylius.ui.thank_you'|trans }}</h1>
-{{ 'sylius.ui.placed_an_order'|trans }}
+<div class="mb-5 flex size-14 items-center justify-center rounded-full bg-success/15 text-success">
+    {{ ux_icon('tabler:check', {class: 'size-8'}) }}
+</div>
+<h1 class="mb-3 text-3xl font-bold tracking-tight" {{ sylius_test_html_attribute('thank-you') }}>{{ 'sylius.ui.thank_you'|trans }}</h1>
+<p class="text-base-content/65">{{ 'sylius.ui.placed_an_order'|trans }}</p>

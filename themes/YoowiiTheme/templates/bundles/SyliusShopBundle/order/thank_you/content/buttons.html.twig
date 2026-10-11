@@ -1,6 +1,6 @@
 {% set order = hookable_metadata.context.order %}
 
-<div class="flex flex-col lg:flex-row justify-center gap-2 mt-4">
+<div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
     {% if order.customer.user is not null %}
         {% hook 'buttons#customer' %}
     {% else %}

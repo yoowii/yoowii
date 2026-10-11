@@ -1,5 +1,7 @@
-<div class="col-span-12 md:col-span-6 mb-3" {{ sylius_test_html_attribute('shipping-address') }}>
-    <div class="card border-0 bg-neutral p-6">
+<div {{ sylius_test_html_attribute('shipping-address') }}>
+    <div class="card h-full border border-base-300 bg-base-100 shadow-sm">
+        <div class="card-body p-5">
         {% hook 'shipping' with {'address': hookable_metadata.context.order.shippingAddress} %}
+        </div>
     </div>
 </div>

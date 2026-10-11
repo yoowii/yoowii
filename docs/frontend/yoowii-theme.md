@@ -66,6 +66,13 @@ La connexion, l'inscription et le compte client conservent les contrôleurs et
 les formulaires Sylius. Le thème applique des cartes, une navigation compte
 fixe sur grand écran et des formulaires cohérents avec le reste du storefront.
 
+## Confirmations et états vides
+
+La confirmation de commande, la consultation de commande, les erreurs 403/404/
+500 et les états panier ou grille vides utilisent des cartes légères et des
+retours vers la boutique. Les routes et les données de commande restent celles
+de Sylius.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its

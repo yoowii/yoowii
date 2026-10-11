@@ -6,7 +6,10 @@
 
 <div {{ attributes }}>
     {% if resource.empty %}
-        {{ messages.info('sylius.ui.your_cart_is_empty') }}
+        <div class="rounded-box border border-dashed border-base-300 bg-base-100 px-6 py-12 text-center">
+            {{ messages.info('sylius.ui.your_cart_is_empty') }}
+            <a class="btn btn-primary mt-5" href="{{ path('sylius_shop_homepage') }}">{{ 'sylius.ui.back_to_store'|trans }}</a>
+        </div>
     {% else %}
         {{ form_start(form, {'action': path('sylius_shop_cart_checkout'), 'attr': {'novalidate': 'novalidate', 'id': form.vars.id}}) }}
         <input type="hidden" name="_method" value="PATCH"/>
