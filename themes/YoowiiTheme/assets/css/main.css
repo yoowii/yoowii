@@ -239,6 +239,258 @@
     .yoowii-prescript-quote:empty {
         display: none;
     }
+
+    /* The configurator controller still toggles Bootstrap's legacy d-none
+       class for the non-themed storefront. Keep that state functional here
+       without coupling the Yoowii theme to Bootstrap. */
+    .yoowii-print-configurator .d-none {
+        display: none !important;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step {
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-box);
+        background: var(--color-base-100);
+        transition: border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step[open],
+    .yoowii-print-configurator .yoowii-print-step.is-complete {
+        border-color: var(--color-primary);
+    }
+
+    .yoowii-print-configurator .yoowii-print-step[open] {
+        box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 10%, transparent);
+    }
+
+    .yoowii-print-configurator .yoowii-print-step.is-disabled {
+        opacity: 0.52;
+        background: var(--color-base-200);
+    }
+
+    .yoowii-print-configurator .yoowii-print-step summary {
+        display: flex;
+        min-height: 3.75rem;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.9rem 1rem;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step.is-disabled summary {
+        cursor: not-allowed;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step-status,
+    .yoowii-print-configurator .yoowii-print-summary-check {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--color-base-300);
+        border-radius: 9999px;
+        color: var(--color-base-content);
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step-status {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step-check {
+        display: none;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step.is-complete .yoowii-print-step-status,
+    .yoowii-print-configurator .yoowii-print-summary-list li.is-complete .yoowii-print-summary-check {
+        border-color: var(--color-primary);
+        color: var(--color-primary-content);
+        background: var(--color-primary);
+    }
+
+    .yoowii-print-configurator .yoowii-print-step.is-complete .yoowii-print-step-number {
+        display: none;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step.is-complete .yoowii-print-step-check {
+        display: inline;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step-value {
+        overflow: hidden;
+        margin-left: auto;
+        color: color-mix(in srgb, var(--color-base-content) 65%, transparent);
+        font-size: 0.875rem;
+        text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step-chevron {
+        width: 0.55rem;
+        height: 0.55rem;
+        margin-right: 0.15rem;
+        border-right: 1.5px solid currentColor;
+        border-bottom: 1.5px solid currentColor;
+        transform: rotate(45deg);
+        transition: transform 160ms ease;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step[open] .yoowii-print-step-chevron {
+        transform: rotate(225deg);
+    }
+
+    .yoowii-print-configurator .yoowii-print-step-content {
+        padding: 0 1rem 1rem;
+    }
+
+    .yoowii-print-configurator .yoowii-print-choice-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .yoowii-print-configurator .yoowii-print-choice-grid.is-format-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .yoowii-print-configurator .yoowii-print-choice-card {
+        position: relative;
+        display: flex;
+        min-height: 3.5rem;
+        height: 100%;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.85rem;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-field);
+        cursor: pointer;
+        transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    }
+
+    .yoowii-print-configurator .yoowii-print-choice-card:hover {
+        border-color: var(--color-primary);
+        transform: translateY(-1px);
+    }
+
+    .yoowii-print-configurator .yoowii-print-choice-card:has(input:checked) {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 1px var(--color-primary);
+        background: color-mix(in srgb, var(--color-primary) 7%, var(--color-base-100));
+    }
+
+    .yoowii-print-configurator .yoowii-print-choice-card:has(input:focus-visible) {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+    }
+
+    .yoowii-print-configurator .yoowii-print-choice-card input[type="radio"] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .yoowii-print-configurator .is-format-grid .yoowii-print-choice-card {
+        min-height: 8.5rem;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .yoowii-print-configurator .yoowii-print-format-preview {
+        display: flex;
+        width: 3.5rem;
+        height: 4.5rem;
+        align-items: end;
+        justify-content: center;
+        padding: 0.35rem;
+        border: 1px solid var(--color-base-300);
+        background: linear-gradient(145deg, var(--color-base-200) 50%, var(--color-base-300) 50%);
+        font-size: 0.65rem;
+        text-transform: uppercase;
+    }
+
+    .yoowii-print-configurator .yoowii-print-step-content :is(select, input:not([type="radio"])) {
+        width: 100%;
+        min-height: 2.75rem;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-field);
+        background: var(--color-base-100);
+    }
+
+    .yoowii-print-configurator .yoowii-print-summary {
+        position: sticky;
+        top: 1.5rem;
+    }
+
+    .yoowii-print-configurator .yoowii-print-summary-list li {
+        display: grid;
+        grid-template-columns: 1rem minmax(0, 1fr) minmax(0, 1fr) auto;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.7rem 0;
+        border-bottom: 1px solid var(--color-base-300);
+        font-size: 0.875rem;
+    }
+
+    .yoowii-print-configurator .yoowii-print-summary-check {
+        width: 1rem;
+        height: 1rem;
+        color: transparent;
+        font-size: 0.62rem;
+    }
+
+    .yoowii-print-configurator .yoowii-print-summary-list strong {
+        overflow: hidden;
+        text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .yoowii-print-configurator .yoowii-print-calculating {
+        align-items: center;
+    }
+
+    .yoowii-print-configurator .yoowii-print-add-to-cart {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+    }
+
+    @media (max-width: 640px) {
+        .yoowii-print-configurator .yoowii-print-choice-grid,
+        .yoowii-print-configurator .yoowii-print-choice-grid.is-format-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .yoowii-print-configurator .is-format-grid .yoowii-print-choice-card {
+            min-height: 5rem;
+            flex-direction: row;
+            justify-content: flex-start;
+            text-align: left;
+        }
+
+        .yoowii-print-configurator .yoowii-print-step-value {
+            display: none;
+        }
+
+        .yoowii-print-configurator .yoowii-print-summary {
+            position: static;
+        }
+    }
 }
 
 /*!* Typography *!*/

@@ -32,6 +32,14 @@ the Yoowii quote, but never renames supplier fields, replaces its markup or
 intercepts its events. This keeps the Prescript contract intact while avoiding
 polling when the configurator is outside the viewport.
 
+## Matrices et API fournisseur
+
+The standard print configurator keeps its existing form field names, Stimulus
+targets and supplier refresh flow. Its Yoowii template turns the same fields
+into progressive option cards and a sticky quote summary. The legacy `d-none`
+state remains supported inside the theme because the supplier availability
+controller uses it to hide conditional options.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its

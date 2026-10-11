@@ -10,7 +10,7 @@
 {% set initial_availability = initial_provider_state.availability|default({}) %}
 
 <div
-    class="yoowii-print-configurator"
+    class="yoowii-print-configurator mx-auto max-w-7xl py-8 sm:py-12"
     data-controller="print-configurator"
     data-print-configurator-refresh-url-value="{{ refresh_url|default('') }}"
     data-print-configurator-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
@@ -23,24 +23,24 @@
     {% endif %}
     data-print-configurator-initial-provider-state-stale-value="{{ initial_provider_state_stale|default(false) ? 'true' : 'false' }}"
 >
-    <div class="mb-4">
-        <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
-        <h2 class="h1 mb-2">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>
-        <p class="text-secondary mb-0">{{ 'yoowii.storefront.print_configuration_hint'|trans }}</p>
-    </div>
+    <header class="mb-8 max-w-2xl">
+        <p class="mb-2 text-sm font-semibold uppercase tracking-wider text-primary">Yoowii Print</p>
+        <h2 class="text-2xl font-bold text-base-content sm:text-3xl">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>
+        <p class="mt-2 text-base-content/70">{{ 'yoowii.storefront.print_configuration_hint'|trans }}</p>
+    </header>
 
     {% if available %}
-        <div class="row g-4 align-items-start">
-            <div class="col-12 col-lg-8">
+        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+            <div class="min-w-0">
                 <div
-                    class="alert alert-danger d-none"
+                    class="alert alert-error d-none"
                     role="alert"
                     data-print-configurator-target="error"
                 ></div>
 
                 {{ form_start(form, {
                     attr: {
-                        class: 'yoowii-print-options',
+                        class: 'yoowii-print-options space-y-3',
                         'data-print-configurator-target': 'form',
                         'data-action': 'submit->print-configurator#submit'
                     }
@@ -48,18 +48,18 @@
                 {{ form_errors(form) }}
 
                 {% for code, fixed in fixed_fields|default([]) %}
-                    <p class="text-secondary mb-2" data-fixed-axis="{{ code }}">
+                    <p class="rounded-box bg-base-200 px-3 py-2 text-sm text-base-content/70" data-fixed-axis="{{ code }}">
                         <strong>{{ code|replace({'_': ' '})|capitalize }} :</strong> {{ fixed.label }} · valeur imposée par Realisaprint
                     </p>
                 {% endfor %}
                 {% set previous_steps_complete = true %}
                 {% set secondary_started = false %}
-                <h3 class="h5 mb-3">Caractéristiques</h3>
+                <h3 class="mb-3 text-lg font-semibold text-base-content">Caractéristiques</h3>
                 {% for field in configurable_fields %}
                     {% set option_code = field.vars.name %}
                     {% if field.vars.attr['data-area']|default(1) == 2 and not secondary_started %}
                         {% set secondary_started = true %}
-                        <h3 class="h5 mt-5 mb-3">Options complémentaires</h3>
+                        <h3 class="mb-3 mt-8 text-lg font-semibold text-base-content">Options complémentaires</h3>
                     {% endif %}
                     {% set step_index = loop.index0 %}
                     {% set initially_visible = initial_visibility[option_code] is defined ? initial_visibility[option_code] : true %}
@@ -89,7 +89,7 @@
                                 <span class="yoowii-print-step-number">{{ loop.index }}</span>
                                 <span class="yoowii-print-step-check">✓</span>
                             </span>
-                            <span class="fw-semibold">{{ field.vars.label }}</span>
+                            <span class="font-semibold">{{ field.vars.label }}</span>
                             <span class="yoowii-print-step-value" data-role="step-value">
                                 {{ selected_label ?? 'yoowii.storefront.choice_pending'|trans }}
                             </span>
@@ -137,23 +137,23 @@
 
                 {{ form_rest(form) }}
                 <noscript>
-                    <button class="btn btn-primary btn-lg mt-3" type="submit">
+                    <button class="btn btn-primary btn-lg mt-4" type="submit">
                         {{ 'yoowii.storefront.calculate_price'|trans }}
                     </button>
                 </noscript>
-                {% if manual_quote|default(false) %}<button class="btn btn-primary btn-lg mt-3" type="button" data-action="print-configurator#calculate">
+                {% if manual_quote|default(false) %}<button class="btn btn-primary btn-lg mt-4" type="button" data-action="print-configurator#calculate">
                     {{ 'yoowii.storefront.calculate_price'|trans }}
                 </button>{% endif %}
                 {{ form_end(form, {render_rest: false}) }}
             </div>
 
-            <div class="col-12 col-lg-4">
-                <aside class="card shadow-sm yoowii-print-summary">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h3 class="h4 mb-0">{{ 'yoowii.storefront.print_summary'|trans }}</h3>
+            <div>
+                <aside class="card border border-base-300 bg-base-100 shadow-sm yoowii-print-summary">
+                    <div class="card-body gap-4 p-5">
+                        <div class="flex items-center justify-between gap-3">
+                            <h3 class="text-lg font-semibold text-base-content">{{ 'yoowii.storefront.print_summary'|trans }}</h3>
                             <button
-                                class="btn btn-link btn-sm p-0"
+                                class="btn btn-ghost btn-sm"
                                 type="button"
                                 data-action="print-configurator#reset"
                             >
@@ -161,7 +161,7 @@
                             </button>
                         </div>
 
-                        <ul class="list-unstyled yoowii-print-summary-list mb-4">
+                        <ul class="yoowii-print-summary-list">
                             {% for field in configurable_fields %}
                                 {% set option_code = field.vars.name %}
                                 {% set selected_label = null %}
@@ -184,7 +184,7 @@
                                         {{ selected_label ?? 'yoowii.storefront.choice_pending'|trans }}
                                     </strong>
                                     <button
-                                        class="btn btn-link btn-sm p-0"
+                                        class="btn btn-ghost btn-xs"
                                         type="button"
                                         data-action="print-configurator#openStep"
                                         data-step-index="{{ loop.index0 }}"
@@ -196,12 +196,12 @@
                         </ul>
 
                         <div
-                            class="yoowii-print-calculating d-none"
+                            class="yoowii-print-calculating alert alert-info d-none"
                             role="status"
                             aria-live="polite"
                             data-print-configurator-target="loading"
                         >
-                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
                             <span>{{ 'yoowii.storefront.calculating_price'|trans }}</span>
                         </div>
 
