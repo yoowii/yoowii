@@ -2,12 +2,14 @@
 {% do advanced_taxon_preload_menu(taxons|default([])) %}
 {% set visible_taxons = taxons|default([])|slice(0, 3) %}
 {% set catalogue_taxon = taxons|default([])|first %}
+{% set mega_menu_enabled = sylius.channel is defined and sylius.channel.hasMegaMenu %}
 
 <input id="yoowii-nav-drawer" type="checkbox" class="peer sr-only">
 
 <div class="border-b border-base-300 bg-base-100">
     <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" data-controller="mega-menu" data-action="keydown@window->mega-menu#closeOnEscape">
         <nav class="hidden h-13 items-center gap-1 lg:flex" aria-label="{{ 'sylius.ui.menu'|trans }}">
+            {% if mega_menu_enabled %}
             <div class="relative" data-mega-menu-target="root">
                 <button class="btn btn-ghost btn-sm font-bold" type="button" data-mega-menu-target="trigger" data-action="mega-menu#toggle" aria-expanded="false" aria-controls="yoowii-mega-menu">
                     Tous les produits {{ icon('chevron-down', 'size-4') }}
@@ -35,6 +37,9 @@
                     <div class="mt-5 flex gap-6 border-t border-base-300 pt-4 text-sm font-bold"><a href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Voir tous les produits</a><a href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a></div>
                 </div>
             </div>
+            {% else %}
+                <a class="btn btn-ghost btn-sm font-bold" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Tous les produits</a>
+            {% endif %}
             {% for taxon in visible_taxons %}<a class="btn btn-ghost btn-sm" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">{{ taxon.name }}</a>{% endfor %}
             <a class="btn btn-ghost btn-sm" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Créer mon imprimé</a>
             <a class="btn btn-ghost btn-sm ml-auto text-primary" href="{{ path('sylius_shop_contact_request') }}">Studio de design <span class="badge badge-secondary badge-sm">Nouveau</span></a>
