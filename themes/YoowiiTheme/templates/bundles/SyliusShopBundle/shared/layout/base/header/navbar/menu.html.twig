@@ -1,5 +1,6 @@
 {% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
 {% set visible_taxons = taxons|default([])|slice(0, 3) %}
+{% set catalogue_taxon = taxons|default([])|first %}
 
 <input id="yoowii-nav-drawer" type="checkbox" class="peer sr-only">
 
@@ -30,11 +31,11 @@
                             <a class="btn btn-primary btn-sm" href="{{ path('sylius_shop_contact_request') }}">Découvrir le Studio</a>
                         </aside>
                     </div>
-                    <div class="mt-5 flex gap-6 border-t border-base-300 pt-4 text-sm font-bold"><a href="{{ path('sylius_shop_product_index') }}">Voir tous les produits</a><a href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a></div>
+                    <div class="mt-5 flex gap-6 border-t border-base-300 pt-4 text-sm font-bold"><a href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Voir tous les produits</a><a href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a></div>
                 </div>
             </div>
             {% for taxon in visible_taxons %}<a class="btn btn-ghost btn-sm" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">{{ taxon.name }}</a>{% endfor %}
-            <a class="btn btn-ghost btn-sm" href="{{ path('sylius_shop_product_index') }}">Créer mon imprimé</a>
+            <a class="btn btn-ghost btn-sm" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Créer mon imprimé</a>
             <a class="btn btn-ghost btn-sm ml-auto text-primary" href="{{ path('sylius_shop_contact_request') }}">Studio de design <span class="badge badge-secondary badge-sm">Nouveau</span></a>
         </nav>
     </div>
@@ -43,7 +44,7 @@
 <aside class="fixed inset-y-0 left-0 z-[70] w-[min(22rem,88vw)] -translate-x-full bg-base-100 p-5 shadow-2xl transition-transform peer-checked:translate-x-0 lg:hidden">
     <label for="yoowii-nav-drawer" class="btn btn-ghost btn-sm btn-square float-right" aria-label="Fermer le menu">{{ icon('x-mark') }}</label>
     <p class="mb-8 font-display text-xl font-extrabold">Tous les produits</p>
-    <nav aria-label="Navigation mobile"><ul class="menu gap-2 text-base font-bold">{% for taxon in visible_taxons %}<li><details><summary>{{ taxon.name }}</summary><ul>{% for child_taxon in taxon.enabledChildren %}<li><a href="{{ path('sylius_shop_product_index', {'slug': child_taxon.slug, '_locale': child_taxon.translation.locale}) }}">{{ child_taxon.name }}</a></li>{% endfor %}</ul></details></li>{% endfor %}<li><a href="{{ path('sylius_shop_product_index') }}">Créer mon imprimé</a></li><li><a href="{{ path('sylius_shop_contact_request') }}">Studio de design <span class="badge badge-secondary badge-sm">Nouveau</span></a></li></ul></nav>
+    <nav aria-label="Navigation mobile"><ul class="menu gap-2 text-base font-bold">{% for taxon in visible_taxons %}<li><details><summary>{{ taxon.name }}</summary><ul>{% for child_taxon in taxon.enabledChildren %}<li><a href="{{ path('sylius_shop_product_index', {'slug': child_taxon.slug, '_locale': child_taxon.translation.locale}) }}">{{ child_taxon.name }}</a></li>{% endfor %}</ul></details></li>{% endfor %}<li><a href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Créer mon imprimé</a></li><li><a href="{{ path('sylius_shop_contact_request') }}">Studio de design <span class="badge badge-secondary badge-sm">Nouveau</span></a></li></ul></nav>
     <div class="mt-8 border-t border-base-300 pt-5 text-sm"><a class="block py-2" href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a><a class="block py-2" href="{{ path('sylius_shop_contact_request') }}">Contact</a><a class="block py-2" href="{{ path('sylius_shop_account_order_index') }}">Suivi de commande</a></div>
 </aside>
 <label for="yoowii-nav-drawer" class="fixed inset-0 z-[60] hidden bg-neutral/40 peer-checked:block lg:hidden" aria-label="Fermer le menu"></label>
