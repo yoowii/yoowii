@@ -60,6 +60,12 @@ Le panier conserve ses composants Live et le tunnel ses routes, formulaires,
 mise en page responsive, aux cartes de récapitulatif et à l'affichage de la
 configuration print déjà présente dans le snapshot de l'article.
 
+## Espace client
+
+La connexion, l'inscription et le compte client conservent les contrôleurs et
+les formulaires Sylius. Le thème applique des cartes, une navigation compte
+fixe sur grand écran et des formulaires cohérents avec le reste du storefront.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its
