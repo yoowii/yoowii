@@ -1,8 +1,8 @@
-<nav {{ sylius_test_html_attribute('vertical-menu') }}>
-    <ul class="list bg-base-100 rounded-box shadow-md">
+<nav class="card border border-base-300 bg-base-100 shadow-sm" {{ sylius_test_html_attribute('vertical-menu') }}>
+    <ul class="menu gap-1 p-3">
         {% if taxon.parent is not empty and not taxon.parent.isRoot() and taxon.parent.enabled %}
-            <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">
-                <a href="{{ path('sylius_shop_product_index', {'slug': taxon.parent.slug, '_locale': taxon.parent.translation.locale}) }}" class="flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content mb-3 transition-colors" {{ sylius_test_html_attribute('vertical-menu-go-level-up') }}>
+            <li>
+                <a href="{{ path('sylius_shop_product_index', {'slug': taxon.parent.slug, '_locale': taxon.parent.translation.locale}) }}" class="mb-2 flex items-center gap-1 rounded-btn text-sm text-base-content/60 transition-colors hover:bg-base-200 hover:text-base-content" {{ sylius_test_html_attribute('vertical-menu-go-level-up') }}>
                     {{ ux_icon('tabler:arrow-left', {class: 'size-4'}) }}
                     {{ 'sylius.ui.go_level_up'|trans }}
                 </a>
@@ -10,12 +10,10 @@
         {% endif %}
 
         {% for child in taxon.enabledChildren %}
-            <li class="list-row">
-                <div>
-                    <a href="{{ path('sylius_shop_product_index', {'slug': child.slug, '_locale': child.translation.locale}) }}" class="{{ child.slug == taxon.slug ? 'active' : '' }}" {{ sylius_test_html_attribute('vertical-menu-item') }}>
-                        {{ child.name }}
-                    </a>
-                </div>
+            <li>
+                <a href="{{ path('sylius_shop_product_index', {'slug': child.slug, '_locale': child.translation.locale}) }}" class="rounded-btn transition-colors hover:bg-base-200 {{ child.slug == taxon.slug ? 'bg-primary text-primary-content hover:bg-primary' : '' }}" {{ sylius_test_html_attribute('vertical-menu-item') }}>
+                    {{ child.name }}
+                </a>
             </li>
         {% endfor %}
     </ul>

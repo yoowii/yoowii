@@ -1,10 +1,10 @@
 {% set taxon = hookable_metadata.context.taxon %}
 
 {% if taxon.images.first %}
-    <div class="mb-5">
+    <div class="mb-6 overflow-hidden rounded-box border border-base-300 bg-base-100">
         <img src="{{ asset(taxon.images.first.path|imagine_filter('sylius_shop_taxon_thumbnail')) }}"
              alt="{{ taxon.name }}"
-             class="max-w-full h-auto"
+             class="h-40 w-full object-cover sm:h-52"
         >
     </div>
 {% endif %}

@@ -46,6 +46,13 @@ The product page remains hook-driven by Sylius. The Yoowii overrides provide a
 responsive gallery, a sticky product summary and print-aware price/CTA styling
 without changing routes, product data or add-to-cart components.
 
+## Catalogue
+
+Taxonomy pages retain Sylius grids, query filters and Pagerfanta pagination.
+The Yoowii overrides add responsive product cards, a contained taxon visual, a
+sticky taxonomy navigation and daisyUI pagination; no product query, filter
+name or pagination route is changed.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its

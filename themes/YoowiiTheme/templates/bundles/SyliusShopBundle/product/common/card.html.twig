@@ -17,7 +17,9 @@
     {% endif %}
 </div> #}
 
-<div {{ sylius_test_html_attribute('product', '%s'|format(product.code)) }} class="group">
+<div {{ sylius_test_html_attribute('product', '%s'|format(product.code)) }} class="card group h-full overflow-hidden border border-base-300 bg-base-100 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div class="card-body gap-0 p-4">
     {% hook 'card' with {_prefixes: ['sylius_shop.shared.product']} %}
+    </div>
 </div>
 
