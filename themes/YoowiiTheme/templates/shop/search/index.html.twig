@@ -1,0 +1,46 @@
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+
+{% block title %}Recherche{% if query %} : {{ query }}{% endif %} | Yoowii{% endblock %}
+
+{% block content %}
+    <main class="container mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <p class="mb-3 text-sm text-base-content/70">Accueil / Recherche</p>
+        <h1 class="heading-2">Résultats{% if query %} pour « {{ query }} »{% endif %}</h1>
+
+        {% if query|length < 2 %}
+            <div class="mt-8 rounded-box bg-base-200 p-6">
+                <h2 class="heading-5">Recherchez un produit</h2>
+                <p class="mt-2">Saisissez au moins deux caractères pour lancer la recherche.</p>
+            </div>
+        {% elseif products is empty %}
+            <div class="mt-8 rounded-box bg-base-200 p-6">
+                <h2 class="heading-5">Aucun produit trouvé</h2>
+                <p class="mt-2">Essayez un autre mot-clé, un format ou une idée plus générale.</p>
+                <a class="btn btn-primary mt-5" href="{{ path('sylius_shop_contact_request') }}">Nous contacter</a>
+            </div>
+        {% else %}
+            <p class="mt-3 text-base-content/70">{{ products|length }} produit{{ products|length > 1 ? 's' : '' }}</p>
+            <div class="mt-7 rounded-box bg-base-200 p-5 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="font-display text-xl font-extrabold">Besoin d’aide pour choisir ?</h2>
+                    <p class="mt-1 text-sm">[PLACEHOLDER] Notre équipe vous accompagne.</p>
+                </div>
+                <a class="btn btn-outline btn-primary mt-4 sm:mt-0" href="{{ path('sylius_shop_contact_request') }}">Nous contacter</a>
+            </div>
+            <div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {% for product in products %}
+                    <article class="card border border-base-300 bg-base-100">
+                        <div class="card-body">
+                            <h2 class="heading-5">{{ product.name }}</h2>
+                            {% if product.shortDescription %}
+                                <p class="text-sm text-base-content/75">{{ product.shortDescription }}</p>
+                            {% endif %}
+                            <p class="mt-2 font-bold text-primary">À partir de [PRIX] € HT</p>
+                            <a class="btn btn-primary mt-3" href="{{ path('sylius_shop_product_show', {slug: product.slug, _locale: app.request.locale}) }}">Configurer</a>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </main>
+{% endblock %}

@@ -12,7 +12,7 @@
             {# Sylius' product index is scoped to a taxon; it has no unscoped catalogue route. #}
             {% set search_taxon = taxons|default([])|first %}
             <div class="relative hidden min-w-0 flex-1 lg:block" data-controller="search-autocomplete" data-search-autocomplete-url-value="{{ path('yoowii_shop_search_suggest') }}" data-action="keydown@window->search-autocomplete#closeOnEscape">
-            <form action="{{ search_taxon ? path('sylius_shop_product_index', {'slug': search_taxon.slug, '_locale': search_taxon.translation.locale}) : path('sylius_shop_homepage') }}" method="get" role="search">
+            <form id="yoowii-search-form" action="{{ path('yoowii_shop_search') }}" method="get" role="search">
                 <label class="input input-bordered flex h-11 items-center gap-3 rounded-full border-yoowii-border bg-base-100 px-4 focus-within:border-primary" for="yoowii-search">
                     {{ icon('magnifying-glass', 'size-5 shrink-0') }}
                     <input id="yoowii-search" class="min-w-0 grow" name="q" type="search" placeholder="Rechercher un produit, un format, une idée…" autocomplete="off" data-search-autocomplete-target="input" data-action="input->search-autocomplete#search focus->search-autocomplete#search">
@@ -21,7 +21,7 @@
             <div class="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 rounded-box border border-base-300 bg-base-100 p-4 shadow-xl" data-search-autocomplete-target="panel" hidden>
                 <p class="sr-only" role="status" data-search-autocomplete-target="status"></p>
                 <div class="grid grid-cols-2 gap-4"><section><p class="mb-2 text-sm font-bold">Suggestions</p><div data-search-autocomplete-target="suggestions"></div></section><section><p class="mb-2 text-sm font-bold">Produits</p><div data-search-autocomplete-target="products"></div></section></div>
-                <a class="mt-4 block border-t border-base-300 pt-3 text-sm font-bold text-primary" href="{{ search_taxon ? path('sylius_shop_product_index', {'slug': search_taxon.slug, '_locale': search_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Voir tous les résultats</a>
+                <button class="mt-4 block border-t border-base-300 pt-3 text-sm font-bold text-primary" type="submit" form="yoowii-search-form">Voir tous les résultats</button>
             </div>
             </div>
             <div class="ml-auto flex items-center gap-1 sm:gap-2">

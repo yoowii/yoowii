@@ -1,6 +1,7 @@
 import '@vendor/sylius/mollie-plugin/assets/shop/entrypoint';
 import '@vendor/flux-se/sylius-stripe-plugin/assets/shop/entrypoint';
 import '@vendor/sylius/adyen-plugin/assets/shop/entrypoint';
+import '../../vendor/cyllene-digital/sylius-advanced-taxon-plugin/assets/shop/entrypoint.js';
 import './styles/yoowii-print.scss';
 import './bootstrap.js';
 
