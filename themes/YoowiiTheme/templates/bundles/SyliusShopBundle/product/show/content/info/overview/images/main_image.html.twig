@@ -1,8 +1,8 @@
 {% set product = hookable_metadata.context.product %}
 
-<div class="w-full">
-    <a href="{{ hookable_metadata.context.original_path }}" class="block overflow-hidden rounded">
-        <img src="{{ hookable_metadata.context.path }}" alt="{{ product.name }}" class="img-fluid w-full h-full object-cover"
+<div class="overflow-hidden rounded-box bg-base-100">
+    <a href="{{ hookable_metadata.context.original_path }}" class="block aspect-square overflow-hidden">
+        <img src="{{ hookable_metadata.context.path }}" alt="{{ product.name }}" class="h-full w-full object-contain transition duration-300 hover:scale-[1.02]"
             {% if product.images.first %}
                 {{ sylius_test_html_attribute('main-image', product.images.first.type) }}
             {% else %}

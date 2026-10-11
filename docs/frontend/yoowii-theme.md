@@ -40,6 +40,12 @@ into progressive option cards and a sticky quote summary. The legacy `d-none`
 state remains supported inside the theme because the supplier availability
 controller uses it to hide conditional options.
 
+## Product page
+
+The product page remains hook-driven by Sylius. The Yoowii overrides provide a
+responsive gallery, a sticky product summary and print-aware price/CTA styling
+without changing routes, product data or add-to-cart components.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its

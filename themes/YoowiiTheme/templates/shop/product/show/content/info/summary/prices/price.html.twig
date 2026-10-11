@@ -1,13 +1,13 @@
 {% set product = variant.product %}
 {% set is_print = product.fulfillmentType.value == 'print' %}
 
-<div class="mb-2" {{ attributes }}>
-    <div class="d-flex gap-3 align-items-center">
-        <div class="fs-3" {{ sylius_test_html_attribute('product-price', price) }}>
-            {% if is_print %}<span class="fs-6 text-secondary">{{ 'yoowii.storefront.starting_from'|trans }}</span> {% endif %}{{ price }}
+<div class="mb-4" {{ attributes }}>
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div class="text-3xl font-bold text-base-content" {{ sylius_test_html_attribute('product-price', price) }}>
+            {% if is_print %}<span class="mr-1 text-sm font-medium text-base-content/60">{{ 'yoowii.storefront.starting_from'|trans }}</span>{% endif %}{{ price }}
         </div>
         {% if has_discount %}
-            <div {{ sylius_test_html_attribute('product-original-price', original_price) }}>
+            <div class="text-base-content/50" {{ sylius_test_html_attribute('product-original-price', original_price) }}>
                 <del>{{ original_price }}</del>
             </div>
         {% endif %}

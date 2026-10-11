@@ -1,4 +1,6 @@
 {% set product = hookable_metadata.context.product %}
 
-<div class="mb-3">{{ product.shortDescription }}</div>
-<small class="text-primary">{{ product.code }}</small>
+{% if product.shortDescription %}
+    <div class="mb-4 leading-relaxed text-base-content/75">{{ product.shortDescription }}</div>
+{% endif %}
+<span class="badge badge-outline badge-sm">{{ product.code }}</span>

@@ -1,7 +1,7 @@
 {# Rendered with \Sylius\Bundle\ShopBundle\Twig\Component\Product\ProductSummaryComponent #}
 
-<div class="col-span-12 md:col-span-5 " {{ attributes }}>
-    <div class="sticky pt-2" style="top: 3rem;" {{ sylius_test_html_attribute('product-box') }}>
+<div {{ attributes }}>
+    <div class="sticky top-6 rounded-box border border-base-300 bg-base-100 p-5 shadow-sm sm:p-6" {{ sylius_test_html_attribute('product-box') }}>
         {% hook 'summary' with {product, variant} %}
     </div>
 </div>

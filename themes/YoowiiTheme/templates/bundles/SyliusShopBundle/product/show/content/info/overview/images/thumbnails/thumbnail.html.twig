@@ -2,9 +2,9 @@
 {% set image = hookable_metadata.context.image %}
 {% set path = hookable_metadata.context.path %}
 
-<a href="{{ image.path|imagine_filter('sylius_shop_product_original') }}" class="block overflow-hidden bg-base-200 rounded-lg spotlight">
+<a href="{{ image.path|imagine_filter('sylius_shop_product_original') }}" class="spotlight block aspect-square overflow-hidden rounded-box border border-base-300 bg-base-100 transition hover:border-primary focus-visible:outline-2 focus-visible:outline-primary">
     <img src="{{ path }}"
          data-large-thumbnail="{{ image.path|imagine_filter('sylius_shop_product_large_thumbnail') }}"
          alt="{{ product.name }}" {{ sylius_test_html_attribute('thumbnail-image', image.type) }}
-         class="max-w-full w-full h-full object-cover" />
+         class="h-full w-full object-cover" />
 </a>

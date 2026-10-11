@@ -9,7 +9,7 @@
     {% set path = original_path %}
 {% endif %}
 
-<div class="flex flex-col-reverse gap-3">
+<div class="rounded-box bg-base-200/70 p-3 sm:p-5">
     <div data-product-image="{{ path }}" data-product-link="{{ original_path }}"></div>
     {% hook 'images' with {original_path, path} %}
 </div>
