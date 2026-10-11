@@ -2,15 +2,15 @@
   "entrypoints": {
     "app": {
       "css": [
-        "/themes/yoowii-theme/app.27753c04.css"
+        "/themes/yoowii-theme/app.css"
       ],
       "js": [
-        "/themes/yoowii-theme/app.cca6e427.js"
+        "/themes/yoowii-theme/app.js"
       ]
     }
   },
   "integrity": {
-    "/themes/yoowii-theme/app.27753c04.css": "sha384-eFkjtzOZwBdtChhdoUbRwSuM7tUxoZv1Hx5pM5OubbY3gMtkVVcpIJqbsQBFSF+l",
-    "/themes/yoowii-theme/app.cca6e427.js": "sha384-jp3aAKhVXfVJ3Og30GPhRCDIHVMj6Cli7PfeArhnm7QU3mbiazfHiyS8D6SdHPqY"
+    "/themes/yoowii-theme/app.css": "sha384-tDNF/bzwxIQQKQva5TvM8V4cGg9sauombOTSNSs1SNZRKYi5nxh3YJ8OEzX40Rty",
+    "/themes/yoowii-theme/app.js": "sha384-p97PGHUQTvAjrx5nvYPI2QEugLv5jxx08vZu5tKVhDfQ8xixA+/VowxoJrAyNOJg"
   }
 }

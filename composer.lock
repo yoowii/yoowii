@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "accb0580a0634af1b9a13f10067b7af9",
+    "content-hash": "e57ddf8e55175532a123e489edf02314",
     "packages": [
         {
             "name": "adyen/php-api-library",
@@ -1756,6 +1756,122 @@
                 }
             ],
             "time": "2025-08-20T19:15:30+00:00"
+        },
+        {
+            "name": "cyllene-digital/sylius-advanced-taxon-plugin",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/CylleneDigital/SyliusAdvancedTaxonPlugin.git",
+                "reference": "bb8c7df44ee55ba766b1614e6eb2ecd51b32a048"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/CylleneDigital/SyliusAdvancedTaxonPlugin/zipball/bb8c7df44ee55ba766b1614e6eb2ecd51b32a048",
+                "reference": "bb8c7df44ee55ba766b1614e6eb2ecd51b32a048",
+                "shasum": ""
+            },
+            "require": {
+                "doctrine/collections": "^2.0",
+                "doctrine/dbal": "^3.0 || ^4.0",
+                "doctrine/doctrine-bundle": "^2.13 || ^3.1",
+                "doctrine/doctrine-migrations-bundle": "^3.7",
+                "doctrine/migrations": "^3.6",
+                "doctrine/orm": "^2.20 || ^3.6",
+                "ext-gd": "*",
+                "liip/imagine-bundle": "^2.15",
+                "php": "^8.3",
+                "sylius/sylius": "^2.1",
+                "sylius/twig-hooks": "^0.8 || ^0.9 || ^0.12 || ^0.14",
+                "symfony/config": "^7.4 || ^8.0",
+                "symfony/console": "^7.4 || ^8.0",
+                "symfony/dependency-injection": "^7.4 || ^8.0",
+                "symfony/form": "^7.4 || ^8.0",
+                "symfony/http-foundation": "^7.4 || ^8.0",
+                "symfony/http-kernel": "^7.4 || ^8.0",
+                "symfony/messenger": "^7.4 || ^8.0",
+                "symfony/options-resolver": "^7.4 || ^8.0",
+                "symfony/routing": "^7.4 || ^8.0",
+                "symfony/security-csrf": "^7.4 || ^8.0",
+                "symfony/security-http": "^7.4 || ^8.0",
+                "symfony/service-contracts": "^3.5",
+                "symfony/translation-contracts": "^3.5",
+                "symfony/ux-autocomplete": "^2.36 || ^3.0",
+                "symfony/ux-icons": "^2.36 || ^3.0",
+                "symfony/validator": "^7.4 || ^8.0",
+                "twig/twig": "^3.10"
+            },
+            "require-dev": {
+                "behat/behat": "^3.22 || ^4.0",
+                "behat/mink": "^1.11",
+                "behat/mink-browserkit-driver": "^2.2",
+                "dbrekelmans/bdi": "^1.4",
+                "dmore/chrome-mink-driver": "^2.9",
+                "friends-of-behat/mink-debug-extension": "^2.1",
+                "friends-of-behat/mink-extension": "^2.7 || ^3.0@alpha",
+                "friends-of-behat/page-object-extension": "^0.4",
+                "friends-of-behat/suite-settings-extension": "^1.1",
+                "friends-of-behat/symfony-extension": "^2.6.2",
+                "friends-of-behat/variadic-extension": "^1.7",
+                "phpstan/phpstan": "^2.2",
+                "phpstan/phpstan-doctrine": "^2.0",
+                "phpstan/phpstan-webmozart-assert": "^2.0",
+                "phpunit/phpunit": "^10.5",
+                "sylius-labs/behat-chrome-extension": "^1.5",
+                "sylius-labs/coding-standard": "^4.4",
+                "sylius-labs/suite-tags-extension": "~0.2",
+                "sylius/test-application": "~2.1.0@alpha || ~2.2.0@alpha || ~2.3.0@alpha",
+                "symfony/browser-kit": "^7.4 || ^8.0",
+                "symfony/debug-bundle": "^7.4 || ^8.0",
+                "symfony/dotenv": "^7.4 || ^8.0",
+                "symfony/runtime": "^7.4 || ^8.0",
+                "symfony/ux-twig-component": "^2.36 || >=3.0 <3.5",
+                "symfony/web-profiler-bundle": "^7.4 || ^8.0",
+                "symfony/webpack-encore-bundle": "^2.2"
+            },
+            "type": "sylius-plugin",
+            "extra": {
+                "symfony": {
+                    "require": "^7.4 || ^8.0"
+                },
+                "public-dir": "vendor/sylius/test-application/public",
+                "branch-alias": {
+                    "dev-main": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "CylleneDigital\\SyliusAdvancedTaxonPlugin\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Cyllene",
+                    "homepage": "https://github.com/CylleneDigital"
+                }
+            ],
+            "description": "Turns Sylius taxons into merchandising pages: branding, featured content, media zones, universe pages, advanced filters, conditional taxons and a mega menu.",
+            "homepage": "https://github.com/CylleneDigital/SyliusAdvancedTaxonPlugin",
+            "keywords": [
+                "facets",
+                "filters",
+                "mega-menu",
+                "merchandising",
+                "sylius",
+                "sylius-plugin",
+                "taxon",
+                "taxonomy"
+            ],
+            "support": {
+                "issues": "https://github.com/CylleneDigital/SyliusAdvancedTaxonPlugin/issues",
+                "security": "https://github.com/CylleneDigital/SyliusAdvancedTaxonPlugin/security/policy",
+                "source": "https://github.com/CylleneDigital/SyliusAdvancedTaxonPlugin"
+            },
+            "time": "2026-10-07T11:53:55+00:00"
         },
         {
             "name": "doctrine/collections",

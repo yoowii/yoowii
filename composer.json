@@ -25,6 +25,7 @@
     ],
     "require": {
         "php": "^8.3",
+        "cyllene-digital/sylius-advanced-taxon-plugin": "^1.0",
         "dompdf/dompdf": "^3.1",
         "flux-se/sylius-stripe-plugin": "^2.0.2",
         "sylius/adyen-plugin": "^2.0.6",
@@ -89,12 +90,9 @@
             "dev-2.2": "2.2.x-dev"
         },
         "symfony": {
-            "allow-contrib": true,
+            "allow-contrib": "true",
             "require": "^7.4",
-            "endpoint": [
-                "https://api.github.com/repos/Sylius/SyliusRecipes/contents/index.json?ref=flex/main",
-                "flex://defaults"
-            ]
+            "endpoint": ["https://api.github.com/repos/Sylius/SyliusRecipes/contents/index.json?ref=flex/main", "flex://defaults"]
         }
     },
     "autoload": {

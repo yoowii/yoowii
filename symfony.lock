@@ -16,6 +16,9 @@
     "babdev/pagerfanta-bundle": {
         "version": "v4.5.0"
     },
+    "cyllene-digital/sylius-advanced-taxon-plugin": {
+        "version": "v1.0.0"
+    },
     "doctrine/deprecations": {
         "version": "1.1",
         "recipe": {
