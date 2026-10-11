@@ -1,8 +1,10 @@
 <div class="bg-primary text-primary-content">
-    <div class="container mx-auto px-4 py-2 text-sm sm:px-6 lg:max-w-7xl lg:px-8">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            {% hook 'top_bar' %}
-            {% include '@SyliusShop/shared/layout/base/header/top_bar/theme_switcher.html.twig' %}
-        </div>
+    <div class="container mx-auto flex min-h-9 items-center justify-between gap-4 px-4 text-xs font-medium sm:px-6 lg:max-w-7xl lg:px-8">
+        <p>Impression personnalisée, accompagnement humain et livraison partout en France.</p>
+        <nav class="hidden shrink-0 items-center gap-3 lg:flex" aria-label="Liens utiles">
+            <a class="hover:underline" href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a>
+            <a class="hover:underline" href="{{ path('sylius_shop_contact_request') }}">Contact</a>
+            <a class="hover:underline" href="{{ path('sylius_shop_account_order_index') }}">Suivi de commande</a>
+        </nav>
     </div>
 </div>

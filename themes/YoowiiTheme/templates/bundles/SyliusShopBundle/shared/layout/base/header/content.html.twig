@@ -1,7 +1,27 @@
-<div class="border-b border-base-300 bg-base-100 py-4">
+{% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
+
+<div class="border-b border-base-300 bg-base-100 py-3">
     <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between gap-4">
-            {% hook 'content' %}
+        <div class="flex items-center gap-3 lg:gap-6">
+            <label for="yoowii-nav-drawer" class="btn btn-ghost btn-sm btn-square lg:hidden" aria-label="Ouvrir le menu">
+                {{ icon('bars') }}
+            </label>
+            <div class="w-28 shrink-0 sm:w-32 lg:w-40">
+                {% include '@SyliusShop/shared/logo.html.twig' %}
+            </div>
+            <form class="hidden min-w-0 flex-1 lg:block" action="{{ path('sylius_shop_product_index') }}" method="get" role="search">
+                <label class="input input-bordered flex h-11 items-center gap-3 rounded-full border-yoowii-border bg-base-100 px-4 focus-within:border-primary" for="yoowii-search">
+                    {{ icon('magnifying-glass', 'size-5 shrink-0') }}
+                    <input id="yoowii-search" class="min-w-0 grow" name="q" type="search" placeholder="Rechercher un produit, un format, une idée…" autocomplete="off">
+                </label>
+            </form>
+            <div class="ml-auto flex items-center gap-1 sm:gap-2">
+                <a class="btn btn-ghost btn-sm btn-square lg:hidden" href="{{ path('sylius_shop_product_index') }}" aria-label="Rechercher">
+                    {{ icon('magnifying-glass') }}
+                </a>
+                {% include '@SyliusShop/shared/layout/base/header/content/security.html.twig' %}
+                {% include '@SyliusShop/shared/layout/base/header/content/cart_button.html.twig' %}
+            </div>
         </div>
     </div>
 </div>

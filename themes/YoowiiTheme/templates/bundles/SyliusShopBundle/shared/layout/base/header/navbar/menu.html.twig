@@ -1,29 +1,49 @@
-{# Checkbox daisyUI drawer — position:fixed donc accessible via label[for] depuis n'importe quel endroit du DOM #}
-<input id="nav-drawer" type="checkbox" class="drawer-toggle" />
+{% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
+{% set visible_taxons = taxons|default([])|slice(0, 3) %}
 
-{# drawer-side : overlay fixe sur mobile, rendu statique sur desktop via !important #}
-<div class="drawer-side z-[100]
-    lg:!static lg:!block lg:!h-auto lg:!w-auto
-    lg:!opacity-100 lg:!visible lg:!pointer-events-auto lg:!overflow-visible lg:!bg-transparent">
+<input id="yoowii-nav-drawer" type="checkbox" class="peer sr-only">
 
-    {# Backdrop : visible sur mobile, masqué sur desktop #}
-    <label for="nav-drawer" aria-label="{{ 'sylius.ui.close'|trans }}" class="drawer-overlay lg:hidden"></label>
-
-    {# Panneau : pleine hauteur sur mobile, auto sur desktop #}
-    <div class="min-h-dvh w-[85vw] max-w-xs bg-base-100 p-6 pt-16 lg:min-h-0 lg:w-auto lg:max-w-[100%] lg:min-w-[100%] lg:text-center lg:bg-transparent lg:p-0 lg:translate-x-0">
-
-        {# Bouton fermeture mobile #}
-        {% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
-        <label for="nav-drawer" class="lg:hidden absolute top-4 right-4 btn btn-ghost btn-sm" aria-label="{{ 'sylius.ui.close'|trans }}">
-            {{ icon('x-mark') }}
-        </label>
-
-        {% if taxons|length > 0 %}
-            <nav aria-label="{{ 'sylius.ui.menu'|trans }}">
-                <ul class="menu gap-1 lg:menu-horizontal lg:justify-center lg:gap-2" {{ sylius_test_html_attribute('menu') }}>
-                    {% hook 'menu' with {taxons} %}
-                </ul>
-            </nav>
-        {% endif %}
+<div class="border-b border-base-300 bg-base-100">
+    <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" data-controller="mega-menu" data-action="keydown@window->mega-menu#closeOnEscape">
+        <nav class="hidden h-13 items-center gap-1 lg:flex" aria-label="{{ 'sylius.ui.menu'|trans }}">
+            <div class="relative" data-mega-menu-target="root">
+                <button class="btn btn-ghost btn-sm font-bold" type="button" data-mega-menu-target="trigger" data-action="mega-menu#toggle" aria-expanded="false" aria-controls="yoowii-mega-menu">
+                    Tous les produits {{ icon('chevron-down', 'size-4') }}
+                </button>
+                <div id="yoowii-mega-menu" class="absolute left-0 top-full z-50 mt-2 hidden w-[min(72rem,calc(100vw-2rem))] rounded-box border border-base-300 bg-base-100 p-6 shadow-xl" data-mega-menu-target="panel" data-action="mouseleave->mega-menu#scheduleClose mouseenter->mega-menu#cancelClose">
+                    <div class="grid grid-cols-[repeat(3,minmax(0,1fr))_18rem] gap-5">
+                        {% for taxon in visible_taxons %}
+                            <section>
+                                <a class="mb-3 flex items-center gap-3 font-bold hover:text-primary" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">
+                                    <span class="flex size-10 items-center justify-center rounded-full bg-base-200 text-primary">{{ icon('tag') }}</span>{{ taxon.name }}
+                                </a>
+                                <ul class="space-y-2 text-sm">
+                                    {% for child_taxon in taxon.enabledChildren|slice(0, 5) %}
+                                        <li><a class="hover:text-primary hover:underline" href="{{ path('sylius_shop_product_index', {'slug': child_taxon.slug, '_locale': child_taxon.translation.locale}) }}">{{ child_taxon.name }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </section>
+                        {% endfor %}
+                        <aside class="rounded-box bg-base-200 p-5">
+                            <p class="mb-2 font-display text-xl font-extrabold">Studio de design</p>
+                            <p class="mb-4 text-sm">[PLACEHOLDER] Création, adaptation et accompagnement de vos fichiers.</p>
+                            <a class="btn btn-primary btn-sm" href="{{ path('sylius_shop_contact_request') }}">Découvrir le Studio</a>
+                        </aside>
+                    </div>
+                    <div class="mt-5 flex gap-6 border-t border-base-300 pt-4 text-sm font-bold"><a href="{{ path('sylius_shop_product_index') }}">Voir tous les produits</a><a href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a></div>
+                </div>
+            </div>
+            {% for taxon in visible_taxons %}<a class="btn btn-ghost btn-sm" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">{{ taxon.name }}</a>{% endfor %}
+            <a class="btn btn-ghost btn-sm" href="{{ path('sylius_shop_product_index') }}">Créer mon imprimé</a>
+            <a class="btn btn-ghost btn-sm ml-auto text-primary" href="{{ path('sylius_shop_contact_request') }}">Studio de design <span class="badge badge-secondary badge-sm">Nouveau</span></a>
+        </nav>
     </div>
 </div>
+
+<aside class="fixed inset-y-0 left-0 z-[70] w-[min(22rem,88vw)] -translate-x-full bg-base-100 p-5 shadow-2xl transition-transform peer-checked:translate-x-0 lg:hidden">
+    <label for="yoowii-nav-drawer" class="btn btn-ghost btn-sm btn-square float-right" aria-label="Fermer le menu">{{ icon('x-mark') }}</label>
+    <p class="mb-8 font-display text-xl font-extrabold">Tous les produits</p>
+    <nav aria-label="Navigation mobile"><ul class="menu gap-2 text-base font-bold">{% for taxon in visible_taxons %}<li><details><summary>{{ taxon.name }}</summary><ul>{% for child_taxon in taxon.enabledChildren %}<li><a href="{{ path('sylius_shop_product_index', {'slug': child_taxon.slug, '_locale': child_taxon.translation.locale}) }}">{{ child_taxon.name }}</a></li>{% endfor %}</ul></details></li>{% endfor %}<li><a href="{{ path('sylius_shop_product_index') }}">Créer mon imprimé</a></li><li><a href="{{ path('sylius_shop_contact_request') }}">Studio de design <span class="badge badge-secondary badge-sm">Nouveau</span></a></li></ul></nav>
+    <div class="mt-8 border-t border-base-300 pt-5 text-sm"><a class="block py-2" href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a><a class="block py-2" href="{{ path('sylius_shop_contact_request') }}">Contact</a><a class="block py-2" href="{{ path('sylius_shop_account_order_index') }}">Suivi de commande</a></div>
+</aside>
+<label for="yoowii-nav-drawer" class="fixed inset-0 z-[60] hidden bg-neutral/40 peer-checked:block lg:hidden" aria-label="Fermer le menu"></label>
