@@ -879,6 +879,16 @@
   resolved "https://registry.yarnpkg.com/@floating-ui/utils/-/utils-0.2.12.tgz#afefe785949f16ac4cdd1e695935a321572dd56a"
   integrity sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==
 
+"@fontsource/dm-sans@^5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@fontsource/dm-sans/-/dm-sans-5.3.0.tgz#27cf2e04a7d9186f4b42fb0518f7350715ec65ac"
+  integrity sha512-lYJtMXXO28q1z+yz+z8XKd0s4hXaa9QdkETzkyD760sidCv5heI86weYA0sx0Nc4pAMAQTUuyf4gO44cYKKS9g==
+
+"@fontsource/sora@^5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@fontsource/sora/-/sora-5.3.0.tgz#13bbc152d4a18d7531b6fbe4b3dfa6927f793c42"
+  integrity sha512-SqW3OpKxxfKvxDLPlbdrWf2KooPfbd+W3jaYn483o+Y/JrmU87vjFPNptDqwP428c3vY+gnranLhjcbRaXB0Jw==
+
 "@formatjs/ecma402-abstract@2.3.6":
   version "2.3.6"
   resolved "https://registry.yarnpkg.com/@formatjs/ecma402-abstract/-/ecma402-abstract-2.3.6.tgz#d6ca9d3579054fe1e1a0a0b5e872e0d64922e4e1"
@@ -1059,7 +1069,7 @@
     "@babel/preset-env" "^7.25.8"
     "@hotwired/stimulus" "^3.0.0"
     "@popperjs/core" "^2.11.8"
-    "@sylius/admin-bundle" "file:../../../../usr/local/share/.cache/yarn/v6/npm-@sylius-ui-admin-2.0.0-ddb38594-8b8f-4a29-a89d-49734f364953-1791710233727/node_modules/@sylius-ui/admin/Resources/assets"
+    "@sylius/admin-bundle" "file:../../../../usr/local/share/.cache/yarn/v6/npm-@sylius-ui-admin-2.0.0-3c1f0ab2-cfb2-4d7e-b512-d0044208956d-1791746512300/node_modules/@sylius-ui/admin/Resources/assets"
     "@symfony/stimulus-bridge" "^3.2.0"
     "@symfony/webpack-encore" "^5.0.1"
     "@tabler/core" "~1.3.0"
@@ -1083,7 +1093,7 @@
     "@babel/preset-env" "^7.25.8"
     "@hotwired/stimulus" "^3.0.0"
     "@popperjs/core" "^2.11.8"
-    "@sylius/shop-bundle" "file:../../../../usr/local/share/.cache/yarn/v6/npm-@sylius-ui-shop-2.0.0-40b1b960-2465-421e-abf2-ed82598eac74-1791710233877/node_modules/@sylius-ui/shop/Resources/assets"
+    "@sylius/shop-bundle" "file:../../../../usr/local/share/.cache/yarn/v6/npm-@sylius-ui-shop-2.0.0-7120e44e-e826-4843-9a2c-fb95f05dacb4-1791746512446/node_modules/@sylius-ui/shop/Resources/assets"
     "@symfony/stimulus-bridge" "^3.2.0"
     "@symfony/webpack-encore" "^5.0.1"
     bootstrap "^5.3.3"

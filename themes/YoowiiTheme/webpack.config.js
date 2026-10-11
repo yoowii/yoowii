@@ -6,7 +6,7 @@ Encore
   .addEntry('app', './themes/YoowiiTheme/assets/index.js')
   .copyFiles({
         from: './themes/YoowiiTheme/assets/media',
-        to: 'media/[path][name].[hash:8].[ext]',
+        to: 'media/[path][name].[ext]',
         pattern: /\.(png|jpe?g|gif|svg|webp)$/
   })
   .enableSassLoader()
