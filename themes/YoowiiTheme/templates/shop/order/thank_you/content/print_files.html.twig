@@ -1,0 +1,2 @@
+{% set order = hookable_metadata.context.order %}
+{% include 'shop/order/content/print_files.html.twig' with {order: order} only %}

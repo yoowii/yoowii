@@ -1,0 +1,14 @@
+<div class="yoowii-print-configurator" data-controller="realisaprint-prescript-quote" data-realisaprint-prescript-quote-quote-url-value="{{ path('yoowii_shop_realisaprint_prescript_quote', {productCode: product.code, _locale: app.request.locale}) }}" data-realisaprint-prescript-quote-csrf-token-value="{{ csrf_token('prescript_quote_' ~ product.code) }}">
+    <div class="mb-4">
+        <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
+        <h2 class="h1 mb-2">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>
+        <p class="text-secondary mb-0">Configurez votre produit puis enregistrez la configuration afin de poursuivre la commande.</p>
+    </div>
+    <div id="api_prescript_wrapper" data-prescript-product-code="{{ product.code }}">
+        {{ prescript_template|raw }}
+    </div>
+    <div class="alert alert-danger d-none mt-3" role="alert" data-realisaprint-prescript-quote-target="error"></div>
+    <div class="mt-4" data-realisaprint-prescript-quote-target="quoteResult">
+        <p class="text-secondary mb-0" data-empty-quote>{{ 'yoowii.storefront.price_after_configuration'|trans }}</p>
+    </div>
+</div>

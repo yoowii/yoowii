@@ -1,0 +1,38 @@
+# Yoowii Theme
+
+`themes/YoowiiTheme` is the storefront theme selected for the Yoowii sales channel.
+It is based on the Tailwind CSS 4 and daisyUI 5 storefront published by Adeliom,
+then maintained locally by Yoowii.
+
+## Baseline
+
+- Source repository: `agence-adeliom/sylius-tailwindcss-theme`
+- Source branch: `2.x`
+- Imported commit: `c646967eaddb726fe63b02ce67f75011bae4f9c8`
+- Sylius compatibility target: `^2.0`
+
+The source files are intentionally copied into this repository. They are not a
+runtime Composer dependency: all Yoowii overrides, print configurators and
+supplier integrations remain local and reviewable.
+
+## Assets
+
+The theme is built as the `yoowiiTheme` Webpack Encore build and generates its
+own manifest under `public/themes/yoowii-theme`. The existing `app.shop` build
+remains loaded by the shop hook configuration and therefore keeps the Yoowii
+Stimulus controllers for matrix and supplier configurators available.
+
+After pulling this branch in a fully initialized local environment:
+
+```bash
+corepack yarn install
+corepack yarn build:prod
+```
+
+## Upstream maintenance
+
+When upgrading Sylius or importing a newer Adeliom baseline, compare the
+templates under `themes/YoowiiTheme/templates/bundles/SyliusShopBundle` with
+the matching upstream Sylius ShopBundle templates. Preserve Yoowii templates
+under `themes/YoowiiTheme/templates/shop`, especially the print configuration
+and checkout-related hooks.

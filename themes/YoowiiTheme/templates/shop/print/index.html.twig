@@ -1,0 +1,40 @@
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+
+{% block title %}Produits imprimés | Yoowii{% endblock %}
+
+{% block content %}
+    <div class="container py-5">
+        {% for type, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ type == 'error' ? 'danger' : type }}" role="alert">{{ message }}</div>
+            {% endfor %}
+        {% endfor %}
+
+        <div class="text-center mx-auto mb-5" style="max-width: 760px;">
+            <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
+            <h1 class="display-5">Vos supports imprimés, configurés en ligne</h1>
+            <p class="lead text-secondary">Choisissez un produit, sa finition et sa quantité. Yoowii calcule automatiquement le meilleur tarif disponible.</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+            {% for product in products %}
+                <div class="col-md-6 col-xl-5">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body p-4 p-xl-5">
+                            <div class="text-primary fw-semibold mb-3">{{ product.code }}</div>
+                            <h2 class="h3">{{ product.name }}</h2>
+                            {% if product.shortDescription %}
+                                <p class="text-secondary">{{ product.shortDescription }}</p>
+                            {% endif %}
+                            <a class="btn btn-primary mt-3" href="{{ path('sylius_shop_product_show', {slug: product.slug, _locale: app.request.locale}) }}">Configurer et calculer</a>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">Aucun produit print n’est actuellement disponible.</div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

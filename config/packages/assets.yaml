@@ -9,3 +9,5 @@ framework:
                 json_manifest_path: '%kernel.project_dir%/public/build/app/admin/manifest.json'
             app.shop:
                 json_manifest_path: '%kernel.project_dir%/public/build/app/shop/manifest.json'
+            yoowiiTheme:
+                json_manifest_path: '%kernel.project_dir%/public/themes/yoowii-theme/manifest.json'

@@ -1,0 +1,24 @@
+{# Rendered with \Sylius\Bundle\ShopBundle\Twig\Component\Common\LocaleSwitcherComponent #}
+
+{% from '@SyliusShop/shared/macro/locales.html.twig' import locale %}
+
+{% if available_locales|length > 1 %}
+    <div class="col-auto">
+        <div class="dropdown dropdown-hover" {{ sylius_test_html_attribute('locale-selector') }}>
+            <div class="btn btn-sm" type="button" {{ sylius_test_html_attribute('active-locale', active_locale) }}>
+                {{ locale(active_locale) }}
+            </div>
+            <ul tabindex="-1" class="dropdown-content menu bg-base-100 text-base-content rounded-box z-1 w-52 p-2 shadow-sm">
+                {% for code in available_locales %}
+                    {% if code is not same as(active_locale) %}
+                        <li>
+                            <a href="{{ path('sylius_shop_switch_locale', {'code': code}) }}" {{ sylius_test_html_attribute('available-locale', code) }} >
+                                {{ locale(code) }}
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endif %}

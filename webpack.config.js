@@ -53,6 +53,10 @@ appShopConfig.name = 'app.shop';
 
 Encore.reset();
 
+const yoowiiTheme = require('./themes/YoowiiTheme/webpack.config');
+
+Encore.reset();
+
 // App admin config
 Encore
     .setOutputPath('public/build/app/admin')
@@ -85,7 +89,7 @@ const appAdminConfig = Encore.getWebpackConfig();
 appAdminConfig.externals = Object.assign({}, appAdminConfig.externals, { window: 'window', document: 'document' });
 appAdminConfig.name = 'app.admin';
 
-module.exports = [shopConfig, adminConfig, appShopConfig, appAdminConfig];
+module.exports = [shopConfig, adminConfig, appShopConfig, appAdminConfig, yoowiiTheme];
 
 /**
  * Merge controllers.json from multiple files into one and store in cache
