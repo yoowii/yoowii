@@ -23,6 +23,15 @@ Channels > Look & feel`, then select **Yoowii Theme**. Do not remove the
 `app.shop` build: it still loads the Stimulus controllers used by price matrices
 and supplier configurators.
 
+## Prescript
+
+The Prescript response is injected into `#api_prescript_wrapper` as supplier
+HTML. The Yoowii shell only adds a surrounding layout, responsive containment
+and focus styling. Its Stimulus controller observes `#code_liaison` to request
+the Yoowii quote, but never renames supplier fields, replaces its markup or
+intercepts its events. This keeps the Prescript contract intact while avoiding
+polling when the configurator is outside the viewport.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its

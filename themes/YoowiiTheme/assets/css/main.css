@@ -208,5 +208,38 @@
     padding-inline: 1rem;
 }
 
+@layer components {
+    .yoowii-prescript-shell {
+        scroll-margin-top: 2rem;
+    }
+
+    .yoowii-prescript-embed {
+        min-width: 0;
+        overflow-x: auto;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-box);
+        background: var(--color-base-100);
+    }
+
+    .yoowii-prescript-embed > * {
+        max-width: 100%;
+    }
+
+    .yoowii-prescript-embed :is(input, select, textarea, button) {
+        max-width: 100%;
+        font: inherit;
+    }
+
+    .yoowii-prescript-embed :is(input, select, textarea):focus-visible,
+    .yoowii-prescript-embed button:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+    }
+
+    .yoowii-prescript-quote:empty {
+        display: none;
+    }
+}
+
 /*!* Typography *!*/
 @import url("./Typography/index.css");

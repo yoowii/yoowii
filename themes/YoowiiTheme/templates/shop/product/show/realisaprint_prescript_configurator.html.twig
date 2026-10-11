@@ -1,14 +1,39 @@
-<div class="yoowii-print-configurator" data-controller="realisaprint-prescript-quote" data-realisaprint-prescript-quote-quote-url-value="{{ path('yoowii_shop_realisaprint_prescript_quote', {productCode: product.code, _locale: app.request.locale}) }}" data-realisaprint-prescript-quote-csrf-token-value="{{ csrf_token('prescript_quote_' ~ product.code) }}">
-    <div class="mb-4">
-        <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
-        <h2 class="h1 mb-2">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>
-        <p class="text-secondary mb-0">Configurez votre produit puis enregistrez la configuration afin de poursuivre la commande.</p>
+<section
+    class="yoowii-prescript-shell card border-base-300 bg-base-100 shadow-sm"
+    data-controller="realisaprint-prescript-quote"
+    data-realisaprint-prescript-quote-quote-url-value="{{ path('yoowii_shop_realisaprint_prescript_quote', {productCode: product.code, _locale: app.request.locale}) }}"
+    data-realisaprint-prescript-quote-csrf-token-value="{{ csrf_token('prescript_quote_' ~ product.code) }}"
+>
+    <div class="card-body gap-6 p-4 sm:p-6 lg:p-8">
+        <header class="max-w-2xl">
+            <p class="mb-2 text-sm font-semibold uppercase tracking-wider text-primary">Yoowii Print</p>
+            <h2 class="text-2xl font-bold text-base-content sm:text-3xl">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>
+            <p class="mt-2 text-base-content/70">Configurez votre produit, puis enregistrez la configuration afin de poursuivre la commande.</p>
+        </header>
+
+        <div
+            class="yoowii-prescript-status alert alert-info"
+            role="status"
+            aria-live="polite"
+            data-realisaprint-prescript-quote-target="status"
+        >
+            <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+            <span>Chargement du configurateur…</span>
+        </div>
+
+        <div
+            id="api_prescript_wrapper"
+            class="yoowii-prescript-embed"
+            data-prescript-product-code="{{ product.code }}"
+            data-realisaprint-prescript-quote-target="embed"
+        >
+            {{ prescript_template|raw }}
+        </div>
+
+        <div class="alert alert-error hidden" role="alert" data-realisaprint-prescript-quote-target="error"></div>
+
+        <div class="yoowii-prescript-quote border-t border-base-300 pt-5" data-realisaprint-prescript-quote-target="quoteResult">
+            <p class="text-base-content/70" data-empty-quote>{{ 'yoowii.storefront.price_after_configuration'|trans }}</p>
+        </div>
     </div>
-    <div id="api_prescript_wrapper" data-prescript-product-code="{{ product.code }}">
-        {{ prescript_template|raw }}
-    </div>
-    <div class="alert alert-danger d-none mt-3" role="alert" data-realisaprint-prescript-quote-target="error"></div>
-    <div class="mt-4" data-realisaprint-prescript-quote-target="quoteResult">
-        <p class="text-secondary mb-0" data-empty-quote>{{ 'yoowii.storefront.price_after_configuration'|trans }}</p>
-    </div>
-</div>
+</section>
