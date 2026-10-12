@@ -18,6 +18,7 @@ final class MegaMenuExtension extends AbstractExtension
     {
         return [
             new TwigFunction('yoowii_preload_mega_menu_products', $this->productPreloader->preload(...)),
+            new TwigFunction('yoowii_mega_menu_products', $this->productPreloader->productsFor(...)),
         ];
     }
 }
