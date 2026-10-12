@@ -1,169 +1,99 @@
 {% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
 
-{% macro taxon_label(taxon, icon_class = 'size-5') %}
+{% macro taxon_icon(taxon, class = 'size-5') %}
     {% set show_customization = taxon.showCustomizationInMenu|default(false) %}
-    {% set taxon_color = show_customization ? taxon.color|default(null) : null %}
     {% set icon_value = show_customization ? taxon.icon|default(null) : null %}
+    {% set taxon_color = show_customization ? taxon.color|default(null) : null %}
+    {% if icon_value is not empty and icon_value starts with 'image:' %}
+        <img class="{{ class }} object-contain" src="{{ icon_value|slice(6)|imagine_filter('cyllene_advanced_taxon_icon') }}" alt="" loading="lazy">
+    {% elseif icon_value is not empty %}
+        {% set icon_name = ':' in icon_value ? icon_value : 'tabler:' ~ icon_value %}
+        {{ ux_icon(icon_name, {class: class, style: taxon_color ? 'color: ' ~ taxon_color ~ ';' : '', 'aria-hidden': 'true'}) }}
+    {% else %}
+        {{ icon('star', class) }}
+    {% endif %}
+{% endmacro %}
 
-    <span class="inline-flex min-w-0 items-center gap-2">
-        {% if icon_value is not empty and icon_value starts with 'image:' %}
-            <img class="{{ icon_class }} shrink-0 object-contain" src="{{ icon_value|slice(6)|imagine_filter('cyllene_advanced_taxon_icon') }}" alt="" loading="lazy">
-        {% elseif icon_value is not empty %}
-            {% set icon_name = ':' in icon_value ? icon_value : 'tabler:' ~ icon_value %}
-            {{ ux_icon(icon_name, { class: icon_class ~ ' shrink-0', style: taxon_color ? 'color: ' ~ taxon_color ~ ';' : '', 'aria-hidden': 'true' }) }}
-        {% endif %}
-        <span class="min-w-0"{% if taxon_color %} style="color: {{ taxon_color }};"{% endif %}>{{ taxon.name }}</span>
-    </span>
+{% macro taxon_label(taxon, icon_class = 'size-5') %}
+    <span class="inline-flex min-w-0 items-center gap-2">{{ _self.taxon_icon(taxon, icon_class) }}<span class="min-w-0">{{ taxon.name }}</span></span>
 {% endmacro %}
 
 {% set menu_taxons = taxons|default([]) %}
+{% do advanced_taxon_preload_menu(menu_taxons) %}
+{% do yoowii_preload_mega_menu_products(menu_taxons) %}
 {% set catalogue_taxon = menu_taxons|first %}
 {% set mega_menu_enabled = sylius.channel is defined and sylius.channel.hasMegaMenu %}
 
 <input id="yoowii-nav-drawer" type="checkbox" class="peer sr-only">
 
-<div class="border-b border-base-300 bg-base-100">
+<div class="relative z-50 border-b border-[#ECE8F5] bg-base-100">
     <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" data-controller="mega-menu" data-action="keydown@window->mega-menu#closeOnEscape">
-        <nav class="hidden h-13 items-center gap-1 lg:flex" aria-label="{{ 'sylius.ui.menu'|trans }}">
+        <nav class="hidden h-14 items-center gap-1 lg:flex" aria-label="{{ 'sylius.ui.menu'|trans }}">
             {% if mega_menu_enabled %}
-                <div class="relative" data-mega-menu-target="root">
-                    <button class="btn btn-ghost btn-sm font-bold" type="button" data-mega-menu-target="trigger" data-action="mega-menu#toggle" aria-expanded="false" aria-controls="yoowii-mega-menu">
-                        Tous les produits {{ icon('chevron-down', 'size-4') }}
-                    </button>
-
-                    <div id="yoowii-mega-menu" class="absolute left-0 top-full z-50 mt-2 hidden w-[min(84rem,calc(100vw-2rem))] overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-xl" data-mega-menu-target="panel" data-action="mouseleave->mega-menu#scheduleClose mouseenter->mega-menu#cancelClose">
-                        <div class="max-h-[min(42rem,calc(100vh-9rem))] overflow-y-auto p-6">
-                            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <div class="relative shrink-0" data-mega-menu-target="root">
+                    <button class="btn btn-primary btn-sm rounded-full px-4 font-bold shadow-none" type="button" data-mega-menu-target="trigger" data-action="mega-menu#toggle" aria-expanded="false" aria-controls="yoowii-mega-menu">{{ icon('bars', 'size-4') }} Tous les produits {{ icon('chevron-down', 'size-4') }}</button>
+                    <div class="fixed inset-0 z-40 hidden bg-[#1E1B3A]/45" data-mega-menu-target="backdrop" data-action="click->mega-menu#close" aria-hidden="true"></div>
+                    <section id="yoowii-mega-menu" class="absolute left-1/2 top-[calc(100%+0.8rem)] z-50 hidden w-[min(84rem,calc(100vw-6rem))] -translate-x-1/2 overflow-hidden rounded-b-[1.5rem] border border-[#ECE8F5] bg-base-100 shadow-2xl" data-mega-menu-target="panel" data-action="keydown->mega-menu#trapFocus mouseleave->mega-menu#scheduleClose mouseenter->mega-menu#cancelClose" role="dialog" aria-label="Tous les produits" tabindex="-1">
+                        <div class="grid max-h-[min(42rem,calc(100vh-10rem))] grid-cols-[minmax(14rem,1fr)_minmax(0,3fr)] overflow-y-auto">
+                            <aside class="border-r border-[#ECE8F5] bg-base-100 p-4" aria-label="Familles de produits">
+                                <ul class="space-y-1">
+                                    {% for taxon in menu_taxons %}
+                                        <li><a class="group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-[#1E1B3A] transition hover:bg-[#F6F0FF] hover:text-primary focus:bg-[#F6F0FF] focus:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30{% if loop.first %} bg-[#F6F0FF] text-primary{% endif %}" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}" data-mega-menu-target="family" data-family-id="{{ taxon.id }}" data-action="mouseenter->mega-menu#activateFamily focus->mega-menu#activateFamily"><span class="min-w-0 truncate">{{ taxon.name }}</span>{{ icon('chevron-right', 'size-4 shrink-0 transition group-hover:translate-x-0.5') }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </aside>
+                            <div class="min-w-0">
                                 {% for taxon in menu_taxons %}
                                     {% set level2_taxons = advanced_taxon_ordered_children(taxon) %}
-                                    {% set featured_ids = taxon.featuredChildren|map(featured => featured.id) %}
-                                    {% set featured_taxons = level2_taxons|filter(child => child.id in featured_ids) %}
-                                    {% set regular_taxons = level2_taxons|filter(child => child.id not in featured_ids) %}
-                                    {% set media_url = advanced_taxon_featured_media_url(taxon) %}
-                                    {% set editorial_title = taxon.featuredChildrenTitle|default(null) %}
-                                    {% set editorial_description = taxon.featuredChildrenDescription|default(taxon.description|default(null)) %}
-                                    {% set taxon_color = taxon.showCustomizationInMenu|default(false) ? taxon.color|default(null) : null %}
-
-                                    <section class="rounded-box border border-base-300 bg-base-100 p-4"{% if taxon_color %} style="border-top: 3px solid {{ taxon_color }};"{% endif %}>
-                                        <div class="flex items-start justify-between gap-3">
-                                            <a class="font-display text-base font-extrabold hover:text-primary" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">
-                                                {{ _self.taxon_label(taxon) }}
-                                            </a>
-                                            <a class="link link-hover shrink-0 text-xs font-bold" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">Voir</a>
-                                        </div>
-
-                                        {% if editorial_title is not empty or editorial_description is not empty %}
-                                            <div class="mt-3 text-sm text-base-content/75">
-                                                {% if editorial_title is not empty %}<p class="font-bold text-base-content">{{ editorial_title }}</p>{% endif %}
-                                                {% if editorial_description is not empty %}<p class="mt-1">{{ editorial_description }}</p>{% endif %}
-                                            </div>
-                                        {% endif %}
-
-                                        {% if media_url %}
-                                            <img class="mt-3 h-28 w-full rounded-btn object-cover" src="{{ media_url }}" alt="{{ taxon.name }}" loading="lazy">
-                                        {% endif %}
-
-                                        {% if featured_taxons is not empty %}
-                                            <div class="mt-4 rounded-btn bg-base-200 p-3">
-                                                <p class="mb-2 text-xs font-bold uppercase tracking-wide text-base-content/65">À la une</p>
-                                                <ul class="space-y-2 text-sm font-semibold">
-                                                    {% for child_taxon in featured_taxons %}
-                                                        {% set level3_taxons = advanced_taxon_ordered_children(child_taxon) %}
-                                                        <li>
-                                                            <a class="hover:text-primary hover:underline" href="{{ path('sylius_shop_product_index', {'slug': child_taxon.slug, '_locale': child_taxon.translation.locale}) }}">{{ _self.taxon_label(child_taxon, 'size-4') }}</a>
-                                                            {% if level3_taxons is not empty %}
-                                                                <ul class="mt-1 space-y-1 border-l border-base-300 pl-3 text-xs font-normal text-base-content/70">
-                                                                    {% for level3_taxon in level3_taxons %}
-                                                                        <li><a class="hover:text-primary hover:underline" href="{{ path('sylius_shop_product_index', {'slug': level3_taxon.slug, '_locale': level3_taxon.translation.locale}) }}">{{ level3_taxon.name }}</a></li>
-                                                                    {% endfor %}
-                                                                </ul>
-                                                            {% endif %}
-                                                        </li>
+                                    {% set featured_media = taxon.images|filter(image => image.type|default('') == 'featured' and image.path|default('') is not empty) %}
+                                    <div class="grid min-w-0 gap-6 p-6 xl:grid-cols-[minmax(0,1fr)_13rem]" data-mega-menu-target="familyPanel" data-family-id="{{ taxon.id }}"{% if not loop.first %} hidden{% endif %}>
+                                        <section class="min-w-0">
+                                            <div class="flex items-start justify-between gap-4 border-b border-[#ECE8F5] pb-4"><h2 class="font-display text-xl font-extrabold text-[#1E1B3A]">{{ taxon.name }}</h2><a class="shrink-0 text-sm font-bold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/30" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">Tout voir →</a></div>
+                                            {% if level2_taxons is empty %}
+                                                <p class="mt-5 text-sm text-[#5A5675]">Découvrez tous les produits de cette catégorie.</p>
+                                            {% else %}
+                                                <div class="mt-5 grid gap-x-7 gap-y-6 md:grid-cols-2">
+                                                    {% for group_taxon in level2_taxons %}
+                                                        {% set level3_taxons = advanced_taxon_ordered_children(group_taxon) %}
+                                                        {% set products = group_taxon.products|filter(product => product.enabled and product.hasChannel(sylius.channel)) %}
+                                                        {% set group_color = group_taxon.showCustomizationInMenu|default(false) ? group_taxon.color|default(null) : null %}
+                                                        <section class="min-w-0">
+                                                            <a class="group flex items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30" href="{{ path('sylius_shop_product_index', {'slug': group_taxon.slug, '_locale': group_taxon.translation.locale}) }}"><span class="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-[#F6F0FF] text-primary"{% if group_color %} style="border-color: {{ group_color }};"{% else %} style="border-color: #ECE8F5;"{% endif %}>{{ _self.taxon_icon(group_taxon, 'size-6') }}</span><span class="font-display text-sm font-extrabold text-[#1E1B3A] group-hover:text-primary">{{ group_taxon.name }}</span></a>
+                                                            {% if products is not empty %}<ul class="mt-3 space-y-1.5 pl-[3.75rem] text-sm text-[#5A5675]">{% for product in products %}<li><a class="hover:text-primary hover:underline focus:text-primary focus:outline-none" href="{{ path('sylius_shop_product_show', {'slug': product.slug, '_locale': app.request.locale}) }}">{{ product.name }}</a></li>{% endfor %}</ul>{% endif %}
+                                                            {% if level3_taxons is not empty %}<ul class="mt-3 space-y-1.5 pl-[3.75rem] text-sm text-[#5A5675]">{% for level3_taxon in level3_taxons %}<li><a class="hover:text-primary hover:underline focus:text-primary focus:outline-none" href="{{ path('sylius_shop_product_index', {'slug': level3_taxon.slug, '_locale': level3_taxon.translation.locale}) }}">{{ level3_taxon.name }}</a></li>{% endfor %}</ul>{% endif %}
+                                                        </section>
                                                     {% endfor %}
-                                                </ul>
-                                            </div>
+                                                </div>
+                                            {% endif %}
+                                        </section>
+                                        {% if featured_media is not empty %}
+                                            <aside class="min-w-0" aria-label="Sélection {{ taxon.name }}"><div class="carousel w-full rounded-2xl bg-[#F6F0FF]">{% for media in featured_media %}<figure id="yoowii-featured-media-{{ taxon.id }}-{{ loop.index }}" class="carousel-item relative w-full"><img class="h-56 w-full object-cover" src="{{ advanced_taxon_media_url(media.path) }}" alt="Visuel {{ taxon.name }}" loading="lazy"></figure>{% endfor %}</div>{% if featured_media|length > 1 %}<div class="mt-2 flex justify-center gap-2">{% for media in featured_media %}<a class="btn btn-xs btn-circle btn-ghost" href="#yoowii-featured-media-{{ taxon.id }}-{{ loop.index }}" aria-label="Afficher le visuel {{ loop.index }}">{{ loop.index }}</a>{% endfor %}</div>{% endif %}</aside>
+                                        {% else %}
+                                            <aside class="rounded-2xl bg-gradient-to-br from-[#E7D8FF] via-[#F6E4FF] to-[#FFD8F0] p-5"><span class="mb-5 flex size-10 items-center justify-center rounded-full bg-base-100 text-primary shadow-sm">{{ icon('star', 'size-5') }}</span><h3 class="font-display text-lg font-extrabold text-[#1E1B3A]">Services</h3><ul class="mt-4 space-y-3 text-sm font-bold">{% for service in ['Studio de design', 'Contrôle de fichiers', 'Adaptation de fichiers', 'Devis sur demande'] %}<li><a class="flex items-center justify-between gap-2 text-[#1E1B3A] hover:text-primary hover:underline" href="{{ path('sylius_shop_contact_request') }}"><span>{{ service }}</span><span class="text-primary">→</span></a></li>{% endfor %}</ul></aside>
                                         {% endif %}
-
-                                        {% if regular_taxons is not empty %}
-                                            <ul class="mt-4 space-y-3 text-sm">
-                                                {% for child_taxon in regular_taxons %}
-                                                    {% set level3_taxons = advanced_taxon_ordered_children(child_taxon) %}
-                                                    <li>
-                                                        <a class="font-bold hover:text-primary hover:underline" href="{{ path('sylius_shop_product_index', {'slug': child_taxon.slug, '_locale': child_taxon.translation.locale}) }}">{{ _self.taxon_label(child_taxon, 'size-4') }}</a>
-                                                        {% if level3_taxons is not empty %}
-                                                            <ul class="mt-1 space-y-1 border-l border-base-300 pl-3 text-xs text-base-content/70">
-                                                                {% for level3_taxon in level3_taxons %}
-                                                                    <li><a class="hover:text-primary hover:underline" href="{{ path('sylius_shop_product_index', {'slug': level3_taxon.slug, '_locale': level3_taxon.translation.locale}) }}">{{ level3_taxon.name }}</a></li>
-                                                                {% endfor %}
-                                                            </ul>
-                                                        {% endif %}
-                                                    </li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% endif %}
-                                    </section>
+                                    </div>
                                 {% endfor %}
                             </div>
                         </div>
-                        <div class="flex flex-wrap gap-x-6 gap-y-2 border-t border-base-300 bg-base-200 px-6 py-4 text-sm font-bold">
-                            <a class="hover:text-primary hover:underline" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Voir tous les produits</a>
-                            <a class="hover:text-primary hover:underline" href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a>
-                        </div>
-                    </div>
+                        <footer class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-[#ECE8F5] bg-base-100 px-6 py-4 text-sm"><a class="font-bold text-primary hover:underline" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Voir tous les produits →</a><p class="font-bold text-[#1E1B3A]">Besoin d’aide ? <a class="text-primary hover:underline" href="{{ path('sylius_shop_contact_request') }}">Contact et conseils →</a></p></footer>
+                    </section>
                 </div>
             {% else %}
-                <a class="btn btn-ghost btn-sm font-bold" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Tous les produits</a>
+                <a class="btn btn-primary btn-sm rounded-full px-4 font-bold shadow-none" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">{{ icon('bars', 'size-4') }} Tous les produits</a>
             {% endif %}
-
-            {% for taxon in menu_taxons %}
-                <a class="btn btn-ghost btn-sm" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">{{ taxon.name }}</a>
-            {% endfor %}
-            <a class="btn btn-ghost btn-sm ml-auto text-primary" href="{{ path('sylius_shop_contact_request') }}">Studio de design <span class="badge badge-secondary badge-sm">Nouveau</span></a>
+            <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">{% for taxon in menu_taxons %}<a class="btn btn-ghost btn-sm whitespace-nowrap text-[#1E1B3A]" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">{{ taxon.name }}</a>{% endfor %}</div>
+            <span class="btn btn-ghost btn-sm shrink-0 whitespace-nowrap font-bold text-[#B0307F]">Promos</span><span class="btn btn-ghost btn-sm shrink-0 whitespace-nowrap font-bold text-primary">Créer mon imprimé</span>
         </nav>
     </div>
 </div>
 
-<aside class="fixed inset-y-0 left-0 z-[70] w-[min(24rem,92vw)] -translate-x-full overflow-y-auto bg-base-100 p-5 shadow-2xl transition-transform peer-checked:translate-x-0 lg:hidden">
-    <label for="yoowii-nav-drawer" class="btn btn-ghost btn-sm btn-square float-right" aria-label="Fermer le menu">{{ icon('x-mark') }}</label>
-    <p class="mb-8 font-display text-xl font-extrabold">Tous les produits</p>
-    <nav aria-label="Navigation mobile">
-        <ul class="menu gap-2 text-base font-bold">
-            {% for taxon in menu_taxons %}
-                {% set level2_taxons = advanced_taxon_ordered_children(taxon) %}
-                <li>
-                    {% if level2_taxons is empty %}
-                        <a href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">{{ _self.taxon_label(taxon) }}</a>
-                    {% else %}
-                        <details>
-                            <summary>{{ _self.taxon_label(taxon) }}</summary>
-                            <ul>
-                                <li><a class="font-semibold text-primary" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">Voir {{ taxon.name }}</a></li>
-                                {% for child_taxon in level2_taxons %}
-                                    {% set level3_taxons = advanced_taxon_ordered_children(child_taxon) %}
-                                    <li>
-                                        {% if level3_taxons is empty %}
-                                            <a href="{{ path('sylius_shop_product_index', {'slug': child_taxon.slug, '_locale': child_taxon.translation.locale}) }}">{{ _self.taxon_label(child_taxon, 'size-4') }}</a>
-                                        {% else %}
-                                            <details>
-                                                <summary>{{ _self.taxon_label(child_taxon, 'size-4') }}</summary>
-                                                <ul>
-                                                    <li><a class="font-semibold text-primary" href="{{ path('sylius_shop_product_index', {'slug': child_taxon.slug, '_locale': child_taxon.translation.locale}) }}">Voir {{ child_taxon.name }}</a></li>
-                                                    {% for level3_taxon in level3_taxons %}
-                                                        <li><a href="{{ path('sylius_shop_product_index', {'slug': level3_taxon.slug, '_locale': level3_taxon.translation.locale}) }}">{{ level3_taxon.name }}</a></li>
-                                                    {% endfor %}
-                                                </ul>
-                                            </details>
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </details>
-                    {% endif %}
-                </li>
-            {% endfor %}
-            <li><a href="{{ path('sylius_shop_contact_request') }}">Studio de design <span class="badge badge-secondary badge-sm">Nouveau</span></a></li>
-        </ul>
-    </nav>
-    <div class="mt-8 border-t border-base-300 pt-5 text-sm"><a class="block py-2" href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a><a class="block py-2" href="{{ path('sylius_shop_contact_request') }}">Contact</a><a class="block py-2" href="{{ path('sylius_shop_account_order_index') }}">Suivi de commande</a></div>
+<aside class="fixed inset-y-0 left-0 z-[70] w-[min(24rem,92vw)] -translate-x-full overflow-y-auto bg-base-100 shadow-2xl transition-transform peer-checked:translate-x-0 lg:hidden" data-controller="mobile-menu" data-mobile-menu-checkbox-id-value="yoowii-nav-drawer" aria-label="Tous les produits">
+    <div class="p-5" data-mobile-menu-target="screen" data-mobile-menu-screen-id="root"><div class="mb-7 flex items-center justify-between"><p class="font-display text-xl font-extrabold text-[#1E1B3A]">Tous les produits</p><button class="btn btn-ghost btn-sm btn-square" type="button" data-action="mobile-menu#close" aria-label="Fermer le menu">{{ icon('x-mark') }}</button></div><nav aria-label="Navigation mobile"><ul class="menu gap-2 text-base font-bold">{% for taxon in menu_taxons %}{% set level2_taxons = advanced_taxon_ordered_children(taxon) %}<li>{% if level2_taxons is empty %}<a href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">{{ _self.taxon_label(taxon) }}</a>{% else %}<button type="button" data-action="mobile-menu#goTo" data-mobile-menu-screen-param="family-{{ taxon.id }}">{{ _self.taxon_label(taxon) }} {{ icon('chevron-right', 'size-4') }}</button>{% endif %}</li>{% endfor %}</ul></nav></div>
+    {% for taxon in menu_taxons %}{% set level2_taxons = advanced_taxon_ordered_children(taxon) %}{% if level2_taxons is not empty %}
+        <div class="hidden p-5" data-mobile-menu-target="screen" data-mobile-menu-screen-id="family-{{ taxon.id }}"><div class="mb-7 flex items-center justify-between"><button class="btn btn-ghost btn-sm -ml-3" type="button" data-action="mobile-menu#goTo" data-mobile-menu-screen-param="root">{{ icon('chevron-left', 'size-4') }} Retour</button><button class="btn btn-ghost btn-sm btn-square" type="button" data-action="mobile-menu#close" aria-label="Fermer le menu">{{ icon('x-mark') }}</button></div><h2 class="font-display text-xl font-extrabold text-[#1E1B3A]">{{ taxon.name }}</h2><a class="mt-2 inline-block text-sm font-bold text-primary" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">Voir toute la catégorie →</a><ul class="menu mt-6 gap-2 text-base font-bold">{% for group_taxon in level2_taxons %}{% set level3_taxons = advanced_taxon_ordered_children(group_taxon) %}{% set products = group_taxon.products|filter(product => product.enabled and product.hasChannel(sylius.channel)) %}<li>{% if level3_taxons is empty and products is empty %}<a href="{{ path('sylius_shop_product_index', {'slug': group_taxon.slug, '_locale': group_taxon.translation.locale}) }}">{{ _self.taxon_label(group_taxon) }}</a>{% else %}<button type="button" data-action="mobile-menu#goTo" data-mobile-menu-screen-param="group-{{ group_taxon.id }}">{{ _self.taxon_label(group_taxon) }} {{ icon('chevron-right', 'size-4') }}</button>{% endif %}</li>{% endfor %}</ul></div>
+        {% for group_taxon in level2_taxons %}{% set level3_taxons = advanced_taxon_ordered_children(group_taxon) %}{% set products = group_taxon.products|filter(product => product.enabled and product.hasChannel(sylius.channel)) %}{% if level3_taxons is not empty or products is not empty %}
+            <div class="hidden p-5" data-mobile-menu-target="screen" data-mobile-menu-screen-id="group-{{ group_taxon.id }}"><div class="mb-7 flex items-center justify-between"><button class="btn btn-ghost btn-sm -ml-3" type="button" data-action="mobile-menu#goTo" data-mobile-menu-screen-param="family-{{ taxon.id }}">{{ icon('chevron-left', 'size-4') }} Retour</button><button class="btn btn-ghost btn-sm btn-square" type="button" data-action="mobile-menu#close" aria-label="Fermer le menu">{{ icon('x-mark') }}</button></div><h2 class="font-display text-xl font-extrabold text-[#1E1B3A]">{{ group_taxon.name }}</h2><a class="mt-2 inline-block text-sm font-bold text-primary" href="{{ path('sylius_shop_product_index', {'slug': group_taxon.slug, '_locale': group_taxon.translation.locale}) }}">Voir toute la catégorie →</a><ul class="menu mt-6 gap-2 text-base">{% for product in products %}<li><a href="{{ path('sylius_shop_product_show', {'slug': product.slug, '_locale': app.request.locale}) }}">{{ product.name }}</a></li>{% endfor %}{% for level3_taxon in level3_taxons %}<li><a href="{{ path('sylius_shop_product_index', {'slug': level3_taxon.slug, '_locale': level3_taxon.translation.locale}) }}">{{ level3_taxon.name }}</a></li>{% endfor %}</ul></div>
+        {% endif %}{% endfor %}
+    {% endif %}{% endfor %}
 </aside>
-<label for="yoowii-nav-drawer" class="fixed inset-0 z-[60] hidden bg-neutral/40 peer-checked:block lg:hidden" aria-label="Fermer le menu"></label>
+<button class="fixed inset-0 z-[60] hidden bg-[#1E1B3A]/45 peer-checked:block lg:hidden" type="button" data-controller="mobile-menu" data-mobile-menu-checkbox-id-value="yoowii-nav-drawer" data-action="mobile-menu#close" aria-label="Fermer le menu"></button>
