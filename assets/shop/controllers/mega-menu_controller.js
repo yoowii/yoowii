@@ -5,43 +5,50 @@ export default class extends Controller {
 
     connect() {
         this.closeTimer = null;
+        this.currentMenuId = null;
     }
 
     disconnect() {
         window.clearTimeout(this.closeTimer);
     }
 
-    toggle() {
-        this.panelTarget.classList.contains('hidden') ? this.open() : this.close();
+    toggle(event) {
+        const menuId = event.params.menuId;
+
+        if (this.currentMenuId === menuId && this.isOpen()) {
+            this.close();
+
+            return;
+        }
+
+        this.open(menuId);
     }
 
-    open() {
+    open(menuId) {
         window.clearTimeout(this.closeTimer);
-        this.panelTarget.classList.remove('hidden');
-        this.backdropTarget.classList.remove('hidden');
-        this.triggerTarget.setAttribute('aria-expanded', 'true');
+        this.currentMenuId = menuId;
+        this.panelTargets.forEach((panel) => {
+            panel.hidden = panel.dataset.megaMenuMenuId !== menuId;
+        });
+        this.triggerTargets.forEach((trigger) => {
+            trigger.setAttribute('aria-expanded', trigger.dataset.megaMenuMenuIdParam === menuId ? 'true' : 'false');
+        });
+        this.backdropTarget.hidden = false;
         this.selectFamily(this.familyTargets[0]?.dataset.familyId);
     }
 
     close() {
-        this.panelTarget.classList.add('hidden');
-        this.backdropTarget.classList.add('hidden');
-        this.triggerTarget.setAttribute('aria-expanded', 'false');
-    }
-
-    scheduleClose() {
-        this.closeTimer = window.setTimeout(() => this.close(), 180);
-    }
-
-    cancelClose() {
-        window.clearTimeout(this.closeTimer);
+        this.panelTargets.forEach((panel) => { panel.hidden = true; });
+        this.triggerTargets.forEach((trigger) => { trigger.setAttribute('aria-expanded', 'false'); });
+        this.backdropTarget.hidden = true;
+        this.currentMenuId = null;
     }
 
     closeOnEscape(event) {
-        if (event.key !== 'Escape' || this.panelTarget.classList.contains('hidden')) return;
-
-        this.close();
-        this.triggerTarget.focus();
+        if (event.key === 'Escape' && this.isOpen()) {
+            this.close();
+            this.triggerTargets[0]?.focus();
+        }
     }
 
     activateFamily(event) {
@@ -51,14 +58,12 @@ export default class extends Controller {
     trapFocus(event) {
         if (event.key !== 'Tab') return;
 
-        const focusable = [...this.panelTarget.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')]
-            .filter((element) => !element.closest('[hidden]'));
-
+        const panel = this.panelTargets.find((item) => !item.hidden);
+        const focusable = panel ? [...panel.querySelectorAll('a[href], button:not([disabled])')].filter((item) => !item.closest('[hidden]')) : [];
         if (focusable.length === 0) return;
 
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
-
         if (event.shiftKey && document.activeElement === first) {
             event.preventDefault();
             last.focus();
@@ -75,11 +80,14 @@ export default class extends Controller {
             const active = family.dataset.familyId === familyId;
             family.classList.toggle('bg-[#F6F0FF]', active);
             family.classList.toggle('text-primary', active);
-            family.setAttribute('aria-current', active ? 'true' : 'false');
+            family.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
-
         this.familyPanelTargets.forEach((panel) => {
             panel.hidden = panel.dataset.familyId !== familyId;
         });
+    }
+
+    isOpen() {
+        return this.panelTargets.some((panel) => !panel.hidden);
     }
 }

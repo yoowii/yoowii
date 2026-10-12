@@ -1,10 +1,12 @@
 @import "tailwindcss" source(none);
 
 @source "../../templates/bundles/SyliusShopBundle/**/*.twig";
+@source "../../templates/shop/**/*.twig";
 @source "../../../templates/**/*.twig";
 @source "../../../assets/shop/**/*.js";
 
 @theme {
+    --container-site: 1680px;
     --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
     --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
     --color-yoowii-violet: #6D3FD0;
@@ -243,6 +245,10 @@
 }
 
 @layer components {
+    .yoowii-container {
+        @apply mx-auto w-full max-w-[1680px] px-4 md:px-6 xl:px-10;
+    }
+
     .yoowii-prescript-shell {
         scroll-margin-top: 2rem;
     }

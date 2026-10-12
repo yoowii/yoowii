@@ -1,19 +1,19 @@
 {% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
 
-<div class="border-b border-base-300 bg-base-100 py-3">
-    <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center gap-3 lg:gap-6">
-            <label for="yoowii-nav-drawer" class="btn btn-ghost btn-sm btn-square lg:hidden" aria-label="Ouvrir le menu">
-                {{ icon('bars') }}
+<div class="relative z-10 w-full border-b border-base-300 bg-base-100 py-3">
+    <div class="yoowii-container">
+        <div class="flex items-center gap-3 py-0 xl:gap-6">
+            <label for="yoowii-nav-drawer" class="btn btn-ghost btn-sm gap-2 xl:hidden" aria-label="Ouvrir le menu">
+                {{ icon('bars') }} <span class="hidden sm:inline">Tous les produits</span>
             </label>
-            <div class="w-28 shrink-0 sm:w-32 lg:w-40">
+            <div class="w-28 shrink-0 sm:w-32 xl:w-40">
                 {% include '@SyliusShop/shared/logo.html.twig' %}
             </div>
             {# Sylius' product index is scoped to a taxon; it has no unscoped catalogue route. #}
             {% set search_taxon = taxons|default([])|first %}
-            <div class="relative hidden min-w-0 flex-1 lg:block" data-controller="search-autocomplete" data-search-autocomplete-url-value="{{ path('yoowii_shop_search_suggest') }}" data-action="keydown@window->search-autocomplete#closeOnEscape">
+            <div class="relative hidden min-w-0 flex-1 xl:block" data-controller="search-autocomplete" data-search-autocomplete-url-value="{{ path('yoowii_shop_search_suggest') }}" data-action="keydown@window->search-autocomplete#closeOnEscape">
             <form id="yoowii-search-form" action="{{ path('yoowii_shop_search') }}" method="get" role="search">
-                <label class="input input-bordered flex h-11 items-center gap-3 rounded-full border-yoowii-border bg-base-100 px-4 focus-within:border-primary" for="yoowii-search">
+                <label class="input input-bordered flex h-11 items-center gap-3 rounded-full border-yoowii-border bg-[#F6F0FF] px-4 focus-within:border-primary" for="yoowii-search">
                     {{ icon('magnifying-glass', 'size-5 shrink-0') }}
                     <input id="yoowii-search" class="min-w-0 grow" name="q" type="search" placeholder="Rechercher un produit, un format, une idée…" autocomplete="off" data-search-autocomplete-target="input" data-action="input->search-autocomplete#search focus->search-autocomplete#search">
                 </label>
@@ -24,11 +24,11 @@
                 <button class="mt-4 block border-t border-base-300 pt-3 text-sm font-bold text-primary" type="submit" form="yoowii-search-form">Voir tous les résultats</button>
             </div>
             </div>
-            <div class="ml-auto flex items-center gap-1 sm:gap-2">
-                <a class="btn btn-ghost btn-sm btn-square lg:hidden" href="{{ search_taxon ? path('sylius_shop_product_index', {'slug': search_taxon.slug, '_locale': search_taxon.translation.locale}) : path('sylius_shop_homepage') }}" aria-label="Rechercher">
+            <div class="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+                <a class="btn btn-ghost btn-sm btn-square xl:hidden" href="{{ search_taxon ? path('sylius_shop_product_index', {'slug': search_taxon.slug, '_locale': search_taxon.translation.locale}) : path('sylius_shop_homepage') }}" aria-label="Rechercher">
                     {{ icon('magnifying-glass') }}
                 </a>
-                {% include '@SyliusShop/shared/layout/base/header/content/security.html.twig' %}
+                <a class="btn btn-ghost btn-sm gap-2 normal-case" href="{{ path('sylius_shop_login') }}"><span class="hidden 2xl:inline">Se connecter</span>{{ icon('user', 'size-5') }}</a>
                 {{ component('sylius_shop:cart:widget', {template: '@SyliusShop/shared/components/header/cart.html.twig'}) }}
             </div>
         </div>

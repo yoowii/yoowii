@@ -1,0 +1,45 @@
+{% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
+
+{% set level2_taxons = advanced_taxon_ordered_children(taxon) %}
+{% set featured_media = taxon.images|filter(image => image.type|default('') == 'featured' and image.path|default('') is not empty) %}
+
+<section class="col-span-3 min-w-0">
+    <div class="flex items-start justify-between gap-4 border-b border-[#ECE8F5] pb-4">
+        <h2 class="font-display text-xl font-extrabold text-[#1E1B3A]">{{ taxon.name }}</h2>
+        <a class="shrink-0 text-sm font-bold text-primary hover:underline" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">Tout voir →</a>
+    </div>
+
+    {% if level2_taxons is empty %}
+        <p class="mt-5 text-sm text-[#5A5675]">Découvrez tous les produits de cette catégorie.</p>
+    {% else %}
+        <div class="mt-5 grid gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
+            {% for group_taxon in level2_taxons %}
+                {% set level3_taxons = advanced_taxon_ordered_children(group_taxon) %}
+                {% set products = yoowii_mega_menu_products(group_taxon) %}
+                {% set group_color = group_taxon.showCustomizationInMenu|default(false) ? group_taxon.color|default(null) : null %}
+                <section class="min-w-0">
+                    <a class="group flex items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30" href="{{ path('sylius_shop_product_index', {'slug': group_taxon.slug, '_locale': group_taxon.translation.locale}) }}">
+                        <span class="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-[#F6F0FF] text-primary"{% if group_color %} style="border-color: {{ group_color }};"{% else %} style="border-color: #ECE8F5;"{% endif %}>
+                            {% if group_taxon.showCustomizationInMenu|default(false) and group_taxon.icon|default(null) is not empty and not (group_taxon.icon starts with 'image:') %}{{ ux_icon(':' in group_taxon.icon ? group_taxon.icon : 'tabler:' ~ group_taxon.icon, {class: 'size-6', 'aria-hidden': 'true'}) }}{% else %}{{ icon('star', 'size-5') }}{% endif %}
+                        </span>
+                        <span class="font-display text-sm font-extrabold text-[#1E1B3A] group-hover:text-primary">{{ group_taxon.name }}</span>
+                    </a>
+                    {% if products is not empty %}<ul class="mt-3 space-y-1.5 pl-[3.75rem] text-sm text-[#5A5675]">{% for product in products %}<li><a class="hover:text-primary hover:underline" href="{{ path('sylius_shop_product_show', {'slug': product.slug, '_locale': app.request.locale}) }}">{{ product.name }}</a></li>{% endfor %}</ul>{% endif %}
+                    {% if level3_taxons is not empty %}<ul class="mt-3 space-y-1.5 pl-[3.75rem] text-sm text-[#5A5675]">{% for level3_taxon in level3_taxons %}<li><a class="hover:text-primary hover:underline" href="{{ path('sylius_shop_product_index', {'slug': level3_taxon.slug, '_locale': level3_taxon.translation.locale}) }}">{{ level3_taxon.name }}</a></li>{% endfor %}</ul>{% endif %}
+                </section>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
+{% if featured_media is not empty %}
+    <aside class="col-span-1 self-stretch overflow-hidden rounded-2xl bg-[#F6F0FF]">
+        <div class="carousel h-full w-full">{% for media in featured_media %}<figure id="yoowii-featured-media-{{ taxon.id }}-{{ loop.index }}" class="carousel-item w-full"><img class="min-h-[320px] w-full object-cover" src="{{ advanced_taxon_media_url(media.path) }}" alt="Visuel {{ taxon.name }}" loading="lazy"></figure>{% endfor %}</div>
+    </aside>
+{% else %}
+    <aside class="col-span-1 min-h-[320px] self-stretch rounded-2xl bg-gradient-to-br from-[#E7D8FF] via-[#F6E4FF] to-[#FFD8F0] p-6">
+        <span class="mb-6 flex size-12 items-center justify-center rounded-full bg-base-100 text-primary shadow-sm">{{ ux_icon('tabler:wand', {class: 'size-6', 'aria-hidden': 'true'}) }}</span>
+        <h3 class="font-display text-xl font-extrabold text-[#1E1B3A]">Services</h3>
+        <ul class="mt-5 space-y-4 text-sm font-bold">{% for service in ['Studio de design', 'Contrôle de fichiers', 'Adaptation de fichiers', 'Devis sur demande'] %}<li><a class="flex items-center justify-between gap-2 text-[#1E1B3A] hover:text-primary hover:underline" href="{{ path('sylius_shop_contact_request') }}"><span>{{ service }}</span><span class="text-primary">→</span></a></li>{% endfor %}</ul>
+    </aside>
+{% endif %}
