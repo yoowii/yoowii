@@ -24,6 +24,10 @@ export default class extends Controller {
         this.open(menuId);
     }
 
+    openFromTrigger(event) {
+        this.open(event.params.menuId);
+    }
+
     open(menuId) {
         window.clearTimeout(this.closeTimer);
         this.currentMenuId = menuId;
@@ -38,10 +42,16 @@ export default class extends Controller {
     }
 
     close() {
+        window.clearTimeout(this.closeTimer);
         this.panelTargets.forEach((panel) => { panel.hidden = true; });
         this.triggerTargets.forEach((trigger) => { trigger.setAttribute('aria-expanded', 'false'); });
         this.backdropTarget.hidden = true;
         this.currentMenuId = null;
+    }
+
+    scheduleClose() {
+        window.clearTimeout(this.closeTimer);
+        this.closeTimer = window.setTimeout(() => this.close(), 150);
     }
 
     closeOnEscape(event) {

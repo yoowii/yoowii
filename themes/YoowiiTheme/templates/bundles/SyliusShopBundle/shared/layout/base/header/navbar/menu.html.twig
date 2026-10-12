@@ -11,17 +11,17 @@
     {{ names[taxon.name]|default(taxon.name) }}
 {% endmacro %}
 
-<div class="relative z-10 w-full bg-base-100" data-controller="mega-menu" data-action="keydown@window->mega-menu#closeOnEscape">
+<div class="relative z-10 w-full bg-base-100" data-controller="mega-menu" data-action="keydown@window->mega-menu#closeOnEscape mouseleave->mega-menu#scheduleClose">
     <div class="hidden border-b border-[#ECE8F5] xl:block">
         <nav class="yoowii-container flex items-stretch justify-between gap-1 pb-2" aria-label="{{ 'sylius.ui.menu'|trans }}">
             {% if mega_menu_enabled %}
-                <button class="btn btn-primary btn-sm my-1 flex-none rounded-full px-4 font-bold shadow-none" type="button" data-mega-menu-target="trigger" data-mega-menu-menu-id-param="all" data-action="mega-menu#toggle" aria-expanded="false" aria-controls="yoowii-mega-menu-all">{{ icon('bars', 'size-4') }} Tous les produits</button>
+                <button class="btn btn-primary btn-sm my-1 flex-none rounded-full px-4 font-bold shadow-none" type="button" data-mega-menu-target="trigger" data-mega-menu-menu-id-param="all" data-action="click->mega-menu#toggle mouseenter->mega-menu#openFromTrigger focus->mega-menu#openFromTrigger" aria-expanded="false" aria-controls="yoowii-mega-menu-all">{{ icon('bars', 'size-4') }} Tous les produits</button>
             {% else %}
                 <a class="btn btn-primary btn-sm my-1 flex-none rounded-full px-4 font-bold shadow-none" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">{{ icon('bars', 'size-4') }} Tous les produits</a>
             {% endif %}
 
             {% for taxon in menu_taxons %}
-                <button class="flex min-h-11 min-w-0 flex-1 items-center justify-center px-2 text-center text-[13px] font-semibold leading-tight text-[#1E1B3A] hover:text-primary focus:text-primary focus:outline-none 2xl:text-sm" type="button" data-mega-menu-target="trigger" data-mega-menu-menu-id-param="family-{{ taxon.id }}" data-action="mega-menu#toggle" aria-expanded="false" aria-controls="yoowii-mega-menu-family-{{ taxon.id }}">{{ _self.short_name(taxon) }}</button>
+                <button class="flex min-h-11 min-w-0 flex-1 items-center justify-center px-2 text-center text-[13px] font-semibold leading-tight text-[#1E1B3A] hover:text-primary focus:text-primary focus:outline-none 2xl:text-sm" type="button" data-mega-menu-target="trigger" data-mega-menu-menu-id-param="family-{{ taxon.id }}" data-action="click->mega-menu#toggle mouseenter->mega-menu#openFromTrigger focus->mega-menu#openFromTrigger" aria-expanded="false" aria-controls="yoowii-mega-menu-family-{{ taxon.id }}">{{ _self.short_name(taxon) }}</button>
             {% endfor %}
             <span class="flex min-h-11 flex-none items-center px-2 text-center text-[13px] font-bold leading-tight text-[#B0307F] 2xl:text-sm">Promos</span>
             <span class="flex min-h-11 flex-none items-center px-2 text-center text-[13px] font-bold leading-tight text-primary 2xl:text-sm">Créer mon imprimé</span>
@@ -29,9 +29,9 @@
     </div>
 
     {% if mega_menu_enabled %}
-        <div class="fixed inset-x-0 bottom-0 top-[10rem] z-0 hidden bg-neutral/50" data-mega-menu-target="backdrop" data-action="click->mega-menu#close" aria-hidden="true"></div>
+        <div class="fixed inset-x-0 bottom-0 top-[10rem] z-0 bg-neutral/50" hidden data-mega-menu-target="backdrop" data-action="click->mega-menu#close" aria-hidden="true"></div>
 
-        <section id="yoowii-mega-menu-all" class="absolute inset-x-0 top-full z-10 hidden border-b border-[#ECE8F5] bg-base-100 shadow-2xl" data-mega-menu-target="panel" data-mega-menu-menu-id="all" data-action="keydown->mega-menu#trapFocus" role="dialog" aria-label="Tous les produits" tabindex="-1">
+        <section id="yoowii-mega-menu-all" class="absolute inset-x-0 top-full z-10 border-b border-[#ECE8F5] bg-base-100 shadow-2xl" hidden data-mega-menu-target="panel" data-mega-menu-menu-id="all" data-action="keydown->mega-menu#trapFocus" role="dialog" aria-label="Tous les produits" tabindex="-1">
             <div class="yoowii-container py-7">
                 <div class="grid max-h-[calc(100vh-10rem)] grid-cols-4 gap-8 overflow-y-auto">
                     <aside class="col-span-1 border-r border-[#ECE8F5] pr-5" aria-label="Familles de produits"><ul class="space-y-1">{% for taxon in menu_taxons %}<li><button class="group flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-[#1E1B3A] hover:bg-[#F6F0FF] hover:text-primary focus:bg-[#F6F0FF] focus:text-primary focus:outline-none{% if loop.first %} bg-[#F6F0FF] text-primary{% endif %}" type="button" data-mega-menu-target="family" data-family-id="{{ taxon.id }}" data-action="mega-menu#activateFamily"><span>{{ taxon.name }}</span>{{ icon('chevron-right', 'size-4') }}</button></li>{% endfor %}</ul></aside>
@@ -42,7 +42,7 @@
         </section>
 
         {% for taxon in menu_taxons %}
-            <section id="yoowii-mega-menu-family-{{ taxon.id }}" class="absolute inset-x-0 top-full z-10 hidden border-b border-[#ECE8F5] bg-base-100 shadow-2xl" data-mega-menu-target="panel" data-mega-menu-menu-id="family-{{ taxon.id }}" data-action="keydown->mega-menu#trapFocus" role="dialog" aria-label="{{ taxon.name }}" tabindex="-1"><div class="yoowii-container py-7"><div class="grid max-h-[calc(100vh-10rem)] grid-cols-4 gap-8 overflow-y-auto">{% include 'shop/shared/header/mega_menu_family.html.twig' with {taxon: taxon} only %}</div><footer class="mt-6 flex items-center justify-between border-t border-[#ECE8F5] pt-4 text-sm"><a class="font-bold text-primary hover:underline" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Voir tous les produits →</a><a class="font-bold text-primary hover:underline" href="{{ path('sylius_shop_contact_request') }}">Contact et conseils →</a></footer></div></section>
+            <section id="yoowii-mega-menu-family-{{ taxon.id }}" class="absolute inset-x-0 top-full z-10 border-b border-[#ECE8F5] bg-base-100 shadow-2xl" hidden data-mega-menu-target="panel" data-mega-menu-menu-id="family-{{ taxon.id }}" data-action="keydown->mega-menu#trapFocus" role="dialog" aria-label="{{ taxon.name }}" tabindex="-1"><div class="yoowii-container py-7"><div class="grid max-h-[calc(100vh-10rem)] grid-cols-4 gap-8 overflow-y-auto">{% include 'shop/shared/header/mega_menu_family.html.twig' with {taxon: taxon} only %}</div><footer class="mt-6 flex items-center justify-between border-t border-[#ECE8F5] pt-4 text-sm"><a class="font-bold text-primary hover:underline" href="{{ catalogue_taxon ? path('sylius_shop_product_index', {'slug': catalogue_taxon.slug, '_locale': catalogue_taxon.translation.locale}) : path('sylius_shop_homepage') }}">Voir tous les produits →</a><a class="font-bold text-primary hover:underline" href="{{ path('sylius_shop_contact_request') }}">Contact et conseils →</a></footer></div></section>
         {% endfor %}
     {% endif %}
 </div>
