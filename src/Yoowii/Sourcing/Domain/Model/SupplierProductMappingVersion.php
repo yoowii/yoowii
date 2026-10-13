@@ -33,6 +33,12 @@ class SupplierProductMappingVersion
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = true;
 
+    #[ORM\Column(name: 'published_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $publishedAt = null;
+
+    #[ORM\Column(name: 'archived_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $archivedAt = null;
+
     /**
      * @param array<string, mixed> $configurationMapping
      */
@@ -145,6 +151,31 @@ class SupplierProductMappingVersion
     public function activate(): void
     {
         $this->active = true;
+    }
+
+    public function markPublished(\DateTimeImmutable $at): void
+    {
+        $this->active = true;
+        $this->publishedAt ??= $at;
+        $this->archivedAt = null;
+    }
+
+    public function publishedAt(): ?\DateTimeImmutable
+    {
+        return $this->publishedAt;
+    }
+
+    public function archivedAt(): ?\DateTimeImmutable
+    {
+        return $this->archivedAt;
+    }
+
+    public function archive(\DateTimeImmutable $at): void
+    {
+        if ($this->active || null === $this->publishedAt) {
+            throw new \DomainException('Seule une version publiée désactivée peut être archivée.');
+        }
+        $this->archivedAt ??= $at;
     }
 
     /** @param array<array-key, mixed> $value */

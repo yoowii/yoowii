@@ -34,3 +34,7 @@ Depuis la fiche de référence, le bouton « Créer une révision » duplique la
 Depuis « Produits Yoowii liés », ouvrir « Prévisualiser / corriger le brouillon ». La page compare les champs texte du produit au catalogue synchronisé : une variable en lecture seule reprend sa valeur fournisseur exacte, tandis qu'un texte libre sans défaut demande une valeur d'essai pour la cotation API. Le produit Sylius et son code restent les mêmes ; la définition du brouillon est mise à jour et un nouveau mapping inactif est créé. Refaire ensuite le contrôle du prix avant publication.
 
 Cette opération concerne la dernière révision inactive. Pour un produit actif, créer d'abord une révision de définition versionnée.
+
+## Rétention des versions
+
+La commande quotidienne `bin/console yoowii:sourcing:mapping-retention` archive les versions publiées puis désactivées. Elle supprime seulement les brouillons jamais publiés, inactifs, sans commande liée et âgés de plus de 90 jours. Les validations Realisaprint de ces brouillons sont supprimées par la contrainte de base de données `ON DELETE CASCADE`. Utiliser d'abord `--dry-run` pour contrôler le résultat.

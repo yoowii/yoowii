@@ -76,7 +76,7 @@ final readonly class RealisaprintPublicationService
         }
 
         $route->supplierProduct()->activate();
-        $mapping->activate();
+        $mapping->markPublished($now);
         $route->activate();
         $definition->activate();
         $product->setEnabled(true);
