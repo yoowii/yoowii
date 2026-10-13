@@ -82,6 +82,20 @@ class RealisaprintCatalogProduct
         return $this->configuration;
     }
 
+    /**
+     * Returns null until the classic API configuration has been synchronized.
+     */
+    public function classicStockCount(): ?int
+    {
+        if (null === $this->configuration) {
+            return null;
+        }
+
+        $stocks = $this->configuration['stocks'] ?? [];
+
+        return is_array($stocks) ? count($stocks) : 0;
+    }
+
     /** @return array<string, string> stock identifier => supplier label */
     public function prescriptStocks(): array
     {
