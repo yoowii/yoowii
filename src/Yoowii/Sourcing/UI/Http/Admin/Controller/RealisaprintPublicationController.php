@@ -244,7 +244,7 @@ final class RealisaprintPublicationController extends AbstractController
 
     private function definition(SupplierProductMappingVersion $mapping, EntityManagerInterface $entityManager): PersistedPrintProductDefinition
     {
-        $definition = $entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $mapping->yoowiiProductCode()]);
+        $definition = $mapping->printProductDefinition();
         if (!$definition instanceof PersistedPrintProductDefinition) {
             throw new \DomainException('La définition de configurateur correspondante est introuvable.');
         }

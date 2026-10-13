@@ -33,8 +33,7 @@ final readonly class RealisaprintPublicationService
         }
         /** @var Product|null $product */
         $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $mapping->yoowiiProductCode()]);
-        /** @var PersistedPrintProductDefinition|null $definition */
-        $definition = $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $mapping->yoowiiProductCode()]);
+        $definition = $mapping->printProductDefinition();
         if (!$product instanceof Product || !$definition instanceof PersistedPrintProductDefinition) {
             throw new \DomainException('Le produit Sylius ou sa définition de configurateur est introuvable.');
         }
@@ -50,7 +49,14 @@ final readonly class RealisaprintPublicationService
         if (!is_array($provider)) {
             throw new \DomainException('Publication refusée : correspondances fournisseur introuvables.');
         }
-        $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
+        $providerMapping = [];
+        foreach ($provider as $key => $value) {
+            if (!is_string($key)) {
+                throw new \DomainException('Publication refusée : correspondances fournisseur invalides.');
+            }
+            $providerMapping[$key] = $value;
+        }
+        $this->completeness->assertComplete($definition, $catalog->configuration(), $providerMapping);
         foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
             'supplierProduct' => $route->supplierProduct(),
             'yoowiiProductCode' => $mapping->yoowiiProductCode(),
@@ -58,6 +64,14 @@ final readonly class RealisaprintPublicationService
         ]) as $previous) {
             if ($previous !== $mapping) {
                 $previous->deactivate();
+            }
+        }
+        foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([
+            'productCode' => $mapping->yoowiiProductCode(),
+            'active' => true,
+        ]) as $previousDefinition) {
+            if ($previousDefinition !== $definition) {
+                $previousDefinition->deactivate();
             }
         }
 

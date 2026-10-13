@@ -38,6 +38,12 @@
                         <div class="btn-list">
                             <a class="btn btn-sm btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_linked_product_definition', {id: product.id, routeId: item.route.id}) }}">Consulter la définition</a>
                             {% if item.mapping %}
+                                {% if item.product.enabled %}
+                                    <form method="post" action="{{ path('yoowii_admin_realisaprint_revision_create', {routeId: item.route.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('create_realisaprint_revision_' ~ item.route.id) }}">
+                                        <button class="btn btn-sm btn-outline-primary">Créer une révision</button>
+                                    </form>
+                                {% endif %}
                                 {% if not item.product.enabled %}
                                     <a class="btn btn-sm btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_draft_repair', {routeId: item.route.id}) }}">Prévisualiser / corriger le brouillon</a>
                                 {% endif %}

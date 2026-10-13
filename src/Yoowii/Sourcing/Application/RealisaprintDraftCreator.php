@@ -117,6 +117,8 @@ final readonly class RealisaprintDraftCreator
             'v1',
             $configurationMapping,
             new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            null,
+            $definition,
         );
         $mapping->deactivate();
 

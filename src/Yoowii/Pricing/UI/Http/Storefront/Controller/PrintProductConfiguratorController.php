@@ -311,7 +311,7 @@ final class PrintProductConfiguratorController extends AbstractController
     /** @return array{state: array<string, mixed>|null, stale: bool} */
     private function initialConfiguratorState(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager, \DateTimeImmutable $now, RealisaprintInitialDisplayStateBuilder $displayStateBuilder, KernelInterface $kernel, LoggerInterface $logger): array
     {
-        $definition = $entityManager->getRepository(\App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $definitionCode]);
+        $definition = $entityManager->getRepository(\App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $definitionCode, 'active' => true]);
         if (!$definition instanceof \App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition) {
             return ['state' => null, 'stale' => false];
         }

@@ -78,4 +78,20 @@ final class RealisaprintFixedTextTest extends TestCase
 
         self::assertSame(['format'], $definition->pricingAxes());
     }
+
+    public function testPublishedDefinitionCanBeCopiedIntoAnIndependentInactiveRevision(): void
+    {
+        $published = new PersistedPrintProductDefinition('PRINT_BADGE', 'v1', [
+            'format' => ['type' => 'code', 'allowed_values' => ['a4']],
+        ], ['format']);
+        $published->activate();
+
+        $revision = $published->revise();
+        $revision->replaceDraftOptions(['format' => ['type' => 'code', 'allowed_values' => ['a5']]]);
+
+        self::assertTrue($published->active());
+        self::assertSame(['a4'], $published->options()['format']['allowed_values']);
+        self::assertFalse($revision->active());
+        self::assertSame(['a5'], $revision->options()['format']['allowed_values']);
+    }
 }

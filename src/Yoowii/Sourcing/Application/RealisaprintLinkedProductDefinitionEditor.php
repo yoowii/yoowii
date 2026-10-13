@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\Application;
 
-use App\Entity\Product\Product;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
@@ -21,8 +20,8 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
     /** @param array<string, array<string, mixed>> $options @param list<string> $pricingAxes */
     public function update(SupplierRoute $route, RealisaprintCatalogProduct $catalog, PersistedPrintProductDefinition $definition, string $configuratorMode, array $options, array $pricingAxes): SupplierProductMappingVersion
     {
-        $this->assertDraft($route, $definition);
         $previous = $this->latestMapping($route);
+        $this->assertDraft($definition, $previous);
         $provider = $previous->configurationMapping()['realisaprint'] ?? null;
         if (!is_array($provider) || !is_scalar($provider['stock'] ?? null) || !is_array($catalog->configuration())) {
             throw new \DomainException('La configuration fournisseur synchronisée et le mapping du brouillon sont obligatoires.');
@@ -39,7 +38,7 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
         $provider['variables'] = $this->rules($options, $catalog);
         $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
 
-        $mapping = new SupplierProductMappingVersion($route->supplierProduct(), $route->yoowiiProductCode(), $this->nextVersion($route), ['realisaprint' => $provider], new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+        $mapping = new SupplierProductMappingVersion($route->supplierProduct(), $route->yoowiiProductCode(), $this->nextVersion($route), ['realisaprint' => $provider], new \DateTimeImmutable('now', new \DateTimeZone('UTC')), null, $definition);
         $mapping->deactivate();
         $this->entityManager->persist($mapping);
         $this->entityManager->flush();
@@ -71,11 +70,10 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
         return $rules;
     }
 
-    private function assertDraft(SupplierRoute $route, PersistedPrintProductDefinition $definition): void
+    private function assertDraft(PersistedPrintProductDefinition $definition, SupplierProductMappingVersion $mapping): void
     {
-        $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $route->yoowiiProductCode()]);
-        if (!$product instanceof Product || $product->isEnabled() || $definition->active() || $route->isActive()) {
-            throw new \DomainException('Seuls les produits liés encore brouillons et inactifs peuvent être modifiés.');
+        if ($definition->active() || (null !== $mapping->printProductDefinition() && $mapping->printProductDefinition() !== $definition)) {
+            throw new \DomainException('Seule la dernière révision inactive peut être modifiée.');
         }
     }
 

@@ -31,10 +31,6 @@ final class RealisaprintMappingController extends AbstractController
             throw $this->createNotFoundException();
         }
         /** @var PersistedPrintProductDefinition|null $definition */
-        $definition = $entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $route->yoowiiProductCode()]);
-        if (!$definition instanceof PersistedPrintProductDefinition) {
-            throw $this->createNotFoundException('Définition de configurateur introuvable.');
-        }
         /** @var RealisaprintCatalogProduct|null $catalogProduct */
         $catalogProduct = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
 
@@ -47,6 +43,10 @@ final class RealisaprintMappingController extends AbstractController
             ['supplierProduct' => $route->supplierProduct(), 'yoowiiProductCode' => $route->yoowiiProductCode()],
             ['id' => 'DESC'],
         );
+        $definition = $previous instanceof SupplierProductMappingVersion ? $previous->printProductDefinition() : null;
+        if (!$definition instanceof PersistedPrintProductDefinition) {
+            throw $this->createNotFoundException('Définition de configurateur introuvable.');
+        }
         $this->prefill($data, $definition, $catalogProduct->configuration(), $previous instanceof SupplierProductMappingVersion ? $previous : null);
         $choices = array_combine(array_keys($definition->options()), array_keys($definition->options())) ?: [];
         $form = $this->createForm(RealisaprintMappingType::class, $data, ['yoowii_options' => $choices]);
@@ -63,6 +63,8 @@ final class RealisaprintMappingController extends AbstractController
                     trim($data->version),
                     ['realisaprint' => ['product' => $route->supplierProduct()->code(), 'stock' => trim($data->stock), 'variables' => $variables]],
                     new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+                    null,
+                    $definition,
                 );
                 $mapping->deactivate();
                 $entityManager->persist($mapping);

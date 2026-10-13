@@ -40,10 +40,7 @@ final class WarmRealisaprintDisplayStatesCommand extends Command
                 continue;
             }
 
-            $definition = $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy([
-                'productCode' => $mapping->yoowiiProductCode(),
-                'active' => true,
-            ]);
+            $definition = $mapping->printProductDefinition();
             if (!$definition instanceof PersistedPrintProductDefinition) {
                 $output->writeln(sprintf('<error>%s: active product definition is missing.</error>', $mapping->yoowiiProductCode()));
                 $failed = true;

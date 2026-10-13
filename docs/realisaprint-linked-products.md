@@ -17,6 +17,10 @@ Programmer cette commande dans le planificateur existant (par exemple chaque nui
 
 Une nouvelle option fournisseur ou une nouvelle valeur n'est pas ajoutée automatiquement à un produit publié : la version actuelle de la définition est immuable. Ce changement nécessite une évolution contrôlée du configurateur. La cotation API utilise toujours les prix courants du fournisseur pour les configurations déjà prises en charge.
 
+## Réviser un produit publié
+
+Depuis la fiche de référence, le bouton « Créer une révision » duplique la définition et le mapping publiés dans une version inactive. La version actuellement publiée continue d’être proposée aux clients. Modifier ensuite la définition liée, relancer le contrôle de couverture et de prix, puis publier la révision. La publication désactive l’ancienne définition et l’ancien mapping au même moment ; les versions restent conservées pour la traçabilité.
+
 ## Points de recette
 
 - Agenda, stock 837 : le mapping initial est présent dès la création du brouillon.
@@ -29,4 +33,4 @@ Une nouvelle option fournisseur ou une nouvelle valeur n'est pas ajoutée automa
 
 Depuis « Produits Yoowii liés », ouvrir « Prévisualiser / corriger le brouillon ». La page compare les champs texte du produit au catalogue synchronisé : une variable en lecture seule reprend sa valeur fournisseur exacte, tandis qu'un texte libre sans défaut demande une valeur d'essai pour la cotation API. Le produit Sylius et son code restent les mêmes ; la définition du brouillon est mise à jour et un nouveau mapping inactif est créé. Refaire ensuite le contrôle du prix avant publication.
 
-Cette opération refuse les produits déjà actifs afin de préserver les devis et commandes existants. Une correction d'un produit actif demande une révision de définition versionnée.
+Cette opération concerne la dernière révision inactive. Pour un produit actif, créer d'abord une révision de définition versionnée.

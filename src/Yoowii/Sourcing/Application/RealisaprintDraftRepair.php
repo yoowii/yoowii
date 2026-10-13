@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\Application;
 
-use App\Entity\Product\Product;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use Doctrine\ORM\EntityManagerInterface;
 
-/** Repairs fixed and free text options on an existing inactive linked product. */
+/** Repairs fixed and free text options on an existing inactive definition revision. */
 final readonly class RealisaprintDraftRepair
 {
     public function __construct(
@@ -23,7 +22,7 @@ final readonly class RealisaprintDraftRepair
     /** @return list<array{label: string, variable: string, old: string, new: string, kind: string}> */
     public function preview(SupplierRoute $route, RealisaprintCatalogProduct $catalog, PersistedPrintProductDefinition $definition): array
     {
-        $this->assertDraft($route, $definition);
+        $this->assertDraft($definition, $this->latestMapping($route));
         $variables = $catalog->configuration()['variables'] ?? [];
         if (!is_array($variables)) {
             throw new \DomainException('Actualise d’abord la configuration fournisseur.');
@@ -85,7 +84,7 @@ final readonly class RealisaprintDraftRepair
      */
     public function defaultFields(SupplierRoute $route, PersistedPrintProductDefinition $definition): array
     {
-        $this->assertDraft($route, $definition);
+        $this->assertDraft($definition, $this->latestMapping($route));
         $fields = [];
         foreach ($definition->options() as $code => $option) {
             if (!is_string($code) || !is_array($option)) {
@@ -170,6 +169,8 @@ final readonly class RealisaprintDraftRepair
             $version,
             ['realisaprint' => $provider],
             new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            null,
+            $definition,
         );
         $mapping->deactivate();
         $this->entityManager->persist($mapping);
@@ -219,11 +220,10 @@ final readonly class RealisaprintDraftRepair
         }
     }
 
-    private function assertDraft(SupplierRoute $route, PersistedPrintProductDefinition $definition): void
+    private function assertDraft(PersistedPrintProductDefinition $definition, SupplierProductMappingVersion $mapping): void
     {
-        $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $route->yoowiiProductCode()]);
-        if (!$product instanceof Product || $product->isEnabled() || $definition->active() || $route->isActive()) {
-            throw new \DomainException('Seuls les produits liés encore brouillons et inactifs peuvent être réparés en place.');
+        if ($definition->active() || (null !== $mapping->printProductDefinition() && $mapping->printProductDefinition() !== $definition)) {
+            throw new \DomainException('Seule la dernière révision inactive peut être réparée.');
         }
     }
 

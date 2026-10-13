@@ -31,7 +31,8 @@ final class RealisaprintDraftRepairController extends AbstractController
             throw $this->createNotFoundException();
         }
         $catalog = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
-        $definition = $entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $route->yoowiiProductCode()]);
+        $mapping = $entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion::class)->findOneBy(['supplierProduct' => $route->supplierProduct(), 'yoowiiProductCode' => $route->yoowiiProductCode()], ['id' => 'DESC']);
+        $definition = $mapping instanceof \App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion ? $mapping->printProductDefinition() : null;
         if (!$catalog instanceof RealisaprintCatalogProduct || !$definition instanceof PersistedPrintProductDefinition) {
             throw $this->createNotFoundException('Catalogue ou définition du produit lié introuvable.');
         }

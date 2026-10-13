@@ -114,7 +114,7 @@ final class RealisaprintCatalogController extends AbstractController
             $mappingStatus = 'absent';
             $configurationStatus = 'À vérifier';
             if ($mapping instanceof SupplierProductMappingVersion) {
-                $definition = $entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $route->yoowiiProductCode()]);
+                $definition = $mapping->printProductDefinition();
                 if ($definition instanceof PersistedPrintProductDefinition) {
                     try {
                         $completeness->assertComplete($definition, $configuration, $providerMapping);

@@ -60,7 +60,7 @@ final readonly class BuiltInPrintProductDefinitionRegistry
         if (null === $this->entityManager) {
             return [];
         }
-        $definition = $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $productCode]);
+        $definition = $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $productCode, 'active' => true]);
 
         return $definition instanceof PersistedPrintProductDefinition ? $definition->storefrontSchema() : [];
     }

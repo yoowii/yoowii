@@ -60,7 +60,7 @@ final class SynchronizeLinkedRealisaprintConfigurationsCommand extends Command
                 $this->synchronizer->synchronizeConfiguration($product, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
                 $output->writeln(sprintf('<info>%s: configuration refreshed.</info>', $providerId));
                 foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['supplierProduct' => $route->supplierProduct(), 'active' => true]) as $mapping) {
-                    $definition = $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $mapping->yoowiiProductCode()]);
+                    $definition = $mapping->printProductDefinition();
                     $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
                     try {
                         if (!$definition instanceof PersistedPrintProductDefinition || !is_array($provider)) {

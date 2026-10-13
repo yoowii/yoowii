@@ -22,7 +22,7 @@ class PersistedPrintProductDefinition
 
     /** @param array<string, array{type: string, required?: bool, allowed_values?: list<string|int|float>, minimum?: int|float|null, maximum?: int|float|null}> $options @param non-empty-list<string> $pricingAxes */
     public function __construct(
-        #[ORM\Column(name: 'product_code', type: Types::STRING, length: 64, unique: true)]
+        #[ORM\Column(name: 'product_code', type: Types::STRING, length: 64)]
         private readonly string $productCode,
         #[ORM\Column(name: 'schema_version', type: Types::STRING, length: 32)]
         private readonly string $schemaVersion,
@@ -146,6 +146,12 @@ class PersistedPrintProductDefinition
     public function active(): bool
     {
         return $this->active;
+    }
+
+    /** Creates an inactive, independently publishable revision of this definition. */
+    public function revise(): self
+    {
+        return new self($this->productCode, $this->schemaVersion, $this->options, $this->pricingAxes);
     }
 
     public function definition(): PrintProductDefinition

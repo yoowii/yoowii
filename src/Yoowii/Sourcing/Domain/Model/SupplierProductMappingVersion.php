@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\Domain\Model;
 
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -25,6 +26,10 @@ class SupplierProductMappingVersion
     #[ORM\Column(name: 'initial_display_state', type: Types::JSON, nullable: true)]
     private ?array $initialDisplayState = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'print_product_definition_id', nullable: true, onDelete: 'RESTRICT')]
+    private readonly ?PersistedPrintProductDefinition $printProductDefinition;
+
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = true;
 
@@ -45,7 +50,9 @@ class SupplierProductMappingVersion
         private readonly \DateTimeImmutable $effectiveFrom,
         #[ORM\Column(name: 'effective_until', type: Types::DATETIME_IMMUTABLE, nullable: true)]
         private readonly ?\DateTimeImmutable $effectiveUntil = null,
+        ?PersistedPrintProductDefinition $printProductDefinition = null,
     ) {
+        $this->printProductDefinition = $printProductDefinition;
         if ('' === trim($this->yoowiiProductCode)) {
             throw new \InvalidArgumentException('The Yoowii product code must not be empty.');
         }
@@ -85,6 +92,11 @@ class SupplierProductMappingVersion
     public function configurationMapping(): array
     {
         return $this->configurationMapping;
+    }
+
+    public function printProductDefinition(): ?PersistedPrintProductDefinition
+    {
+        return $this->printProductDefinition;
     }
 
     /** @return array<string, mixed>|null */

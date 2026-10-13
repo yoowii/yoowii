@@ -31,18 +31,16 @@ final class RealisaprintLinkedProductDefinitionController extends AbstractContro
             throw $this->createNotFoundException();
         }
 
-        $definition = $entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy([
-            'productCode' => $route->yoowiiProductCode(),
-        ]);
-        if (!$definition instanceof PersistedPrintProductDefinition) {
-            throw $this->createNotFoundException('Définition de configurateur introuvable.');
-        }
         $mapping = $entityManager->getRepository(SupplierProductMappingVersion::class)->findOneBy(
             ['supplierProduct' => $route->supplierProduct(), 'yoowiiProductCode' => $route->yoowiiProductCode()],
             ['id' => 'DESC'],
         );
         if (!$mapping instanceof SupplierProductMappingVersion) {
             throw $this->createNotFoundException('Mapping fournisseur introuvable.');
+        }
+        $definition = $mapping->printProductDefinition();
+        if (!$definition instanceof PersistedPrintProductDefinition) {
+            throw $this->createNotFoundException('Définition de configurateur introuvable.');
         }
         $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
         $stock = is_array($provider) && is_scalar($provider['stock'] ?? null) ? (string) $provider['stock'] : '';
@@ -76,7 +74,7 @@ final class RealisaprintLinkedProductDefinitionController extends AbstractContro
             'definition' => $definition,
             'mapping' => $mapping,
             'form' => $form,
-            'editable' => !$route->isActive() && !$definition->active(),
+            'editable' => !$definition->active() && !$mapping->isActive(),
             'prescript_available' => $prescriptAvailable,
         ]);
     }
