@@ -41,7 +41,13 @@ final class RealisaprintDraftRepairController extends AbstractController
                 throw $this->createAccessDeniedException('Jeton CSRF invalide.');
             }
             try {
-                $mapping = $repair->repair($route, $catalog, $definition, $request->request->all('sample'));
+                $mapping = $repair->repair(
+                    $route,
+                    $catalog,
+                    $definition,
+                    $request->request->all('sample'),
+                    $request->request->all('default'),
+                );
                 $this->addFlash('success', 'Le brouillon a été corrigé. Relance le contrôle de couverture et du prix avant publication.');
 
                 return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $mapping->id()]);
@@ -51,14 +57,17 @@ final class RealisaprintDraftRepairController extends AbstractController
         }
         try {
             $changes = $repair->preview($route, $catalog, $definition);
+            $defaultFields = $repair->defaultFields($route, $definition);
             $error = null;
         } catch (\DomainException $exception) {
             $changes = [];
+            $defaultFields = [];
             $error = $exception->getMessage();
         }
 
         return $this->render('admin/sourcing/realisaprint_draft_repair.html.twig', [
             'route' => $route, 'catalog' => $catalog, 'changes' => $changes, 'error' => $error,
+            'default_fields' => $defaultFields,
         ]);
     }
 }

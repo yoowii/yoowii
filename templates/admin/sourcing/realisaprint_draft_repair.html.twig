@@ -2,7 +2,7 @@
 {% set page_title = 'Corriger le brouillon — ' ~ route.yoowiiProductCode %}
 {% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog.id}) }}">Retour au produit fournisseur</a>{% endblock %}
 {% block sourcing_content %}
-<div class="alert alert-info">Les valeurs imposées par Realisaprint sont reprises automatiquement. Pour un texte libre sans défaut, renseigne seulement une valeur d'essai pour le contrôle API ; le client pourra choisir son texte. Le produit Yoowii reste inactif jusqu'à publication.</div>
+<div class="alert alert-info">Corrige ici les valeurs par défaut utilisées pour l’aperçu <code>show_variables</code>, notamment les quantités et dimensions. Les valeurs imposées par Realisaprint restent reprises automatiquement. Pour un texte libre sans défaut, renseigne seulement une valeur d'essai pour le contrôle API ; le client pourra choisir son texte. Le produit Yoowii reste inactif jusqu'à publication.</div>
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 <div class="card">
     <div class="card-header"><h2 class="card-title">Modifications proposées</h2></div>
@@ -20,10 +20,34 @@
             </tbody>
         </table>
     </div>
-    {% if changes is not empty and not error %}
+    {% if default_fields is not empty and not error %}
         <div class="card-body">
             <form method="post">
                 <input type="hidden" name="_token" value="{{ csrf_token('repair_realisaprint_draft_' ~ route.id) }}">
+                <h3 class="card-title mb-3">Valeurs par défaut de l’aperçu</h3>
+                <div class="row">
+                {% for field in default_fields %}
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="default-{{ field.code }}">{{ field.label }}</label>
+                        {% if field.fixed %}
+                            <input class="form-control" id="default-{{ field.code }}" value="{{ field.default|default('') }}" disabled>
+                            <div class="form-hint">Valeur imposée par Realisaprint.</div>
+                        {% elseif field.choices is not empty %}
+                            <select class="form-select" id="default-{{ field.code }}" name="default[{{ field.code }}]" {{ field.required ? 'required' : '' }}>
+                                {% for value, label in field.choices %}<option value="{{ value }}" {{ field.default == value ? 'selected' : '' }}>{{ label }}</option>{% endfor %}
+                            </select>
+                        {% elseif field.type == 'integer' %}
+                            <input class="form-control" id="default-{{ field.code }}" name="default[{{ field.code }}]" value="{{ field.default|default('') }}" type="number" step="1"{% if field.minimum is not null %} min="{{ field.minimum }}"{% endif %}{% if field.maximum is not null %} max="{{ field.maximum }}"{% endif %} {{ field.required ? 'required' : '' }}>
+                        {% elseif field.type == 'float' %}
+                            <input class="form-control" id="default-{{ field.code }}" name="default[{{ field.code }}]" value="{{ field.default|default('') }}" type="number" step="any"{% if field.minimum is not null %} min="{{ field.minimum }}"{% endif %}{% if field.maximum is not null %} max="{{ field.maximum }}"{% endif %} {{ field.required ? 'required' : '' }}>
+                        {% else %}
+                            <input class="form-control" id="default-{{ field.code }}" name="default[{{ field.code }}]" value="{{ field.default|default('') }}" type="text" {{ field.required ? 'required' : '' }}>
+                        {% endif %}
+                        <div class="form-hint"><code>{{ field.code }}</code></div>
+                    </div>
+                {% endfor %}
+                </div>
+                {% if changes is not empty %}<h3 class="card-title mb-3">Corrections de structure</h3>{% endif %}
                 {% for change in changes %}
                     {% if change.kind == 'sample' %}
                         <label class="form-label" for="sample-{{ loop.index }}">{{ change.label }} — valeur d'essai pour l'API</label>

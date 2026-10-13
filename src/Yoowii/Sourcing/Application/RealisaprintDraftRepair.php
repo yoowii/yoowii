@@ -10,7 +10,6 @@ use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\String\Slugger\AsciiSlugger;
 
 /** Repairs fixed and free text options on an existing inactive linked product. */
 final readonly class RealisaprintDraftRepair
@@ -77,13 +76,48 @@ final readonly class RealisaprintDraftRepair
         return $changes;
     }
 
+    /**
+     * Returns every default which can be used to build the initial
+     * show_variables request. Supplier-imposed values are intentionally not
+     * editable: changing them would make the mapping invalid.
+     *
+     * @return list<array{code: string, label: string, type: string, required: bool, default: string|int|float|null, choices: array<string, string>, minimum: int|float|null, maximum: int|float|null, fixed: bool}>
+     */
+    public function defaultFields(SupplierRoute $route, PersistedPrintProductDefinition $definition): array
+    {
+        $this->assertDraft($route, $definition);
+        $fields = [];
+        foreach ($definition->options() as $code => $option) {
+            if (!is_string($code) || !is_array($option)) {
+                continue;
+            }
+            $choices = [];
+            foreach ($option['value_labels'] ?? [] as $value => $label) {
+                if (is_string($value) && is_string($label)) {
+                    $choices[$value] = $label;
+                }
+            }
+            $default = $option['default'] ?? null;
+            $fields[] = [
+                'code' => $code,
+                'label' => is_string($option['label'] ?? null) ? $option['label'] : $code,
+                'type' => is_string($option['type'] ?? null) ? $option['type'] : 'text',
+                'required' => (bool) ($option['required'] ?? true),
+                'default' => is_string($default) || is_int($default) || is_float($default) ? $default : null,
+                'choices' => $choices,
+                'minimum' => is_int($option['minimum'] ?? null) || is_float($option['minimum'] ?? null) ? $option['minimum'] : null,
+                'maximum' => is_int($option['maximum'] ?? null) || is_float($option['maximum'] ?? null) ? $option['maximum'] : null,
+                'fixed' => true === ($option['fixed'] ?? false),
+            ];
+        }
+
+        return $fields;
+    }
+
     /** @param array<string, mixed> $samples */
-    public function repair(SupplierRoute $route, RealisaprintCatalogProduct $catalog, PersistedPrintProductDefinition $definition, array $samples = []): SupplierProductMappingVersion
+    public function repair(SupplierRoute $route, RealisaprintCatalogProduct $catalog, PersistedPrintProductDefinition $definition, array $samples = [], array $defaults = []): SupplierProductMappingVersion
     {
         $changes = $this->preview($route, $catalog, $definition);
-        if ([] === $changes) {
-            throw new \DomainException('Aucune option texte à corriger sur ce brouillon.');
-        }
         $previous = $this->latestMapping($route);
         $provider = $previous->configurationMapping()['realisaprint'] ?? null;
         if (!is_array($provider) || !is_array($provider['variables'] ?? null)) {
@@ -125,6 +159,7 @@ final readonly class RealisaprintDraftRepair
             $options[$code]['fixed'] = true;
             $rules[$id] = ['option' => $code, 'values' => [$default => $default]];
         }
+        $this->applyDefaults($route, $definition, $options, $defaults);
         $provider['variables'] = $rules;
         $definition->replaceDraftOptions($options);
         $this->completeness->assertComplete($definition, $catalog->configuration() ?? [], $provider);
@@ -141,6 +176,47 @@ final readonly class RealisaprintDraftRepair
         $this->entityManager->flush();
 
         return $mapping;
+    }
+
+    /** @param array<string, array<string, mixed>> $options @param array<string, mixed> $defaults */
+    private function applyDefaults(SupplierRoute $route, PersistedPrintProductDefinition $definition, array &$options, array $defaults): void
+    {
+        $editable = [];
+        foreach ($this->defaultFields($route, $definition) as $field) {
+            if (!$field['fixed']) {
+                $editable[$field['code']] = true;
+            }
+        }
+        foreach ($defaults as $code => $value) {
+            if (!is_string($code) || !isset($editable[$code]) || !is_string($value)) {
+                continue;
+            }
+            $options[$code]['default'] = trim($value);
+        }
+
+        // Validate submitted defaults through the same domain definitions that
+        // validate a storefront configuration, then retain their typed form.
+        $configuration = [];
+        foreach ($options as $code => $option) {
+            $value = $option['default'] ?? null;
+            if (is_string($value) || is_int($value) || is_float($value)) {
+                $configuration[$code] = $value;
+            }
+        }
+        $previous = $definition->options();
+        try {
+            $definition->replaceDraftOptions($options);
+            $normalized = $definition->definition()->configure($configuration)->toArray();
+            foreach ($defaults as $code => $unused) {
+                if (is_string($code) && array_key_exists($code, $normalized)) {
+                    $options[$code]['default'] = $normalized[$code];
+                }
+            }
+        } catch (\Throwable $exception) {
+            $definition->replaceDraftOptions($previous);
+
+            throw $exception;
+        }
     }
 
     private function assertDraft(SupplierRoute $route, PersistedPrintProductDefinition $definition): void
@@ -176,10 +252,5 @@ final readonly class RealisaprintDraftRepair
         }
 
         return 'v' . ($max + 1);
-    }
-
-    private function canonical(string $value): string
-    {
-        return trim(str_replace('-', '_', (new AsciiSlugger('fr'))->slug($value)->lower()->toString()), '_');
     }
 }
