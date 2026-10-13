@@ -15,6 +15,28 @@ yoowii:
         PRINT_FLYER: Flyers
         PRINT_BUSINESS_CARD: Business cards
     storefront:
+        mega_menu:
+            navigation_label: Main navigation
+            mobile_navigation_label: Mobile navigation
+            all_products: All products
+            create_print: Create my print
+            families_label: Product families
+            open_family: Open %family% menu
+            close: Close menu
+            back: Back
+            view_all_category: View all in category
+            view_all_products: View all products
+            empty_family: Discover all products in this category.
+            need_help: Need help?
+            contact_advice: Contact and advice
+            previous_media: Previous media
+            next_media: Next media
+            services:
+                title: Services
+                design: Design studio
+                file_check: File check
+                file_adaptation: File adaptation
+                quote: Request a quote
         starting_from: Starting at
         configure_print_product: Configure this product
         print_configuration: Configure your product

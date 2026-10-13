@@ -15,6 +15,28 @@ yoowii:
         PRINT_FLYER: Flyers
         PRINT_BUSINESS_CARD: Cartes de visite
     storefront:
+        mega_menu:
+            navigation_label: Navigation principale
+            mobile_navigation_label: Navigation mobile
+            all_products: Tous les produits
+            create_print: Créer mon imprimé
+            families_label: Familles de produits
+            open_family: Ouvrir le menu de %family%
+            close: Fermer le menu
+            back: Retour
+            view_all_category: Voir toute la catégorie
+            view_all_products: Voir tous les produits
+            empty_family: Découvrez tous les produits de cette catégorie.
+            need_help: Besoin d’aide ?
+            contact_advice: Contact et conseils
+            previous_media: Média précédent
+            next_media: Média suivant
+            services:
+                title: Services
+                design: Studio de design
+                file_check: Contrôle de fichiers
+                file_adaptation: Adaptation de fichiers
+                quote: Devis sur demande
         starting_from: À partir de
         configure_print_product: Configurer ce produit
         print_configuration: Configurez votre produit

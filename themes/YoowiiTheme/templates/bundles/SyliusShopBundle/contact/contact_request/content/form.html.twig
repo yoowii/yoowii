@@ -1,5 +1,9 @@
 {% set form = hookable_metadata.context.form %}
 
+<span id="studio-de-design" class="sr-only">{{ 'yoowii.storefront.mega_menu.services.design'|trans }}</span>
+<span id="controle-de-fichiers" class="sr-only">{{ 'yoowii.storefront.mega_menu.services.file_check'|trans }}</span>
+<span id="adaptation-de-fichiers" class="sr-only">{{ 'yoowii.storefront.mega_menu.services.file_adaptation'|trans }}</span>
+<span id="devis-sur-demande" class="sr-only">{{ 'yoowii.storefront.mega_menu.services.quote'|trans }}</span>
 {{ form_start(form, {'action': path('sylius_shop_contact_request'), 'attr': {'novalidate': 'novalidate'}}) }}
 {% hook 'form' %}
 {{ form_row(form._token) }}

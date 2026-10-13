@@ -245,6 +245,10 @@
 }
 
 @layer components {
+    .yoowii-mega-menu-services {
+        background: linear-gradient(160deg, #F3E9FF, #FFE6F7);
+    }
+
     .yoowii-container {
         @apply mx-auto w-full max-w-[1680px] px-4 md:px-6 xl:px-10;
     }

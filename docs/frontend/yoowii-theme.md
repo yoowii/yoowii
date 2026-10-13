@@ -80,6 +80,12 @@ maintenant conçus pour Yoowii. Les liens ou marques fictifs du thème de base
 ont été retirés ; les mentions légales et réseaux sociaux seront ajoutés quand
 leurs pages et URLs Yoowii seront disponibles.
 
+Le méga-menu desktop est un disclosure Stimulus sans Bootstrap : les liens de
+famille restent navigables sans JavaScript, le panneau s'ouvre au survol ou au
+clavier, et Échap le ferme. Son lien catalogue vient du taxon de menu du canal,
+tandis que la troisième colonne affiche les médias `mediaFeatured` de la
+famille active ou, à défaut, les services de contact.
+
 ## Assets
 
 The theme is built as the `yoowiiTheme` Webpack Encore build and generates its

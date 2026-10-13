@@ -1,52 +1,79 @@
 import { Controller } from '@hotwired/stimulus';
 
 export default class extends Controller {
-    static targets = ['backdrop', 'family', 'familyPanel', 'panel', 'trigger'];
+    static targets = ['backdrop', 'carouselSlide', 'family', 'familyPanel', 'panel', 'servicePanel', 'trigger'];
 
     connect() {
         this.closeTimer = null;
         this.currentMenuId = null;
+        this.lastTrigger = null;
+        this.updateHeaderOffset = this.updateHeaderOffset.bind(this);
+        this.updateHeaderOffset();
+        window.addEventListener('resize', this.updateHeaderOffset);
     }
 
     disconnect() {
         window.clearTimeout(this.closeTimer);
+        window.removeEventListener('resize', this.updateHeaderOffset);
     }
 
     toggle(event) {
         const menuId = event.params.menuId;
+        this.lastTrigger = event.currentTarget;
 
         if (this.currentMenuId === menuId && this.isOpen()) {
             this.close();
-
             return;
         }
 
-        this.open(menuId);
+        this.open(menuId, event.currentTarget);
     }
 
     openFromTrigger(event) {
-        this.open(event.params.menuId);
+        this.open(event.params.menuId, event.currentTarget);
     }
 
-    open(menuId) {
+    openFamily(event) {
+        const familyId = event.params.familyId;
+        this.open(`family-${familyId}`, this.triggerForFamily(familyId));
+    }
+
+    activateFamily(event) {
+        const familyId = event.params.familyId;
+        this.open(`family-${familyId}`, this.triggerForFamily(familyId));
+    }
+
+    open(menuId, trigger = null) {
         window.clearTimeout(this.closeTimer);
         this.currentMenuId = menuId;
-        this.panelTargets.forEach((panel) => {
-            panel.hidden = panel.dataset.megaMenuMenuId !== menuId;
-        });
-        this.triggerTargets.forEach((trigger) => {
-            trigger.setAttribute('aria-expanded', trigger.dataset.megaMenuMenuIdParam === menuId ? 'true' : 'false');
-        });
+        this.lastTrigger = trigger ?? this.lastTrigger;
+        this.panelTarget.hidden = false;
         this.backdropTarget.hidden = false;
-        this.selectFamily(this.familyTargets[0]?.dataset.familyId);
+        this.triggerTargets.forEach((item) => item.setAttribute('aria-expanded', item.dataset.megaMenuMenuIdParam === menuId ? 'true' : 'false'));
+
+        const familyId = menuId === 'all' ? this.familyTargets[0]?.dataset.familyId : menuId.replace('family-', '');
+        this.selectFamily(familyId);
     }
 
     close() {
         window.clearTimeout(this.closeTimer);
-        this.panelTargets.forEach((panel) => { panel.hidden = true; });
-        this.triggerTargets.forEach((trigger) => { trigger.setAttribute('aria-expanded', 'false'); });
+        this.panelTarget.hidden = true;
         this.backdropTarget.hidden = true;
+        this.triggerTargets.forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
         this.currentMenuId = null;
+    }
+
+    closeOnEscape(event) {
+        if (event.key !== 'Escape' || !this.isOpen()) return;
+
+        this.close();
+        this.lastTrigger?.focus();
+    }
+
+    closeOnFocusOut() {
+        window.setTimeout(() => {
+            if (this.isOpen() && !this.element.contains(document.activeElement)) this.close();
+        });
     }
 
     scheduleClose() {
@@ -54,33 +81,16 @@ export default class extends Controller {
         this.closeTimer = window.setTimeout(() => this.close(), 150);
     }
 
-    closeOnEscape(event) {
-        if (event.key === 'Escape' && this.isOpen()) {
-            this.close();
-            this.triggerTargets[0]?.focus();
-        }
+    cancelClose() {
+        window.clearTimeout(this.closeTimer);
     }
 
-    activateFamily(event) {
-        this.selectFamily(event.currentTarget.dataset.familyId);
+    previousSlide(event) {
+        this.showSlide(event.params.carouselId, -1);
     }
 
-    trapFocus(event) {
-        if (event.key !== 'Tab') return;
-
-        const panel = this.panelTargets.find((item) => !item.hidden);
-        const focusable = panel ? [...panel.querySelectorAll('a[href], button:not([disabled])')].filter((item) => !item.closest('[hidden]')) : [];
-        if (focusable.length === 0) return;
-
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-            event.preventDefault();
-            last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first.focus();
-        }
+    nextSlide(event) {
+        this.showSlide(event.params.carouselId, 1);
     }
 
     selectFamily(familyId) {
@@ -88,16 +98,30 @@ export default class extends Controller {
 
         this.familyTargets.forEach((family) => {
             const active = family.dataset.familyId === familyId;
-            family.classList.toggle('bg-[#F6F0FF]', active);
+            family.classList.toggle('bg-base-200', active);
             family.classList.toggle('text-primary', active);
-            family.setAttribute('aria-pressed', active ? 'true' : 'false');
+            family.setAttribute('aria-current', active ? 'true' : 'false');
         });
-        this.familyPanelTargets.forEach((panel) => {
-            panel.hidden = panel.dataset.familyId !== familyId;
-        });
+        this.familyPanelTargets.forEach((panel) => { panel.hidden = panel.dataset.familyId !== familyId; });
+        this.servicePanelTarget.hidden = this.familyPanelTargets.some((panel) => panel.dataset.familyId === familyId && panel.dataset.hasMediaFeatured === 'true');
+    }
+
+    showSlide(carouselId, offset) {
+        const slides = this.carouselSlideTargets.filter((slide) => slide.dataset.carouselId === carouselId);
+        const activeIndex = Math.max(0, slides.findIndex((slide) => !slide.hidden));
+        const nextIndex = (activeIndex + offset + slides.length) % slides.length;
+        slides.forEach((slide, index) => { slide.hidden = index !== nextIndex; });
+    }
+
+    triggerForFamily(familyId) {
+        return this.triggerTargets.find((trigger) => trigger.dataset.megaMenuMenuIdParam === `family-${familyId}`) ?? null;
+    }
+
+    updateHeaderOffset() {
+        this.element.style.setProperty('--header-h', `${this.element.getBoundingClientRect().bottom}px`);
     }
 
     isOpen() {
-        return this.panelTargets.some((panel) => !panel.hidden);
+        return !this.panelTarget.hidden;
     }
 }
