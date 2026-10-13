@@ -63,4 +63,19 @@ final class RealisaprintFixedTextTest extends TestCase
         $this->expectException(\DomainException::class);
         $definition->replaceDraftOptions(['face_imprimee' => ['type' => 'code', 'allowed_values' => ['recto']]]);
     }
+
+    public function testDraftDefinitionCanReplaceItsPricingAxes(): void
+    {
+        $definition = new PersistedPrintProductDefinition('PRINT_BADGE', 'v1', [
+            'format' => ['type' => 'code', 'allowed_values' => ['a4']],
+            'quantite' => ['type' => 'integer', 'allowed_values' => []],
+        ], ['format', 'quantite']);
+
+        $definition->replaceDraftDefinition([
+            'format' => ['type' => 'code', 'allowed_values' => ['a4']],
+            'quantite' => ['type' => 'integer', 'required' => false, 'allowed_values' => []],
+        ], ['format']);
+
+        self::assertSame(['format'], $definition->pricingAxes());
+    }
 }

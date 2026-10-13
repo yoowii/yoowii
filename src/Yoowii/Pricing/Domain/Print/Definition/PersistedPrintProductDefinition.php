@@ -22,11 +22,16 @@ class PersistedPrintProductDefinition
 
     /** @param array<string, array{type: string, required?: bool, allowed_values?: list<string|int|float>, minimum?: int|float|null, maximum?: int|float|null}> $options @param non-empty-list<string> $pricingAxes */
     public function __construct(
-        #[ORM\Column(name: 'product_code', type: Types::STRING, length: 64, unique: true)] private readonly string $productCode,
-        #[ORM\Column(name: 'schema_version', type: Types::STRING, length: 32)] private readonly string $schemaVersion,
-        #[ORM\Column(type: Types::JSON)] private array $options,
-        #[ORM\Column(name: 'pricing_axes', type: Types::JSON)] private readonly array $pricingAxes,
-    ) {}
+        #[ORM\Column(name: 'product_code', type: Types::STRING, length: 64, unique: true)]
+        private readonly string $productCode,
+        #[ORM\Column(name: 'schema_version', type: Types::STRING, length: 32)]
+        private readonly string $schemaVersion,
+        #[ORM\Column(type: Types::JSON)]
+        private array $options,
+        #[ORM\Column(name: 'pricing_axes', type: Types::JSON)]
+        private array $pricingAxes,
+    ) {
+    }
 
     public function id(): ?int
     {
@@ -47,15 +52,26 @@ class PersistedPrintProductDefinition
     /** @param array<string, array<string, mixed>> $options */
     public function replaceDraftOptions(array $options): void
     {
+        $this->replaceDraftDefinition($options, $this->pricingAxes);
+    }
+
+    /** @param array<string, array<string, mixed>> $options @param non-empty-list<string> $pricingAxes */
+    public function replaceDraftDefinition(array $options, array $pricingAxes): void
+    {
         if ($this->active) {
             throw new \DomainException('Une définition publiée ne peut pas être modifiée en place.');
         }
         $previous = $this->options;
+        $previousAxes = $this->pricingAxes;
         $this->options = $options;
+        $this->pricingAxes = $pricingAxes;
+
         try {
             $this->definition();
         } catch (\Throwable $exception) {
             $this->options = $previous;
+            $this->pricingAxes = $previousAxes;
+
             throw $exception;
         }
     }
@@ -84,7 +100,7 @@ class PersistedPrintProductDefinition
                     $valueLabels[(string) $value] = $label;
                 }
             }
-            $parent = str_ends_with($code, "_zone") ? substr($code, 0, -strlen("_zone")) : null;
+            $parent = str_ends_with($code, '_zone') ? substr($code, 0, -strlen('_zone')) : null;
             $schema[] = [
                 'code' => $code,
                 'label' => is_string($option['label'] ?? null) ? $option['label'] : ucfirst(str_replace('_', ' ', $code)),
@@ -149,6 +165,7 @@ class PersistedPrintProductDefinition
             }
             $options[$code] = new PrintOptionDefinition($code, $type, (bool) ($item['required'] ?? true), $allowed, PrintOptionType::Float === $type && isset($item['minimum']) ? (float) $item['minimum'] : (isset($item['minimum']) ? (int) $item['minimum'] : null), PrintOptionType::Float === $type && isset($item['maximum']) ? (float) $item['maximum'] : (isset($item['maximum']) ? (int) $item['maximum'] : null));
         }
+
         return new PrintProductDefinition($this->productCode, $this->schemaVersion, 'matrix_exact', $options, $this->pricingAxes);
     }
 
@@ -187,5 +204,4 @@ class PersistedPrintProductDefinition
 
         return ['option' => $parent, 'value' => $matches['oui'][0]];
     }
-
 }
