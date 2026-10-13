@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Yoowii\Pricing\Application;
 
-use App\Yoowii\Pricing\Application\RealisaprintVisibleConfigurationBuilder;
 use App\Yoowii\Pricing\Application\RealisaprintConfigurationMapper;
+use App\Yoowii\Pricing\Application\RealisaprintVisibleConfigurationBuilder;
 use App\Yoowii\Pricing\Domain\Print\PrintConfiguration;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -70,5 +70,20 @@ final class RealisaprintVisibleConfigurationBuilderTest extends TestCase
 
         self::assertSame(['FORMAT' => 'A4'], $payload['variables']);
         self::assertSame(250, $payload['quote_quantity']);
+    }
+
+    public function testItOmitsAnOptionalDimensionAbsentFromTheConfiguration(): void
+    {
+        $payload = (new RealisaprintConfigurationMapper($this->createMock(EntityManagerInterface::class)))->mapMappingForQuote(
+            new PrintConfiguration('PRINT_TEST', 'v1', ['format' => 'a4', 'quantite' => 250], ['format', 'quantite']),
+            ['realisaprint' => ['product' => 'product', 'stock' => 'stock', 'variables' => [
+                'FORMAT' => ['option' => 'format', 'values' => ['a4' => 'A4']],
+                'HEIGHT' => ['option' => 'hauteur_cm', 'values' => []],
+                'QTE' => ['option' => 'quantite', 'values' => [], 'quantity' => true],
+            ]]],
+            'v1',
+        );
+
+        self::assertSame(['FORMAT' => 'A4'], $payload['variables']);
     }
 }

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
-use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Pricing\Application\RealisaprintConfigurationMapper;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingCompleteness;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\UI\Http\Admin\Controller\RealisaprintDraftController;
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 
 final class RealisaprintDraftControllerTest extends TestCase
@@ -74,6 +74,21 @@ final class RealisaprintDraftControllerTest extends TestCase
         self::assertSame('Recto', $payload['variables']['VARTICLE_28779_']);
     }
 
+    public function testFreeDecimalDimensionIsOptionalInANewDraft(): void
+    {
+        $catalog = new RealisaprintCatalogProduct('70', 'Produit', new \DateTimeImmutable());
+        $catalog->refreshConfiguration(['stocks' => ['1' => 'Stock'], 'variables' => [
+            'HEIGHT' => ['name' => 'Hauteur (cm)', 'type' => 'float', 'values' => false],
+            'QTY' => ['name' => 'Quantité', 'type' => 'float', 'values' => false, 'quantity' => true],
+        ]], new \DateTimeImmutable());
+        $data = new RealisaprintDraftData();
+        (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), $data, $catalog);
+        $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+
+        self::assertFalse($options['hauteur_cm']['required']);
+        self::assertTrue($options['quantite']['required']);
+    }
+
     public function testReadonlyValueWithoutUsableDefaultIsRejected(): void
     {
         $catalog = new RealisaprintCatalogProduct('70', 'Produit', new \DateTimeImmutable());
@@ -82,5 +97,4 @@ final class RealisaprintDraftControllerTest extends TestCase
         $this->expectExceptionMessage('valeur par défaut exploitable');
         (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), new RealisaprintDraftData(), $catalog);
     }
-
 }

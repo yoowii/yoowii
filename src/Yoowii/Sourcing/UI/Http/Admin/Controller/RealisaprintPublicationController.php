@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
-use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Pricing\Application\PublishedNumericMinimums;
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingValidator;
@@ -138,19 +138,29 @@ final class RealisaprintPublicationController extends AbstractController
         if (!is_array($submitted)) {
             throw new \InvalidArgumentException('Les valeurs d’essai sont requises.');
         }
-        $submitted = $numericMinimums->apply($definition->storefrontSchema(), $submitted);
-        foreach ($this->testFields($definition, $mapping) as $code => $field) {
+        $fields = $this->testFields($definition, $mapping);
+        foreach ($fields as $code => $field) {
             if (!$field['editable']) {
                 continue;
             }
             $value = $submitted[$code] ?? null;
+            if (is_string($value) && '' === trim($value)) {
+                if ($field['required']) {
+                    throw new \InvalidArgumentException(sprintf('La valeur d’essai « %s » est requise.', $field['label']));
+                }
+                unset($submitted[$code], $sample[$code]);
+
+                continue;
+            }
             if (!is_string($value) && !is_int($value) && !is_float($value)) {
                 throw new \InvalidArgumentException(sprintf('La valeur d’essai « %s » est requise.', $field['label']));
             }
-            if (is_string($value) && '' === trim($value)) {
-                throw new \InvalidArgumentException(sprintf('La valeur d’essai « %s » est requise.', $field['label']));
+        }
+        $submitted = $numericMinimums->apply($definition->storefrontSchema(), $submitted);
+        foreach ($fields as $code => $field) {
+            if ($field['editable'] && array_key_exists($code, $submitted)) {
+                $sample[$code] = $submitted[$code];
             }
-            $sample[$code] = $value;
         }
         $configuration = $definition->definition()->configure($this->withFixedValues($sample, $mapping));
 
@@ -182,7 +192,7 @@ final class RealisaprintPublicationController extends AbstractController
         return $values;
     }
 
-    /** @return array<string, array{label: string, type: string, choices: array<string, string>, editable: bool, fixed_label: string|null}> */
+    /** @return array<string, array{label: string, type: string, choices: array<string, string>, editable: bool, required: bool, fixed_label: string|null}> */
     private function testFields(PersistedPrintProductDefinition $definition, SupplierProductMappingVersion $mapping): array
     {
         $fixed = $this->withFixedValues([], $mapping);
@@ -204,6 +214,7 @@ final class RealisaprintPublicationController extends AbstractController
                 'type' => is_string($option['type'] ?? null) ? $option['type'] : 'text',
                 'choices' => $choices,
                 'editable' => !array_key_exists($code, $fixed),
+                'required' => (bool) ($option['required'] ?? true),
                 'fixed_label' => array_key_exists($code, $fixed) ? (string) $fixed[$code] : null,
             ];
         }

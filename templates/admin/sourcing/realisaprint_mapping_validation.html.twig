@@ -99,15 +99,15 @@
                                 <input class="form-control" id="test_{{ code }}" value="{{ sample[code]|default(field.fixed_label) }}" disabled>
                                 <div class="form-hint">Valeur fixe Realisaprint.</div>
                             {% elseif field.choices is not empty %}
-                                <select class="form-select" id="test_{{ code }}" name="test_values[{{ code }}]" required>
+                                <select class="form-select" id="test_{{ code }}" name="test_values[{{ code }}]" {{ field.required ? 'required' : '' }}>
                                     {% for value, label in field.choices %}<option value="{{ value }}" {{ sample[code]|default('') == value ? 'selected' : '' }}>{{ label }}</option>{% endfor %}
                                 </select>
                             {% elseif field.type == 'integer' %}
-                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="number" step="1" required>
+                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="number" step="1" {{ field.required ? 'required' : '' }}>
                             {% elseif field.type == 'float' %}
-                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="number" step="any" required>
+                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="number" step="any" {{ field.required ? 'required' : '' }}>
                             {% else %}
-                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="text" required>
+                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="text" {{ field.required ? 'required' : '' }}>
                             {% endif %}
                         </div>
                     {% endfor %}

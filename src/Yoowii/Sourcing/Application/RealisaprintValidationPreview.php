@@ -45,20 +45,21 @@ final class RealisaprintValidationPreview
             $sourceValues = $source['values'] ?? false;
             $allowed = is_array($option['allowed_values'] ?? null) ? $option['allowed_values'] : [];
             $sample = $sampleConfiguration[$code] ?? null;
+            $optional = false === ($option['required'] ?? true);
             $mapped = 0;
-            $fixed = 'text' === ($source['type'] ?? null) && true === ($source['readonly'] ?? false)
-                && false === $sourceValues && is_string($source['default'] ?? null) && '' !== trim($source['default'])
-                && 1 === count($allowed) && ($values[(string) $allowed[0]] ?? null) === (string) $source['default'];
+            $fixed = 'text' === ($source['type'] ?? null) && true === ($source['readonly'] ?? false) &&
+                false === $sourceValues && is_string($source['default'] ?? null) && '' !== trim($source['default']) &&
+                1 === count($allowed) && ($values[(string) $allowed[0]] ?? null) === (string) $source['default'];
             foreach ($allowed as $value) {
                 $providerValue = $values[(string) $value] ?? null;
                 if ($fixed || (is_scalar($providerValue) && is_array($sourceValues) && array_key_exists((string) $providerValue, $sourceValues))) {
                     ++$mapped;
                 }
             }
-            $free = [] === $allowed && in_array($option['type'] ?? null, ['integer', 'text'], true) && (false === $sourceValues || null === $sourceValues);
-            $rowCovered = null !== $sample && '' !== $id && [] !== $source
-                && ($option['provider_variable'] ?? null) === $id
-                && ($free || $fixed || ([] !== $allowed && $mapped === count($allowed) && count($values) === count($allowed)));
+            $free = [] === $allowed && in_array($option['type'] ?? null, ['integer', 'float', 'text'], true) && (false === $sourceValues || null === $sourceValues);
+            $rowCovered = (null !== $sample || $optional) && '' !== $id && [] !== $source &&
+                ($option['provider_variable'] ?? null) === $id &&
+                ($free || $fixed || ([] !== $allowed && $mapped === count($allowed) && count($values) === count($allowed)));
             $covered = $covered && $rowCovered;
             $providerValue = $free ? $sample : ($values[(string) $sample] ?? null);
             $labels = is_array($option['value_labels'] ?? null) ? $option['value_labels'] : [];
@@ -68,6 +69,7 @@ final class RealisaprintValidationPreview
             foreach ($values as $canonical => $mappedValue) {
                 if (is_scalar($mappedValue) && (string) $mappedValue === $providerDefault) {
                     $providerDefaultCanonical = (string) $canonical;
+
                     break;
                 }
             }

@@ -98,7 +98,10 @@ final class RealisaprintDraftController extends AbstractController
             $allowedValues = $numericOption ? [] : array_keys($valueLabels);
             $options[$optionCode] = [
                 'type' => $numericOption ? ($floatOption ? 'float' : 'integer') : ($fixedText ? 'text' : ('checkbox' === ($providerVariable['type'] ?? null) ? 'checkbox' : ('text' === ($providerVariable['type'] ?? null) ? 'text' : 'code'))),
-                'required' => true,
+                // A free decimal is commonly a conditional supplier dimension.
+                // Keep it optional so an empty value is omitted from the supplier
+                // payload instead of being silently replaced with its minimum.
+                'required' => !$floatOption,
                 'allowed_values' => $allowedValues,
                 'label' => $name,
                 'provider_variable' => is_string($providerVariable['id'] ?? null) ? $providerVariable['id'] : null,

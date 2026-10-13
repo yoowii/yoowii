@@ -48,6 +48,29 @@ final class RealisaprintValidationPreviewTest extends TestCase
         self::assertSame(1, $preview['rows'][0]['mapped']);
     }
 
+    public function testItKeepsAnOptionalFreeValueCoveredWhenItIsNotSent(): void
+    {
+        $definition = new PersistedPrintProductDefinition('PRINT_AFFICHE', 'v1', [
+            'hauteur_cm' => ['type' => 'float', 'required' => false, 'allowed_values' => [], 'label' => 'Hauteur (cm)', 'provider_variable' => 'HEIGHT'],
+        ], ['hauteur_cm']);
+        $mapping = new SupplierProductMappingVersion(
+            $this->createMock(SupplierProduct::class),
+            'PRINT_AFFICHE',
+            'v1',
+            ['realisaprint' => ['product' => '123', 'stock' => '837', 'variables' => ['HEIGHT' => ['option' => 'hauteur_cm', 'values' => []]]]],
+            new \DateTimeImmutable('2026-10-04T08:00:00+00:00'),
+        );
+
+        $preview = (new RealisaprintValidationPreview())->build($definition, $mapping, [
+            'stocks' => ['837' => 'Affiche'],
+            'variables' => ['HEIGHT' => ['name' => 'Hauteur', 'type' => 'float', 'values' => false]],
+        ], []);
+
+        self::assertTrue($preview['covered']);
+        self::assertTrue($preview['rows'][0]['covered']);
+        self::assertSame('—', $preview['rows'][0]['provider_value']);
+    }
+
     private function definition(): PersistedPrintProductDefinition
     {
         return new PersistedPrintProductDefinition('PRINT_AGENDA', 'v1', [

@@ -85,7 +85,12 @@ final readonly class RealisaprintConfigurationMapper
 
                 continue;
             }
-            $value = 'quantity' === $rule['option'] ? $job->orderItem()->getQuantity() : ($options[$rule['option']] ?? null);
+            if ('quantity' !== $rule['option'] && !array_key_exists($rule['option'], $options)) {
+                // Optional free values, such as dimensions, are intentionally
+                // absent from the immutable configuration and must not be sent.
+                continue;
+            }
+            $value = 'quantity' === $rule['option'] ? $job->orderItem()->getQuantity() : $options[$rule['option']];
             $values = $rule['values'] ?? null;
             if (is_array($values) && is_scalar($value) && array_key_exists((string) $value, $values)) {
                 $value = $values[(string) $value];
