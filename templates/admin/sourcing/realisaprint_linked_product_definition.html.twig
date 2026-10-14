@@ -12,7 +12,10 @@
 </div>
 
 {% if editable %}
-    <div class="alert alert-info mt-4">Toute modification crée une nouvelle version de mapping inactive. Un nouveau contrôle de couverture et de prix sera requis.</div>
+    <div class="alert alert-info mt-4 d-flex align-items-center justify-content-between gap-3">
+        <span>Toute modification crée une nouvelle version de mapping inactive. Un nouveau contrôle de couverture et de prix sera requis.</span>
+        <a class="btn btn-sm btn-outline-primary flex-shrink-0" href="{{ path('yoowii_admin_realisaprint_mapping_validation', {id: mapping.id}) }}">Contrôler la couverture et le prix</a>
+    </div>
     {{ form_start(form, {attr: {class: 'card mt-4'}}) }}
         <div class="card-header"><h2 class="card-title">Modifier la définition liée</h2></div>
         <div class="card-body">
@@ -35,7 +38,15 @@
 </details>
 
 {% else %}
-    <div class="alert alert-warning mt-4">Cette définition est publiée et ne peut pas être modifiée en place.</div>
+    <div class="alert alert-warning mt-4">
+        Cette définition est publiée et ne peut pas être modifiée en place.
+        {% if can_create_revision %}
+            <form method="post" class="d-inline ms-2" action="{{ path('yoowii_admin_realisaprint_revision_create', {routeId: route.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('create_realisaprint_revision_' ~ route.id) }}">
+                <button class="btn btn-sm btn-outline-primary">Créer une révision</button>
+            </form>
+        {% endif %}
+    </div>
     <details class="card mt-4" open>
         <summary class="card-header">Configuration technique proposée (avancé)</summary>
         <div class="card-body"><h2 class="h3">Options du configurateur</h2><pre class="mb-4 small">{{ definition.options|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre><h2 class="h3">Axes de prix</h2><pre class="mb-0 small">{{ definition.pricingAxes|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre></div>

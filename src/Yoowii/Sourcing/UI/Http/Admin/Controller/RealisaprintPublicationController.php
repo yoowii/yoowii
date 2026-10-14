@@ -102,6 +102,7 @@ final class RealisaprintPublicationController extends AbstractController
         return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', [
             'mapping' => $mapping,
             'route' => $this->route($mapping, $entityManager),
+            'catalog_product' => $catalog instanceof RealisaprintCatalogProduct ? $catalog : null,
             'validation' => $validation,
             'preview' => $preview,
             'can_publish' => $canPublish,

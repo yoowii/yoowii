@@ -1,6 +1,10 @@
 {% extends 'admin/sourcing/base.html.twig' %}
 {% set page_title = 'Contrôle avant publication — ' ~ mapping.yoowiiProductCode %}
-{% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_sourcing_dashboard') }}">Retour sourcing</a>{% endblock %}
+{% block sourcing_actions %}
+    {% if catalog_product %}
+        <a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog_product.id}) }}">Retour au Produit fournisseur</a>
+    {% endif %}
+{% endblock %}
 {% block sourcing_content %}
 <div class="alert alert-info">
     Ce contrôle compare toutes les valeurs du configurateur au catalogue synchronisé, puis demande à Realisaprint

@@ -1,6 +1,7 @@
 {% extends 'admin/sourcing/base.html.twig' %}
 {% set page_title = 'Catalogue Realisaprint' %}
 {% block sourcing_actions %}
+<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_sourcing_dashboard') }}">Retour Sourcing</a>
 <form method="post" action="{{ path('yoowii_admin_realisaprint_catalog_synchronize') }}"><input type="hidden" name="_token" value="{{ csrf_token('realisaprint_catalog_sync') }}"><button class="btn btn-primary">Synchroniser les produits</button></form>
 {% endblock %}
 {% block sourcing_content %}

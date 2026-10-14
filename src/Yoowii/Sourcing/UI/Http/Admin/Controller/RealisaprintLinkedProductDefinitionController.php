@@ -75,6 +75,7 @@ final class RealisaprintLinkedProductDefinitionController extends AbstractContro
             'mapping' => $mapping,
             'form' => $form,
             'editable' => !$definition->active() && !$mapping->isActive(),
+            'can_create_revision' => $definition->active() && $mapping->isActive(),
             'prescript_available' => $prescriptAvailable,
         ]);
     }

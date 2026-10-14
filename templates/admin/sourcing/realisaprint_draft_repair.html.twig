@@ -2,7 +2,7 @@
 {% set page_title = 'Corriger le brouillon — ' ~ route.yoowiiProductCode %}
 {% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog.id}) }}">Retour au produit fournisseur</a>{% endblock %}
 {% block sourcing_content %}
-<div class="alert alert-info">Corrige ici les valeurs par défaut utilisées pour l’aperçu <code>show_variables</code>, notamment les quantités et dimensions. Les valeurs imposées par Realisaprint restent reprises automatiquement. Pour un texte libre sans défaut, renseigne seulement une valeur d'essai pour le contrôle API ; le client pourra choisir son texte. Le produit Yoowii reste inactif jusqu'à publication.</div>
+<div class="alert alert-info">Corrige ici les valeurs par défaut utilisées pour l’aperçu "show_variables", notamment les quantités et dimensions. Les valeurs imposées par Realisaprint restent reprises automatiquement. Pour un texte libre sans défaut, renseigne seulement une valeur d'essai pour le contrôle API ; le client pourra choisir son texte. Le produit Yoowii reste inactif jusqu'à publication.</div>
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 <div class="card">
     <div class="card-header"><h2 class="card-title">Modifications proposées</h2></div>
