@@ -38,6 +38,19 @@ final class MegaMenuTemplateTest extends TestCase
         self::assertStringContainsString('focus-visible:outline focus-visible:outline-2', $template);
     }
 
+    public function testItUsesReadableDesktopNavigationAndAlignedPrimaryActions(): void
+    {
+        $template = $this->menuTemplate();
+
+        self::assertStringNotContainsString('text-[13px]', $template);
+        self::assertStringNotContainsString('btn btn-primary btn-sm', $template);
+        self::assertStringNotContainsString('btn btn-secondary btn-sm', $template);
+        self::assertStringContainsString('h-11 min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-btn px-5 text-base font-bold', $template);
+        self::assertStringContainsString('text-base font-semibold leading-5', $template);
+        self::assertStringContainsString('2xl:text-[1.0625rem]', $template);
+        self::assertStringContainsString('[&_.text-sm]:text-base', $template);
+    }
+
     public function testItUsesExplicitYoowiiNavigationTaxonsAndKeepsLeavesAsLinks(): void
     {
         $template = $this->menuTemplate();
@@ -57,7 +70,7 @@ final class MegaMenuTemplateTest extends TestCase
 
         self::assertStringContainsString('data-mega-menu-target="familyNavigation"', $template);
         self::assertStringContainsString('col-span-3 min-w-0', $template);
-        self::assertStringContainsString('taxon.parent ? path', $template);
+        self::assertStringContainsString('taxon.products is not empty', $template);
         self::assertStringContainsString("'yoowii.storefront.mega_menu.view_all_products'", $template);
     }
 
