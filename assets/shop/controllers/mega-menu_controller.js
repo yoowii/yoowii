@@ -96,7 +96,7 @@ export default class extends Controller {
     selectFamily(familyId) {
         if (!familyId) return;
 
-        const focused = familyId.startsWith('main-');
+        const focused = this.isFocusedMenu(familyId);
         this.familyNavigationTarget.hidden = focused;
 
         this.familyTargets.forEach((family) => {
@@ -126,5 +126,9 @@ export default class extends Controller {
 
     isOpen() {
         return !this.panelTarget.hidden;
+    }
+
+    isFocusedMenu(menuId) {
+        return menuId.startsWith('main-');
     }
 }

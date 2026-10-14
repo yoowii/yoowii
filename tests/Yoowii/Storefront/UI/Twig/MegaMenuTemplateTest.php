@@ -43,10 +43,12 @@ final class MegaMenuTemplateTest extends TestCase
         $template = $this->menuTemplate();
 
         self::assertStringContainsString('{% set main_navigation_taxons = yoowii_main_navigation_taxons() %}', $template);
-        self::assertStringContainsString('mega_menu_enabled and taxon.hasChildren', $template);
+        self::assertStringContainsString('mega_menu_enabled and taxon.hasPanel', $template);
         self::assertStringContainsString('data-mega-menu-menu-id-param="main-{{ taxon.id }}"', $template);
         self::assertStringContainsString('data-mobile-menu-screen-id="main-{{ taxon.id }}"', $template);
         self::assertStringContainsString("'yoowii.storefront.mega_menu.quick_access'|trans", $template);
+        self::assertStringContainsString("product.imagesByType('thumbnail').first", $template);
+        self::assertStringContainsString('taxon.hasMoreProducts', $template);
     }
 
     public function testItRendersAFocusedPanelWithoutChangingTheAllProductsPanel(): void

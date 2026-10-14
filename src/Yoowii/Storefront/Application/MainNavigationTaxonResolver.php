@@ -14,6 +14,8 @@ use Sylius\Component\Locale\Context\LocaleContextInterface;
 
 final class MainNavigationTaxonResolver
 {
+    private const int MAXIMUM_PRODUCTS_PER_PANEL = 15;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ChannelContextInterface $channelContext,
@@ -87,6 +89,8 @@ final class MainNavigationTaxonResolver
             $parent = $taxon->getParent();
             $parentLink = $parent instanceof Taxon ? $this->link($parent, $locale) : null;
             $children = $childrenByParent[$id] ?? [];
+            $products = $productsByTaxon[$id] ?? [];
+            $hasProducts = $products !== [];
             $label = $taxon->getMainNavigationLabel();
 
             $navigation[] = new MainNavigationTaxon(
@@ -96,9 +100,12 @@ final class MainNavigationTaxonResolver
                 $locale,
                 (int) $taxon->getLevel(),
                 $children !== [],
+                $hasProducts,
+                count($products) > self::MAXIMUM_PRODUCTS_PER_PANEL,
+                $children !== [] || $hasProducts,
                 $parentLink,
                 $children,
-                $productsByTaxon[$id] ?? [],
+                array_slice($products, 0, self::MAXIMUM_PRODUCTS_PER_PANEL),
             );
         }
 
@@ -152,12 +159,13 @@ final class MainNavigationTaxonResolver
     {
         /** @var list<Product> $products */
         $products = $this->entityManager->createQueryBuilder()
-            ->select('product', 'productTaxon', 'taxon', 'translation', 'channel')
+            ->select('product', 'productTaxon', 'taxon', 'translation', 'channel', 'image')
             ->from(Product::class, 'product')
             ->innerJoin('product.productTaxons', 'productTaxon')
             ->innerJoin('productTaxon.taxon', 'taxon')
             ->innerJoin('product.translations', 'translation', 'WITH', 'translation.locale = :locale')
             ->innerJoin('product.channels', 'channel', 'WITH', 'channel = :channel')
+            ->leftJoin('product.images', 'image')
             ->where('taxon IN (:taxons)')
             ->andWhere('product.enabled = true')
             ->addOrderBy('productTaxon.position', 'ASC')

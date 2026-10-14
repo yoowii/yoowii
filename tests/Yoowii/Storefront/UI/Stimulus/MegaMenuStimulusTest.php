@@ -31,7 +31,7 @@ final class MegaMenuStimulusTest extends TestCase
     {
         $controller = $this->controller();
 
-        self::assertStringContainsString("familyId.startsWith('main-')", $controller);
+        self::assertStringContainsString("isFocusedMenu(menuId)", $controller);
         self::assertStringContainsString('this.familyNavigationTarget.hidden = focused;', $controller);
     }
 
