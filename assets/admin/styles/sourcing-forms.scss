@@ -1,0 +1,27 @@
+.sourcing-form-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    border-top: 1px solid var(--tblr-border-color);
+}
+
+.sourcing-code-editor {
+    min-height: 15rem;
+    resize: vertical;
+}
+
+.sourcing-json-preview {
+    max-height: 22rem;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+details.card > summary.card-header {
+    cursor: pointer;
+    display: flex;
+    list-style: none;
+}
+
+details.card > summary.card-header::-webkit-details-marker {
+    display: none;
+}

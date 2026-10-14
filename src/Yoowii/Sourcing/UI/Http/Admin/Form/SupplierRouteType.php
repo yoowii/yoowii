@@ -30,6 +30,7 @@ final class SupplierRouteType extends AbstractType
             ->add('productCode', ChoiceType::class, [
                 'label' => 'Produit Yoowii',
                 'choices' => $choices,
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('supplierProduct', EntityType::class, [
                 'class' => SupplierProduct::class,
@@ -45,25 +46,30 @@ final class SupplierRouteType extends AbstractType
                     ->orderBy('supplier.name', 'ASC')
                     ->addOrderBy('product.name', 'ASC'),
                 'label' => 'Référence fournisseur',
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('priority', IntegerType::class, [
                 'label' => 'Priorité',
                 'help' => '10 pour le principal, 20 puis 30 pour les secours.',
+                'attr' => ['class' => 'form-control'],
             ])
             ->add('effectiveFrom', DateTimeType::class, [
                 'label' => 'Valide à partir du',
                 'widget' => 'single_text',
                 'input' => 'datetime_immutable',
+                'attr' => ['class' => 'form-control'],
             ])
             ->add('effectiveUntil', DateTimeType::class, [
                 'label' => 'Valide jusqu’au',
                 'widget' => 'single_text',
                 'input' => 'datetime_immutable',
                 'required' => false,
+                'attr' => ['class' => 'form-control'],
             ])
             ->add('active', CheckboxType::class, [
                 'label' => 'Route active',
                 'required' => false,
+                'attr' => ['class' => 'form-check-input'],
             ]);
     }
 

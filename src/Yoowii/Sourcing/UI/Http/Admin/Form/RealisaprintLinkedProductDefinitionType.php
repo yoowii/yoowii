@@ -27,15 +27,16 @@ final class RealisaprintLinkedProductDefinitionType extends AbstractType
                 'help' => $options['prescript_available']
                     ? 'Préscript est disponible pour le stock actuellement enregistré.'
                     : 'Préscript n’est pas disponible pour le stock actuellement enregistré.',
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('options', TextareaType::class, [
                 'label' => 'Configuration technique proposée (avancé)',
-                'attr' => ['rows' => 18, 'class' => 'font-monospace'],
+                'attr' => ['rows' => 18, 'class' => 'form-control font-monospace sourcing-code-editor'],
                 'help' => 'JSON des options du configurateur. Les identifiants provider_variable doivent rester alignés avec le catalogue synchronisé.',
             ])
             ->add('pricingAxes', TextareaType::class, [
                 'label' => 'Axes de prix',
-                'attr' => ['rows' => 4, 'class' => 'font-monospace'],
+                'attr' => ['rows' => 4, 'class' => 'form-control font-monospace sourcing-code-editor'],
                 'help' => 'JSON : liste non vide des codes d’options déterminant la cotation.',
             ]);
     }

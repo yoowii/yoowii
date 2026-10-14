@@ -16,12 +16,12 @@ final class RealisaprintMappingVariableType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('providerVariable', TextType::class, ['label' => 'Variable Realisaprint'])
-            ->add('option', ChoiceType::class, ['label' => 'Option Yoowii', 'choices' => $options['yoowii_options']])
+            ->add('providerVariable', TextType::class, ['label' => 'Variable Realisaprint', 'attr' => ['class' => 'form-control']])
+            ->add('option', ChoiceType::class, ['label' => 'Option Yoowii', 'choices' => $options['yoowii_options'], 'attr' => ['class' => 'form-select']])
             ->add('values', TextType::class, [
                 'label' => 'Correspondances de valeurs',
                 'help' => 'JSON, par exemple {"a5":"2","a6":"3"}.',
-                'attr' => ['class' => 'font-monospace'],
+                'attr' => ['class' => 'form-control font-monospace sourcing-code-editor'],
             ])
         ;
     }

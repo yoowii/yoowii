@@ -1,57 +1,21 @@
 {% extends 'admin/sourcing/base.html.twig' %}
 {% set page_title = 'Définition technique — ' ~ route.yoowiiProductCode %}
+{% set realisaprint = mapping.configurationMapping.realisaprint|default({}) %}
 {% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog_product.id}) }}">Retour au produit fournisseur</a>{% endblock %}
 {% block sourcing_content %}
-<div class="card">
-    <div class="card-body">
-        <dl class="row mb-0">
-            <dt class="col-sm-3">Produit Yoowii</dt><dd class="col-sm-9"><code>{{ route.yoowiiProductCode }}</code></dd>
-            <dt class="col-sm-3">Produit fournisseur</dt><dd class="col-sm-9"><code>{{ catalog_product.providerProductId }}</code></dd>
-        </dl>
-    </div>
-</div>
-
+<div class="row justify-content-center"><div class="col-xl-9 col-xxl-8">
+<section class="card mb-4"><div class="card-header"><div><h2 class="card-title mb-1">Contexte</h2><div class="text-secondary small">Informations en lecture seule de la version en cours.</div></div></div><div class="card-body"><dl class="row mb-0"><dt class="col-sm-4">Produit Yoowii</dt><dd class="col-sm-8"><code>{{ route.yoowiiProductCode }}</code></dd><dt class="col-sm-4">Référence fournisseur</dt><dd class="col-sm-8"><code>{{ catalog_product.providerProductId }}</code></dd><dt class="col-sm-4">Version</dt><dd class="col-sm-8"><span class="badge bg-azure-lt">{{ mapping.version }}</span></dd><dt class="col-sm-4">Date d’applicabilité</dt><dd class="col-sm-8">{{ mapping.effectiveFrom|date('d/m/Y H:i') }}</dd></dl></div></section>
+<section class="card mb-4"><div class="card-header"><div><h2 class="card-title mb-1">Configuration Realisaprint</h2><div class="text-secondary small">La configuration fournisseur est présentée sous forme structurée.</div></div></div><div class="card-body"><div class="row mb-3"><div class="col-sm-4 text-secondary">Produit</div><div class="col-sm-8"><code>{{ realisaprint.product|default(catalog_product.providerProductId) }}</code></div></div><div class="row mb-3"><div class="col-sm-4 text-secondary">Stock</div><div class="col-sm-8"><code>{{ realisaprint.stock|default('Non renseigné') }}</code></div></div><div class="row"><div class="col-sm-4 text-secondary">Variables</div><div class="col-sm-8">{% if realisaprint.variables|default([]) %}<div class="table-responsive"><table class="table table-sm table-vcenter mb-0"><thead><tr><th>Variable fournisseur</th><th>Option Yoowii</th><th>Règle</th></tr></thead><tbody>{% for variable, rule in realisaprint.variables %}<tr><td><code>{{ variable }}</code></td><td><code>{{ rule.option|default('—') }}</code></td><td>{% if rule.quantity|default(false) %}<span class="badge bg-azure-lt">Quantité</span>{% elseif rule.values|default([]) %}{{ rule.values|length }} valeur(s){% else %}<span class="text-secondary">Aucune table</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<span class="text-secondary">Aucune variable configurée.</span>{% endif %}</div></div></div></section>
+<div class="alert alert-info" role="alert">Les valeurs doivent correspondre aux valeurs canoniques Yoowii ; <code>catalog_values</code> permet de renseigner une quantité sans table de valeurs.</div>
 {% if editable %}
-    <div class="alert alert-info mt-4 d-flex align-items-center justify-content-between gap-3">
-        <span>Toute modification crée une nouvelle version de mapping inactive. Un nouveau contrôle de couverture et de prix sera requis.</span>
-        <a class="btn btn-sm btn-outline-primary flex-shrink-0" href="{{ path('yoowii_admin_realisaprint_mapping_validation', {id: mapping.id}) }}">Contrôler la couverture et le prix</a>
-    </div>
-    {{ form_start(form, {attr: {class: 'card mt-4'}}) }}
-        <div class="card-header"><h2 class="card-title">Modifier la définition liée</h2></div>
-        <div class="card-body">
-            {{ form_row(form.configuratorMode) }}
-            {% if not prescript_available %}<div class="form-hint mb-3">Le mode Préscript sera proposé après synchronisation dès que ce stock sera déclaré compatible.</div>{% endif %}
-            <details class="mb-3" open><summary>Configuration technique proposée (avancé)</summary><div class="mt-3">{{ form_row(form.options) }}</div></details>
-            {{ form_row(form.pricingAxes) }}
-            <button class="btn btn-primary">Enregistrer la définition</button>
-        </div>
-    {{ form_end(form) }}
-
-<details class="card mt-4" open>
-    <summary class="card-header">Configuration technique proposée (avancé)</summary>
-    <div class="card-body">
-        <h2 class="h3">Options du configurateur</h2>
-        <pre class="mb-4 small">{{ definition.options|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
-        <h2 class="h3">Axes de prix</h2>
-        <pre class="mb-0 small">{{ definition.pricingAxes|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
-    </div>
-</details>
-
+<div class="alert alert-warning d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3"><span>Toute modification crée une nouvelle version inactive. Un contrôle de couverture et de prix sera requis.</span><a class="btn btn-sm btn-outline-primary flex-shrink-0" href="{{ path('yoowii_admin_realisaprint_mapping_validation', {id: mapping.id}) }}">Contrôler</a></div>
+{{ form_start(form, {attr: {class: 'sourcing-form'}}) }}
+<section class="card mb-4"><div class="card-header"><div><h2 class="card-title mb-1">Comportement du configurateur</h2><div class="text-secondary small">Choisissez le mode visible côté storefront.</div></div></div><div class="card-body">{{ form_errors(form) }}{% include 'admin/sourcing/_field.html.twig' with {field: form.configuratorMode} only %}</div></section>
+<details class="card mb-4"><summary class="card-header"><div><h2 class="card-title mb-1">Configuration avancée</h2><div class="text-secondary small">JSON des options et des axes de prix. Ouvrez cette section seulement si la configuration structurée doit être corrigée.</div></div></summary><div class="card-body">{% include 'admin/sourcing/_field.html.twig' with {field: form.options} only %}{% include 'admin/sourcing/_field.html.twig' with {field: form.pricingAxes} only %}</div></details>
+{% include 'admin/sourcing/_form_actions.html.twig' with {cancel_url: path('yoowii_admin_realisaprint_catalog_show', {id: catalog_product.id}), submit_label: 'Enregistrer la définition'} only %}{{ form_rest(form) }}{{ form_end(form, {render_rest: false}) }}
 {% else %}
-    <div class="alert alert-warning mt-4">
-        Cette définition est publiée et ne peut pas être modifiée en place.
-        {% if can_create_revision %}
-            <form method="post" class="d-inline ms-2" action="{{ path('yoowii_admin_realisaprint_revision_create', {routeId: route.id}) }}">
-                <input type="hidden" name="_token" value="{{ csrf_token('create_realisaprint_revision_' ~ route.id) }}">
-                <button class="btn btn-sm btn-outline-primary">Créer une révision</button>
-            </form>
-        {% endif %}
-    </div>
-    <details class="card mt-4" open>
-        <summary class="card-header">Configuration technique proposée (avancé)</summary>
-        <div class="card-body"><h2 class="h3">Options du configurateur</h2><pre class="mb-4 small">{{ definition.options|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre><h2 class="h3">Axes de prix</h2><pre class="mb-0 small">{{ definition.pricingAxes|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre></div>
-    </details>
+<div class="alert alert-warning">Cette définition est publiée et ne peut pas être modifiée en place.{% if can_create_revision %}<form method="post" class="d-inline ms-2" action="{{ path('yoowii_admin_realisaprint_revision_create', {routeId: route.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('create_realisaprint_revision_' ~ route.id) }}"><button class="btn btn-sm btn-outline-primary">Créer une révision</button></form>{% endif %}</div>
 {% endif %}
-
-
+<details class="card"><summary class="card-header"><div><h2 class="card-title mb-1">Configuration technique JSON</h2><div class="text-secondary small">Lecture seule ; utile au diagnostic.</div></div></summary><div class="card-body"><h3 class="h4">Options du configurateur</h3><pre class="sourcing-json-preview font-monospace small">{{ definition.options|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre><h3 class="h4 mt-4">Axes de prix</h3><pre class="sourcing-json-preview font-monospace small mb-0">{{ definition.pricingAxes|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre></div></details>
+</div></div>
 {% endblock %}

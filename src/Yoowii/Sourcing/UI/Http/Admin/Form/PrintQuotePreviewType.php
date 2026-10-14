@@ -27,18 +27,20 @@ final class PrintQuotePreviewType extends AbstractType
             ->add('productCode', ChoiceType::class, [
                 'label' => 'Produit Yoowii',
                 'choices' => $choices,
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('configurationJson', TextareaType::class, [
                 'label' => 'Configuration JSON',
-                'attr' => ['rows' => 12, 'class' => 'font-monospace'],
+                'attr' => ['rows' => 12, 'class' => 'form-control font-monospace sourcing-code-editor'],
             ])
             ->add('markupBasisPoints', IntegerType::class, [
                 'label' => 'Majoration en points de base',
                 'help' => '3500 représente 35 % du coût fournisseur.',
+                'attr' => ['class' => 'form-control'],
             ])
-            ->add('minimumMargin', IntegerType::class, ['label' => 'Marge minimale en centimes'])
-            ->add('handlingFee', IntegerType::class, ['label' => 'Frais de traitement en centimes'])
-            ->add('currencyCode', TextType::class, ['label' => 'Devise']);
+            ->add('minimumMargin', IntegerType::class, ['label' => 'Marge minimale en centimes', 'attr' => ['class' => 'form-control']])
+            ->add('handlingFee', IntegerType::class, ['label' => 'Frais de traitement en centimes', 'attr' => ['class' => 'form-control']])
+            ->add('currencyCode', TextType::class, ['label' => 'Devise', 'attr' => ['class' => 'form-control']]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

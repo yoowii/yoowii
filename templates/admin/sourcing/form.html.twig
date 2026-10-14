@@ -6,19 +6,40 @@
 
 {% block sourcing_content %}
     <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-body">
-                    {{ form_start(form) }}
-                    {{ form_widget(form) }}
-
-                    <div class="mt-4 d-flex justify-content-end gap-2">
-                        <a href="{{ path(back_route) }}" class="btn btn-link">Annuler</a>
-                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+        <div class="col-xl-9 col-xxl-8">
+            {{ form_start(form, {attr: {class: 'sourcing-form'}}) }}
+            {{ form_errors(form) }}
+            {% if form.file is defined %}
+                <div class="card mb-4">
+                    <div class="card-header"><div><h2 class="card-title mb-1">Fichier source</h2><div class="text-secondary small">Importez la matrice CSV canonique à contrôler.</div></div></div>
+                    <div class="card-body">
+                        {% include 'admin/sourcing/_field.html.twig' with {field: form.file} only %}
                     </div>
-                    {{ form_end(form) }}
                 </div>
-            </div>
+                <div class="card mb-4">
+                    <div class="card-header"><div><h2 class="card-title mb-1">Règles d’import</h2><div class="text-secondary small">La version est immuable et l’import est annulé si une ligne est invalide.</div></div></div>
+                    <div class="card-body">
+                        {% for field in [form.productCode, form.supplierProduct, form.version, form.currencyCode, form.effectiveFrom, form.activate] %}
+                            {% include 'admin/sourcing/_field.html.twig' with {field: field} only %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if form.file.vars.errors|length %}
+                    <div class="alert alert-danger" role="alert"><strong>Erreurs de lignes ou de fichier</strong><div class="mt-1">Corrigez le fichier source puis réessayez l’import.</div></div>
+                {% endif %}
+            {% else %}
+                <div class="card">
+                    <div class="card-header"><div><h2 class="card-title mb-1">Informations</h2><div class="text-secondary small">Les champs obligatoires et leurs erreurs sont indiqués directement dans le formulaire.</div></div></div>
+                    <div class="card-body">
+                        {% for field in form %}
+                            {% if field.vars.name != '_token' %}{% include 'admin/sourcing/_field.html.twig' with {field: field} only %}{% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            {% include 'admin/sourcing/_form_actions.html.twig' with {cancel_url: path(back_route), submit_label: form.file is defined ? 'Importer' : 'Enregistrer'} only %}
+            {{ form_rest(form) }}
+            {{ form_end(form, {render_rest: false}) }}
         </div>
     </div>
 {% endblock %}

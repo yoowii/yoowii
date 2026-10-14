@@ -20,27 +20,30 @@ final class RealisaprintDraftType extends AbstractType
             ->add('productCode', TextType::class, [
                 'label' => 'Code produit Yoowii',
                 'help' => 'Doit commencer par PRINT_. Il devient aussi le code du configurateur.',
+                'attr' => ['class' => 'form-control'],
             ])
-            ->add('name', TextType::class, ['label' => 'Nom commercial'])
+            ->add('name', TextType::class, ['label' => 'Nom commercial', 'attr' => ['class' => 'form-control']])
             ->add('stock', ChoiceType::class, [
                 'label' => 'Stock Realisaprint',
                 'choices' => $options['stock_choices'],
                 'required' => true,
                 'placeholder' => false,
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('configuratorMode', ChoiceType::class, [
                 'label' => 'Configurateur storefront',
                 'choices' => ['API classique Yoowii' => 'classic', 'API Préscript Realisaprint' => 'prescript'],
                 'help' => 'Préscript est disponible uniquement pour les stocks signalés compatibles dans le catalogue fournisseur.',
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('options', TextareaType::class, [
                 'label' => 'Options du configurateur',
-                'attr' => ['rows' => 14, 'class' => 'font-monospace'],
+                'attr' => ['rows' => 14, 'class' => 'form-control font-monospace sourcing-code-editor'],
                 'help' => 'JSON : chaque option contient type (code ou integer), required, allowed_values et éventuellement minimum / maximum.',
             ])
             ->add('pricingAxes', TextareaType::class, [
                 'label' => 'Axes de prix',
-                'attr' => ['rows' => 3, 'class' => 'font-monospace'],
+                'attr' => ['rows' => 3, 'class' => 'form-control font-monospace sourcing-code-editor'],
                 'help' => 'JSON : liste non vide des codes d’options qui déterminent la cotation.',
             ])
         ;

@@ -23,12 +23,14 @@ final class PrintSupplierType extends AbstractType
                 'label' => 'Code stable',
                 'disabled' => $options['code_disabled'],
                 'help' => 'Minuscules, chiffres, tirets ou underscores. Non modifiable après création.',
+                'attr' => ['class' => 'form-control'],
             ])
-            ->add('name', TextType::class, ['label' => 'Nom'])
+            ->add('name', TextType::class, ['label' => 'Nom', 'attr' => ['class' => 'form-control']])
             ->add('integrationMode', ChoiceType::class, [
                 'label' => 'Mode d’intégration',
                 'choices' => SupplierIntegrationMode::cases(),
                 'choice_label' => static fn (SupplierIntegrationMode $mode): string => $mode->value,
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('capabilities', ChoiceType::class, [
                 'label' => 'Capacités vérifiées',
@@ -37,10 +39,12 @@ final class PrintSupplierType extends AbstractType
                 'multiple' => true,
                 'expanded' => true,
                 'required' => false,
+                'attr' => ['class' => 'form-check-input'],
             ])
             ->add('active', CheckboxType::class, [
                 'label' => 'Fournisseur actif',
                 'required' => false,
+                'attr' => ['class' => 'form-check-input'],
             ]);
     }
 

@@ -5,41 +5,44 @@
 {% endblock %}
 
 {% block sourcing_content %}
-    <div class="row row-cards">
-        <div class="col-lg-7">
+    <div class="row justify-content-center row-cards">
+        <div class="col-xl-9 col-xxl-8">
             <div class="card">
-                <div class="card-header"><h2 class="card-title">Configuration et politique commerciale</h2></div>
+                <div class="card-header"><div><h2 class="card-title mb-1">Critères de prévisualisation</h2><div class="text-secondary small">La cotation est calculée côté serveur : aucune valeur du navigateur ne devient un prix.</div></div></div>
                 <div class="card-body">
-                    {{ form_start(form) }}
-                    {{ form_widget(form) }}
-                    <div class="mt-4 text-end"><button type="submit" class="btn btn-primary">Calculer côté serveur</button></div>
-                    {{ form_end(form) }}
+                    {{ form_start(form, {attr: {class: 'sourcing-form'}}) }}
+                    {{ form_errors(form) }}
+                    {% for field in form %}
+                        {% if field.vars.name != '_token' %}{% include 'admin/sourcing/_field.html.twig' with {field: field} only %}{% endif %}
+                    {% endfor %}
+                    {{ form_rest(form) }}
+                    <div class="d-flex justify-content-end mt-4"><button type="submit" class="btn btn-primary">Prévisualiser</button></div>
+                    {{ form_end(form, {render_rest: false}) }}
                 </div>
             </div>
-        </div>
-
-        <div class="col-lg-5">
             <div class="card">
-                <div class="card-header"><h2 class="card-title">Résultat interne</h2></div>
+                <div class="card-header"><div><h2 class="card-title mb-1">Résultat</h2><div class="text-secondary small">Détails réservés à l’administration.</div></div></div>
                 <div class="card-body">
                     {% if quote %}
-                        <dl class="row">
-                            <dt class="col-7">Prix de vente</dt><dd class="col-5 text-end fw-bold">{{ (quote.pricingSnapshot.unitPrice / 100)|number_format(2, ',', ' ') }} {{ quote.pricingSnapshot.currencyCode }}</dd>
-                            <dt class="col-7">Fournisseur retenu</dt><dd class="col-5 text-end">{{ quote.supplierCode }}</dd>
-                            <dt class="col-7">Référence</dt><dd class="col-5 text-end">{{ quote.supplierProductCode }}</dd>
-                            <dt class="col-7">Version matrice</dt><dd class="col-5 text-end">{{ quote.matrixVersion }}</dd>
-                            {% if quote.pricingSnapshot.quoteTrace %}<dt class="col-7">Source de cotation</dt><dd class="col-5 text-end"><code>{{ quote.pricingSnapshot.quoteTrace.source.value }}</code></dd>{% endif %}
-                            <dt class="col-7">Production</dt><dd class="col-5 text-end">{{ (quote.productionCost / 100)|number_format(2, ',', ' ') }}</dd>
-                            <dt class="col-7">Livraison</dt><dd class="col-5 text-end">{{ (quote.shippingCost / 100)|number_format(2, ',', ' ') }}</dd>
-                            <dt class="col-7">Marge</dt><dd class="col-5 text-end">{{ (quote.margin / 100)|number_format(2, ',', ' ') }}</dd>
-                            <dt class="col-7">Traitement</dt><dd class="col-5 text-end">{{ (quote.handlingFee / 100)|number_format(2, ',', ' ') }}</dd>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-6">Prix de vente</dt><dd class="col-sm-6 text-sm-end fw-bold">{{ (quote.pricingSnapshot.unitPrice / 100)|number_format(2, ',', ' ') }} {{ quote.pricingSnapshot.currencyCode }}</dd>
+                            <dt class="col-sm-6">Fournisseur retenu</dt><dd class="col-sm-6 text-sm-end"><span class="badge bg-azure-lt">{{ quote.supplierCode }}</span></dd>
+                            <dt class="col-sm-6">Route appliquée</dt><dd class="col-sm-6 text-sm-end"><code>{{ quote.supplierProductCode }}</code></dd>
+                            <dt class="col-sm-6">Version matrice</dt><dd class="col-sm-6 text-sm-end"><code>{{ quote.matrixVersion }}</code></dd>
+                            {% if quote.pricingSnapshot.quoteTrace %}<dt class="col-sm-6">Source tarifaire</dt><dd class="col-sm-6 text-sm-end"><code>{{ quote.pricingSnapshot.quoteTrace.source.value }}</code></dd>{% endif %}
                         </dl>
-                        <div class="alert alert-info mb-0">Ces coûts sont réservés à l’administration et ne font pas partie du snapshot public.</div>
+                        <div class="alert alert-info mt-3 mb-0">Ces coûts sont réservés à l’administration et ne font pas partie du snapshot public.</div>
                     {% else %}
                         <p class="text-secondary mb-0">Soumettez une configuration pour vérifier la route, la matrice et le prix de vente.</p>
                     {% endif %}
                 </div>
             </div>
+            {% if quote %}
+                <details class="card" open>
+                    <summary class="card-header"><div><h2 class="card-title mb-1">Détail technique</h2><div class="text-secondary small">Coûts internes de la cotation.</div></div></summary>
+                    <div class="card-body"><dl class="row mb-0"><dt class="col-sm-6">Production</dt><dd class="col-sm-6 text-sm-end">{{ (quote.productionCost / 100)|number_format(2, ',', ' ') }}</dd><dt class="col-sm-6">Livraison</dt><dd class="col-sm-6 text-sm-end">{{ (quote.shippingCost / 100)|number_format(2, ',', ' ') }}</dd><dt class="col-sm-6">Marge</dt><dd class="col-sm-6 text-sm-end">{{ (quote.margin / 100)|number_format(2, ',', ' ') }}</dd><dt class="col-sm-6">Traitement</dt><dd class="col-sm-6 text-sm-end">{{ (quote.handlingFee / 100)|number_format(2, ',', ' ') }}</dd></dl></div>
+                </details>
+            {% endif %}
         </div>
     </div>
 {% endblock %}

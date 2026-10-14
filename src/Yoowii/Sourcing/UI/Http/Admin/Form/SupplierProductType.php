@@ -25,15 +25,18 @@ final class SupplierProductType extends AbstractType
                 'query_builder' => static fn (EntityRepository $repository) => $repository->createQueryBuilder('supplier')->orderBy('supplier.name', 'ASC'),
                 'disabled' => $options['identity_disabled'],
                 'label' => 'Fournisseur',
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('code', TextType::class, [
                 'label' => 'Référence fournisseur',
                 'disabled' => $options['identity_disabled'],
+                'attr' => ['class' => 'form-control'],
             ])
-            ->add('name', TextType::class, ['label' => 'Nom interne'])
+            ->add('name', TextType::class, ['label' => 'Nom interne', 'attr' => ['class' => 'form-control']])
             ->add('active', CheckboxType::class, [
                 'label' => 'Référence active',
                 'required' => false,
+                'attr' => ['class' => 'form-check-input'],
             ]);
     }
 

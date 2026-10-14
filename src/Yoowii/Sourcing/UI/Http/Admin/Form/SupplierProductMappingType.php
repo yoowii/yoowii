@@ -26,18 +26,19 @@ final class SupplierProductMappingType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('yoowiiProductCode', ChoiceType::class, ['label' => 'Produit Yoowii', 'choices' => array_combine($this->definitions->codes(), $this->definitions->codes())])
+            ->add('yoowiiProductCode', ChoiceType::class, ['label' => 'Produit Yoowii', 'choices' => array_combine($this->definitions->codes(), $this->definitions->codes()), 'attr' => ['class' => 'form-select']])
             ->add('supplierProduct', EntityType::class, [
                 'class' => SupplierProduct::class,
                 'label' => 'Référence fournisseur',
                 'choice_label' => static fn (SupplierProduct $product): string => sprintf('%s — %s (%s)', $product->supplier()->name(), $product->name(), $product->code()),
                 'query_builder' => static fn (EntityRepository $repository) => $repository->createQueryBuilder('product')->innerJoin('product.supplier', 'supplier')->orderBy('supplier.name', 'ASC')->addOrderBy('product.name', 'ASC'),
+                'attr' => ['class' => 'form-select'],
             ])
-            ->add('version', TextType::class, ['label' => 'Version immuable'])
-            ->add('effectiveFrom', DateTimeType::class, ['label' => 'Applicable à partir du', 'widget' => 'single_text', 'input' => 'datetime_immutable'])
+            ->add('version', TextType::class, ['label' => 'Version immuable', 'attr' => ['class' => 'form-control']])
+            ->add('effectiveFrom', DateTimeType::class, ['label' => 'Applicable à partir du', 'widget' => 'single_text', 'input' => 'datetime_immutable', 'attr' => ['class' => 'form-control']])
             ->add('configurationMapping', TextareaType::class, [
                 'label' => 'Mapping JSON',
-                'attr' => ['rows' => 18, 'class' => 'font-monospace'],
+                'attr' => ['rows' => 18, 'class' => 'form-control font-monospace sourcing-code-editor'],
                 'help' => 'Pour Realisaprint, renseigne product, stock et variables. Les clés de values sont les valeurs canoniques Yoowii ; catalog_values est utile pour une quantité sans table values.',
             ]);
     }

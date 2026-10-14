@@ -31,6 +31,7 @@ final class PricingMatrixImportType extends AbstractType
             ->add('productCode', ChoiceType::class, [
                 'label' => 'Schéma de produit',
                 'choices' => $choices,
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('supplierProduct', EntityType::class, [
                 'class' => SupplierProduct::class,
@@ -46,24 +47,29 @@ final class PricingMatrixImportType extends AbstractType
                     ->orderBy('supplier.name', 'ASC')
                     ->addOrderBy('product.name', 'ASC'),
                 'label' => 'Référence fournisseur',
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('version', TextType::class, [
                 'label' => 'Version immuable',
                 'help' => 'Exemple : 2026-09-01. Une version existante ne sera jamais remplacée.',
+                'attr' => ['class' => 'form-control'],
             ])
-            ->add('currencyCode', TextType::class, ['label' => 'Devise'])
+            ->add('currencyCode', TextType::class, ['label' => 'Devise', 'attr' => ['class' => 'form-control']])
             ->add('effectiveFrom', DateTimeType::class, [
                 'label' => 'Tarifs applicables à partir du',
                 'widget' => 'single_text',
                 'input' => 'datetime_immutable',
+                'attr' => ['class' => 'form-control'],
             ])
             ->add('file', FileType::class, [
                 'label' => 'Matrice CSV canonique',
                 'help' => 'UTF-8, maximum 5 Mo. L’import est annulé entièrement si une ligne est invalide.',
+                'attr' => ['class' => 'form-control'],
             ])
             ->add('activate', CheckboxType::class, [
                 'label' => 'Activer immédiatement après validation',
                 'required' => false,
+                'attr' => ['class' => 'form-check-input'],
             ]);
     }
 

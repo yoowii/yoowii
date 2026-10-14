@@ -16,8 +16,8 @@ final class RealisaprintMappingType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('version', TextType::class, ['label' => 'Version immuable du mapping'])
-            ->add('stock', TextType::class, ['label' => 'Stock Realisaprint'])
+            ->add('version', TextType::class, ['label' => 'Version immuable du mapping', 'attr' => ['class' => 'form-control']])
+            ->add('stock', TextType::class, ['label' => 'Stock Realisaprint', 'attr' => ['class' => 'form-control']])
             ->add('variables', CollectionType::class, [
                 'label' => 'Correspondance des variables',
                 'entry_type' => RealisaprintMappingVariableType::class,
