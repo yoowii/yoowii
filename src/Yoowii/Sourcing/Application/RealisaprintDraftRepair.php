@@ -51,6 +51,7 @@ final readonly class RealisaprintDraftRepair
                         'kind' => 'sample',
                     ];
                 }
+
                 continue;
             }
             $default = $source['default'] ?? null;
@@ -129,13 +130,21 @@ final readonly class RealisaprintDraftRepair
             $rule = $rules[$id] ?? null;
             $code = is_array($rule) && is_string($rule['option'] ?? null) && isset($options[$rule['option']]) ? $rule['option'] : null;
             if (null === $code) {
-                foreach ($options as $candidate => $option) { if (is_array($option) && ($option['provider_variable'] ?? null) === $id) { $code = $candidate; break; } }
+                foreach ($options as $candidate => $option) {
+                    if (is_array($option) && ($option['provider_variable'] ?? null) === $id) {
+                        $code = $candidate;
+
+                        break;
+                    }
+                }
             }
-            if (!is_string($code)) { throw new DomainException(sprintf('La correspondance de %s est introuvable.', $id)); }
+            if (!is_string($code)) {
+                throw new DomainException(sprintf('La correspondance de %s est introuvable.', $id));
+            }
             if ('sample' === $change['kind']) {
                 $sample = $samples[$id] ?? $change['new'];
-                if (!is_string($sample) || '' === trim($sample) || mb_strlen($sample) > 255) {
-                    throw new \DomainException(sprintf('Renseigne une valeur d’essai pour %s.', $change['label']));
+                if (!is_string($sample)) {
+                    throw new \DomainException(sprintf('La valeur d’essai de %s doit être du texte.', $change['label']));
                 }
                 $options[$code]['type'] = 'text';
                 $options[$code]['allowed_values'] = [];
@@ -145,6 +154,7 @@ final readonly class RealisaprintDraftRepair
                 $options[$code]['value_labels'] = [];
                 $options[$code]['provider_values'] = [];
                 $rules[$id] = ['option' => $code, 'values' => []];
+
                 continue;
             }
             $default = $change['new'];
@@ -195,29 +205,8 @@ final readonly class RealisaprintDraftRepair
             $options[$code]['default'] = trim($value);
         }
 
-        // Validate submitted defaults through the same domain definitions that
-        // validate a storefront configuration, then retain their typed form.
-        $configuration = [];
-        foreach ($options as $code => $option) {
-            $value = $option['default'] ?? null;
-            if (is_string($value) || is_int($value) || is_float($value)) {
-                $configuration[$code] = $value;
-            }
-        }
-        $previous = $definition->options();
-        try {
-            $definition->replaceDraftOptions($options);
-            $normalized = $definition->definition()->configure($configuration)->toArray();
-            foreach ($defaults as $code => $unused) {
-                if (is_string($code) && array_key_exists($code, $normalized)) {
-                    $options[$code]['default'] = $normalized[$code];
-                }
-            }
-        } catch (\Throwable $exception) {
-            $definition->replaceDraftOptions($previous);
-
-            throw $exception;
-        }
+        // These are administrative preview defaults. Keep the operator's value
+        // untouched; the supplier API remains the authority when it is tested.
     }
 
     private function assertDraft(PersistedPrintProductDefinition $definition, SupplierProductMappingVersion $mapping): void

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
-use App\Yoowii\Pricing\Application\PublishedNumericMinimums;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
@@ -26,7 +25,7 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 final class RealisaprintPublicationController extends AbstractController
 {
     #[Route('/realisaprint-publications/mappings/{id}/validate', name: 'yoowii_admin_realisaprint_mapping_validate', requirements: ['id' => '\\d+'], methods: ['POST'])]
-    public function validate(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RealisaprintMappingValidator $validator, PublishedNumericMinimums $numericMinimums): Response
+    public function validate(int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RealisaprintMappingValidator $validator): Response
     {
         $mapping = $this->mapping($id, $entityManager);
         $this->token($request, $csrf, 'validate_realisaprint_mapping_' . $id);
@@ -34,7 +33,7 @@ final class RealisaprintPublicationController extends AbstractController
         $definition = $this->definition($mapping, $entityManager);
 
         try {
-            $sample = $this->testSample($definition, $validator, $request, $mapping, $numericMinimums);
+            $sample = $this->testSample($definition, $validator, $request, $mapping);
         } catch (\InvalidArgumentException $exception) {
             $this->addFlash('error', $exception->getMessage());
 
@@ -132,7 +131,7 @@ final class RealisaprintPublicationController extends AbstractController
     }
 
     /**  array<string, string|int|float> */
-    private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request, SupplierProductMappingVersion $mapping, PublishedNumericMinimums $numericMinimums): array
+    private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request, SupplierProductMappingVersion $mapping): array
     {
         $sample = $this->withFixedValues($validator->sample($definition), $mapping);
         $submitted = $request->request->all('test_values');
@@ -144,28 +143,12 @@ final class RealisaprintPublicationController extends AbstractController
             if (!$field['editable']) {
                 continue;
             }
-            $value = $submitted[$code] ?? null;
-            if (is_string($value) && '' === trim($value)) {
-                if ($field['required']) {
-                    throw new \InvalidArgumentException(sprintf('La valeur d’essai « %s » est requise.', $field['label']));
-                }
-                unset($submitted[$code], $sample[$code]);
-
-                continue;
-            }
-            if (!is_string($value) && !is_int($value) && !is_float($value)) {
-                throw new \InvalidArgumentException(sprintf('La valeur d’essai « %s » est requise.', $field['label']));
-            }
-        }
-        $submitted = $numericMinimums->apply($definition->storefrontSchema(), $submitted);
-        foreach ($fields as $code => $field) {
-            if ($field['editable'] && array_key_exists($code, $submitted)) {
+            if (array_key_exists($code, $submitted) && (is_string($submitted[$code]) || is_int($submitted[$code]) || is_float($submitted[$code]))) {
                 $sample[$code] = $submitted[$code];
             }
         }
-        $configuration = $definition->definition()->configure($this->withFixedValues($sample, $mapping));
 
-        return $configuration->toArray();
+        return $this->withFixedValues($sample, $mapping);
     }
 
     /** @param array<string, string|int|float> $values @return array<string, string|int|float> */

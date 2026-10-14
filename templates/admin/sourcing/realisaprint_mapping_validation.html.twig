@@ -77,13 +77,17 @@
                     <dt class="col-sm-4">Coût fournisseur de l'essai</dt><dd class="col-sm-8">{{ (validation.supplierCost / 100)|number_format(2, ',', ' ') }} EUR{% if validation.supplierBaseCost is not null and validation.supplierOptionsCost is not null %}<br><small class="text-secondary">Prix produit : {{ (validation.supplierBaseCost / 100)|number_format(2, ',', ' ') }} EUR + options : {{ (validation.supplierOptionsCost / 100)|number_format(2, ',', ' ') }} EUR</small>{% endif %}</dd>
                 {% endif %}
             </dl>
+            {% if price_api_diagnostics is not empty %}
+                <button class="btn btn-outline-dark btn-sm mb-3" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-price-api-diagnostic">
+                    Voir les appels de cotation
+                </button>
+            {% endif %}
             {% if not can_publish and validation.quotePassed and validation.coverageComplete %}
                 <div class="alert alert-warning">Le contrôle a expiré ou le catalogue a changé. Relance-le avant la publication.</div>
             {% endif %}
             {% for error in validation.coverageErrors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
             {% if validation.technicalDetail %}
                 <div class="alert alert-warning d-flex align-items-center gap-2">
-                    {% if price_api_diagnostics is not empty %}<button class="btn btn-outline-dark btn-sm flex-shrink-0" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-price-api-diagnostic">Voir les appels de cotation</button>{% endif %}
                     <span>{{ validation.technicalDetail }}</span>
                 </div>
             {% endif %}
@@ -102,16 +106,8 @@
                             {% if not field.editable %}
                                 <input class="form-control" id="test_{{ code }}" value="{{ sample[code]|default(field.fixed_label) }}" disabled>
                                 <div class="form-hint">Valeur fixe Realisaprint.</div>
-                            {% elseif field.choices is not empty %}
-                                <select class="form-select" id="test_{{ code }}" name="test_values[{{ code }}]" {{ field.required ? 'required' : '' }}>
-                                    {% for value, label in field.choices %}<option value="{{ value }}" {{ sample[code]|default('') == value ? 'selected' : '' }}>{{ label }}</option>{% endfor %}
-                                </select>
-                            {% elseif field.type == 'integer' %}
-                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="number" step="1" {{ field.required ? 'required' : '' }}>
-                            {% elseif field.type == 'float' %}
-                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="number" step="any" {{ field.required ? 'required' : '' }}>
                             {% else %}
-                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="text" {{ field.required ? 'required' : '' }}>
+                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="text">
                             {% endif %}
                         </div>
                     {% endfor %}

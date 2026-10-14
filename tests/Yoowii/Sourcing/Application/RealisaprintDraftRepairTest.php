@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 
 final class RealisaprintDraftRepairTest extends TestCase
 {
-    public function testItRepairsANumericDefaultUsedByTheInitialPreview(): void
+    public function testItKeepsAnAdministrativeDefaultWithoutNormalizingItsValue(): void
     {
         $supplierProduct = $this->createMock(SupplierProduct::class);
         $route = new SupplierRoute('PRINT_TEST', $supplierProduct, 1, new \DateTimeImmutable('2026-01-01T00:00:00+00:00'));
@@ -62,6 +62,6 @@ final class RealisaprintDraftRepairTest extends TestCase
             ['nombre_d_oeillets_par_visuel' => '2'],
         );
 
-        self::assertSame(2.0, $definition->options()['nombre_d_oeillets_par_visuel']['default']);
+        self::assertSame('2', $definition->options()['nombre_d_oeillets_par_visuel']['default']);
     }
 }
