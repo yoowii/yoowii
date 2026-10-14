@@ -1,5 +1,11 @@
 yoowii:
     form:
+        taxon:
+            main_navigation_title: Navigation storefront Yoowii
+            show_in_main_navigation: Afficher dans le menu principal
+            main_navigation_help: Rend ce taxon accessible directement dans la barre de navigation du storefront. Les sous-taxons mis en avant pilotent uniquement le contenu du méga-menu.
+            main_navigation_position: Position dans le menu principal
+            main_navigation_label: Libellé court dans le menu
         product:
             fulfillment_type: Type d’exécution
             print_definition: Calculateur print
@@ -19,6 +25,7 @@ yoowii:
             navigation_label: Navigation principale
             mobile_navigation_label: Navigation mobile
             all_products: Tous les produits
+            quick_access: Accès rapides
             create_print: Créer mon imprimé
             families_label: Familles de produits
             open_family: Ouvrir le menu de %family%

@@ -1,5 +1,11 @@
 yoowii:
     form:
+        taxon:
+            main_navigation_title: Yoowii storefront navigation
+            show_in_main_navigation: Show in the main menu
+            main_navigation_help: Makes this taxon directly available in the storefront navigation bar. Featured child taxons only control mega-menu content.
+            main_navigation_position: Main menu position
+            main_navigation_label: Short menu label
         product:
             fulfillment_type: Fulfilment type
             print_definition: Print calculator
@@ -19,6 +25,7 @@ yoowii:
             navigation_label: Main navigation
             mobile_navigation_label: Mobile navigation
             all_products: All products
+            quick_access: Quick access
             create_print: Create my print
             families_label: Product families
             open_family: Open %family% menu

@@ -33,9 +33,30 @@ final class MegaMenuTemplateTest extends TestCase
 
         self::assertStringNotContainsString('role="dialog"', $template);
         self::assertStringNotContainsString('trapFocus', $template);
-        self::assertStringContainsString('data-action="mouseenter->mega-menu#openFamily focus->mega-menu#openFamily"', $template);
+        self::assertStringContainsString('data-action="mouseenter->mega-menu#openFromTrigger focus->mega-menu#openFromTrigger"', $template);
         self::assertStringContainsString("path('yoowii_shop_print_catalog'", $template);
         self::assertStringContainsString('focus-visible:outline focus-visible:outline-2', $template);
+    }
+
+    public function testItUsesExplicitYoowiiNavigationTaxonsAndKeepsLeavesAsLinks(): void
+    {
+        $template = $this->menuTemplate();
+
+        self::assertStringContainsString('{% set main_navigation_taxons = yoowii_main_navigation_taxons() %}', $template);
+        self::assertStringContainsString('mega_menu_enabled and taxon.hasChildren', $template);
+        self::assertStringContainsString('data-mega-menu-menu-id-param="main-{{ taxon.id }}"', $template);
+        self::assertStringContainsString('data-mobile-menu-screen-id="main-{{ taxon.id }}"', $template);
+        self::assertStringContainsString("'yoowii.storefront.mega_menu.quick_access'|trans", $template);
+    }
+
+    public function testItRendersAFocusedPanelWithoutChangingTheAllProductsPanel(): void
+    {
+        $template = $this->menuTemplate();
+
+        self::assertStringContainsString('data-mega-menu-target="familyNavigation"', $template);
+        self::assertStringContainsString('col-span-3 min-w-0', $template);
+        self::assertStringContainsString('taxon.parent ? path', $template);
+        self::assertStringContainsString("'yoowii.storefront.mega_menu.view_all_products'", $template);
     }
 
     private function menuTemplate(): string

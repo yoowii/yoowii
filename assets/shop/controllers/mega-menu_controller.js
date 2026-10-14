@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
 export default class extends Controller {
-    static targets = ['backdrop', 'carouselSlide', 'family', 'familyPanel', 'panel', 'servicePanel', 'trigger'];
+    static targets = ['backdrop', 'carouselSlide', 'family', 'familyNavigation', 'familyPanel', 'panel', 'servicePanel', 'trigger'];
 
     connect() {
         this.closeTimer = null;
@@ -96,6 +96,9 @@ export default class extends Controller {
     selectFamily(familyId) {
         if (!familyId) return;
 
+        const focused = familyId.startsWith('main-');
+        this.familyNavigationTarget.hidden = focused;
+
         this.familyTargets.forEach((family) => {
             const active = family.dataset.familyId === familyId;
             family.classList.toggle('bg-base-200', active);
@@ -103,7 +106,7 @@ export default class extends Controller {
             family.setAttribute('aria-current', active ? 'true' : 'false');
         });
         this.familyPanelTargets.forEach((panel) => { panel.hidden = panel.dataset.familyId !== familyId; });
-        this.servicePanelTarget.hidden = this.familyPanelTargets.some((panel) => panel.dataset.familyId === familyId && panel.dataset.hasMediaFeatured === 'true');
+        this.servicePanelTarget.hidden = focused || this.familyPanelTargets.some((panel) => panel.dataset.familyId === familyId && panel.dataset.hasMediaFeatured === 'true');
     }
 
     showSlide(carouselId, offset) {

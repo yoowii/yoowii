@@ -27,6 +27,14 @@ final class MegaMenuStimulusTest extends TestCase
         self::assertStringContainsString("panel.dataset.hasMediaFeatured === 'true'", $controller);
     }
 
+    public function testItHidesTheFamilyNavigationForFocusedMainNavigationPanels(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString("familyId.startsWith('main-')", $controller);
+        self::assertStringContainsString('this.familyNavigationTarget.hidden = focused;', $controller);
+    }
+
     private function controller(): string
     {
         $controller = file_get_contents(dirname(__DIR__, 5) . '/assets/shop/controllers/mega-menu_controller.js');

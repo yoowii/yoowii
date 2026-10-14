@@ -10,6 +10,20 @@ sylius_twig_hooks:
                 template: 'admin/product/form/sections/general/fulfillment_type.html.twig'
                 priority: 450
 
+        'sylius_admin.taxon.create.content.sections.form': &yoowii_taxon_form_sections
+            main_navigation:
+                template: 'admin/taxon/sections/form/tabs/main_navigation.html.twig'
+                priority: 350
+
+        'sylius_admin.taxon.update.content.sections.form': *yoowii_taxon_form_sections
+
+        'sylius_admin.taxon.create.content.sections.side_navigation': &yoowii_taxon_side_navigation
+            main_navigation:
+                template: 'admin/taxon/sections/side_navigation/main_navigation.html.twig'
+                priority: 350
+
+        'sylius_admin.taxon.update.content.sections.side_navigation': *yoowii_taxon_side_navigation
+
         'sylius_shop.shared.product.card.prices':
             price:
                 component: 'sylius_shop:product:card:price'
