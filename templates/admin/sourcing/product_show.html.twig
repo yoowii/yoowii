@@ -1,0 +1,21 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+
+{% block sourcing_actions %}
+    <div class="btn-list">
+        <a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_sourcing_dashboard', {section: 'products'}) }}">Retour aux produits</a>
+        <a class="btn btn-primary" href="{{ path('yoowii_admin_sourcing_preview') }}">Prévisualiser un prix</a>
+    </div>
+{% endblock %}
+
+{% block sourcing_content %}
+    <div class="mb-4"><div class="text-secondary"><code>{{ product_code }}</code></div><h2 class="mb-0">{{ product_name }}</h2></div>
+    {% if overview.errors %}<div class="alert alert-danger"><strong>Blocage</strong><ul class="mb-0">{% for error in overview.errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+    {% if overview.recommendations %}<div class="alert alert-warning"><strong>À contrôler</strong><ul class="mb-0">{% for recommendation in overview.recommendations %}<li>{{ recommendation }}</li>{% endfor %}</ul></div>{% endif %}
+
+    <div class="row row-cards">
+        <div class="col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Routage actuel</h3></div><div class="table-responsive"><table class="table card-table"><thead><tr><th>Priorité</th><th>Fournisseur</th><th>Référence</th><th>État</th></tr></thead><tbody>{% for route in overview.routes %}<tr><td>{{ route.priority }}</td><td>{{ route.supplierProduct.supplier.name }}</td><td><code>{{ route.supplierProduct.code }}</code></td><td><span class="badge {{ route.isEligibleFor(product_code, now) ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ route.isEligibleFor(product_code, now) ? 'Actif' : 'Inactif' }}</span></td></tr>{% else %}<tr><td colspan="4" class="text-secondary">Aucune route.</td></tr>{% endfor %}</tbody></table></div><div class="card-footer"><a class="btn btn-sm btn-primary" href="{{ path('yoowii_admin_sourcing_route_create') }}">Ajouter une route</a></div></div></div>
+        <div class="col-lg-6"><div class="card"><div class="card-header"><h3 class="card-title">Mappings et publication</h3></div><div class="table-responsive"><table class="table card-table"><thead><tr><th>Version</th><th>Fournisseur</th><th>État</th><th></th></tr></thead><tbody>{% for mapping in overview.mappings %}<tr><td>{{ mapping.version }}</td><td>{{ mapping.supplierProduct.supplier.name }}</td><td><span class="badge {{ mapping.isEffectiveAt(now) ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ mapping.publishedAt ? 'Publié' : (mapping.isActive ? 'Brouillon' : 'Inactif') }}</span></td><td>{% if mapping.supplierProduct.supplier.code == 'realisaprint' %}<a class="btn btn-sm btn-outline-primary" href="{{ path('yoowii_admin_realisaprint_mapping_validation', {id: mapping.id}) }}">Contrôler</a>{% endif %}</td></tr>{% else %}<tr><td colspan="4" class="text-secondary">Aucun mapping.</td></tr>{% endfor %}</tbody></table></div></div></div>
+    </div>
+    <div class="card mt-4"><div class="card-header"><h3 class="card-title">Matrices tarifaires</h3></div><div class="table-responsive"><table class="table card-table"><thead><tr><th>Version</th><th>Fournisseur</th><th>Applicable le</th><th>État</th></tr></thead><tbody>{% for matrix in overview.matrices %}<tr><td>{{ matrix.version }}</td><td>{{ matrix.supplierProduct.supplier.name }}</td><td>{{ matrix.effectiveFrom|date('d/m/Y H:i') }}</td><td>{{ matrix.status.value == 'active' ? 'Active' : (matrix.status.value == 'archived' ? 'Archivée' : 'Brouillon') }}</td></tr>{% else %}<tr><td colspan="4" class="text-secondary">Aucune matrice.</td></tr>{% endfor %}</tbody></table></div></div>
+    {% if overview.future.routes or overview.future.mappings or overview.future.matrices %}<div class="card mt-4"><div class="card-header"><h3 class="card-title">À venir</h3></div><div class="card-body"><ul class="mb-0">{% for route in overview.future.routes %}<li>Route priorité {{ route.priority }} à partir du {{ route.effectiveFrom|date('d/m/Y H:i') }}</li>{% endfor %}{% for mapping in overview.future.mappings %}<li>Mapping {{ mapping.version }} à partir du {{ mapping.effectiveFrom|date('d/m/Y H:i') }}</li>{% endfor %}{% for matrix in overview.future.matrices %}<li>Matrice {{ matrix.version }} à partir du {{ matrix.effectiveFrom|date('d/m/Y H:i') }}</li>{% endfor %}</ul></div></div>{% endif %}
+{% endblock %}

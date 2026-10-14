@@ -4,29 +4,71 @@
 
 {% block sourcing_actions %}
     <div class="btn-list">
-        <a href="{{ path('yoowii_admin_realisaprint_catalog') }}" class="btn btn-outline-primary">Catalogue Realisaprint</a>
-        <a href="{{ path('yoowii_admin_sourcing_preview') }}" class="btn btn-outline-primary">Prévisualiser un prix</a>
         <a href="{{ path('yoowii_admin_sourcing_matrix_import') }}" class="btn btn-primary">Importer une matrice</a>
-        <a href="{{ path('yoowii_admin_sourcing_mapping_create') }}" class="btn btn-outline-primary">Ajouter un mapping API</a>
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Actions</button>
+            <div class="dropdown-menu dropdown-menu-end">
+                <a class="dropdown-item" href="{{ path('yoowii_admin_realisaprint_catalog') }}">Catalogue Realisaprint</a>
+                <a class="dropdown-item" href="{{ path('yoowii_admin_sourcing_preview') }}">Prévisualiser un prix</a>
+                <a class="dropdown-item" href="{{ path('yoowii_admin_sourcing_mapping_create') }}">Ajouter un mapping API</a>
+            </div>
+        </div>
     </div>
 {% endblock %}
 
 {% block sourcing_content %}
+    <div class="nav nav-tabs mb-4" role="tablist">
+        {% for key, label in {overview: 'Vue d’ensemble', products: 'Produits', suppliers: 'Fournisseurs', mappings: 'Mappings API', routes: 'Routage', matrices: 'Matrices tarifaires'} %}
+            <a class="nav-link {{ section == key ? 'active' }}" href="{{ path('yoowii_admin_sourcing_dashboard', app.request.query.all|merge({section: key})) }}">{{ label }}</a>
+        {% endfor %}
+    </div>
+
     <div class="row row-cards mb-4">
         <div class="col-sm-6 col-lg-3">
-            <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ suppliers|length }}</div><div class="text-secondary">Fournisseurs</div></div></div>
+            <a class="card card-sm card-link" href="{{ path('yoowii_admin_sourcing_dashboard', {section: 'suppliers'}) }}"><div class="card-body"><div class="h1 mb-0">{{ suppliers|length }}</div><div class="text-secondary">Fournisseurs</div></div></a>
         </div>
         <div class="col-sm-6 col-lg-3">
-            <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ supplier_products|length }}</div><div class="text-secondary">Références</div></div></div>
+            <a class="card card-sm card-link" href="{{ path('yoowii_admin_sourcing_dashboard', {section: 'products'}) }}"><div class="card-body"><div class="h1 mb-0">{{ supplier_products|length }}</div><div class="text-secondary">Références</div></div></a>
         </div>
         <div class="col-sm-6 col-lg-3">
-            <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ routes|length }}</div><div class="text-secondary">Routes</div></div></div>
+            <a class="card card-sm card-link" href="{{ path('yoowii_admin_sourcing_dashboard', {section: 'routes'}) }}"><div class="card-body"><div class="h1 mb-0">{{ routes|length }}</div><div class="text-secondary">Routes</div></div></a>
         </div>
         <div class="col-sm-6 col-lg-3">
-            <div class="card card-sm"><div class="card-body"><div class="h1 mb-0">{{ matrices|length }}</div><div class="text-secondary">Versions tarifaires</div></div></div>
+            <a class="card card-sm card-link" href="{{ path('yoowii_admin_sourcing_dashboard', {section: 'matrices'}) }}"><div class="card-body"><div class="h1 mb-0">{{ matrices|length }}</div><div class="text-secondary">Versions tarifaires</div></div></a>
         </div>
     </div>
 
+    {% if section == 'overview' %}
+        {% set blocked = products|filter(product => product.health == 'blocked')|length %}
+        <div class="alert {{ blocked ? 'alert-danger' : 'alert-info' }} d-flex justify-content-between align-items-center">
+            <span><strong>{{ blocked }}</strong> produit{{ blocked > 1 ? 's' }} à corriger avant publication. Les recommandations n’empêchent pas la mise en vente.</span>
+            <a class="btn btn-sm btn-outline-dark" href="{{ path('yoowii_admin_sourcing_dashboard', {section: 'products', health: 'blocked'}) }}">Voir les blocages</a>
+        </div>
+    {% endif %}
+
+    {% if section == 'products' %}
+        <form class="card card-body mb-4" method="get">
+            <input type="hidden" name="section" value="products">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4"><label class="form-label" for="sourcing-q">Rechercher un produit</label><input id="sourcing-q" class="form-control" name="q" value="{{ query }}" placeholder="Code produit"></div>
+                <div class="col-md-3"><label class="form-label" for="sourcing-supplier">Fournisseur</label><select id="sourcing-supplier" class="form-select" name="supplier"><option value="">Tous les fournisseurs</option>{% for supplier in suppliers %}<option value="{{ supplier.code }}" {{ supplier_filter == supplier.code ? 'selected' }}>{{ supplier.name }}</option>{% endfor %}</select></div>
+                <div class="col-md-3"><label class="form-label" for="sourcing-health">Santé</label><select id="sourcing-health" class="form-select" name="health"><option value="">Tous les états</option><option value="blocked" {{ health_filter == 'blocked' ? 'selected' }}>Blocage</option><option value="attention" {{ health_filter == 'attention' ? 'selected' }}>À contrôler</option><option value="healthy" {{ health_filter == 'healthy' ? 'selected' }}>Sain</option></select></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100">Filtrer</button></div>
+            </div>
+            <label class="form-check mt-3"><input class="form-check-input" type="checkbox" name="inactive" value="1" {{ include_inactive ? 'checked' }}><span class="form-check-label">Afficher les inactifs</span></label>
+        </form>
+        <div class="card">
+            <div class="table-responsive"><table class="table table-vcenter card-table"><thead><tr><th>Produit</th><th>Fournisseur principal</th><th>Référence</th><th>Routage</th><th>Mapping</th><th>Tarification</th><th>Santé</th></tr></thead><tbody>
+            {% for code, product in products %}
+                {% set route = product.primary_route %}
+                <tr><td><a href="{{ path('yoowii_admin_sourcing_product_show', {code: code}) }}"><strong>{{ product.name }}</strong><br><code class="text-secondary">{{ code }}</code></a></td><td>{{ route ? route.supplierProduct.supplier.name : '—' }}</td><td>{% if route %}<code>{{ route.supplierProduct.code }}</code>{% else %}—{% endif %}</td><td>{{ route ? 'Priorité ' ~ route.priority : '—' }}</td><td>{{ product.current_mappings|length ? 'Actif' : '—' }}</td><td>{{ product.current_matrices|length ? 'Active' : '—' }}</td><td><span class="badge {{ product.health == 'blocked' ? 'bg-danger-lt' : (product.health == 'attention' ? 'bg-warning-lt' : 'bg-success-lt') }}">{{ product.health == 'blocked' ? 'Blocage' : (product.health == 'attention' ? 'À contrôler' : 'Sain') }}</span>{% if product.errors|length %}<div class="small text-danger">{{ product.errors|first }}</div>{% elseif product.recommendations|length %}<div class="small text-secondary">{{ product.recommendations|first }}</div>{% endif %}</td></tr>
+            {% else %}<tr><td colspan="7" class="text-center text-secondary py-4">Aucun produit sourcing ne correspond aux filtres.</td></tr>{% endfor %}
+            </tbody></table></div>
+        </div>
+        {% if page_count > 1 %}<div class="d-flex justify-content-between align-items-center mt-3"><span class="text-secondary">{{ product_count }} produits</span><div class="btn-list"><a class="btn btn-outline-secondary {{ page == 1 ? 'disabled' }}" href="{{ path('yoowii_admin_sourcing_dashboard', app.request.query.all|merge({page: page - 1})) }}">Précédent</a><span class="btn btn-outline-secondary disabled">Page {{ page }} / {{ page_count }}</span><a class="btn btn-outline-secondary {{ page == page_count ? 'disabled' }}" href="{{ path('yoowii_admin_sourcing_dashboard', app.request.query.all|merge({page: page + 1})) }}">Suivant</a></div></div>{% endif %}
+    {% endif %}
+
+    {% if section == 'mappings' %}
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="card-title">Mappings API versionnés</h2>
@@ -52,15 +94,11 @@
                                 <a href="{{ path('yoowii_admin_realisaprint_mapping_validation', {id: mapping.id}) }}" class="btn btn-sm btn-outline-primary">Valider / publier</a>
                             {% endif %}
                             {% if mapping.isActive %}
-                                <form method="post" action="{{ path('yoowii_admin_sourcing_mapping_deactivate', {id: mapping.id}) }}">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('deactivate_mapping_' ~ mapping.id) }}">
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">Désactiver</button>
-                                </form>
+                                <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#deactivate-mapping-{{ mapping.id }}">Désactiver</button>
+                                <div class="modal modal-blur fade" id="deactivate-mapping-{{ mapping.id }}" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><form class="modal-content" method="post" action="{{ path('yoowii_admin_sourcing_mapping_deactivate', {id: mapping.id}) }}"><div class="modal-header"><h2 class="modal-title">Désactiver ce mapping ?</h2><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body">Il ne sera plus applicable aux nouvelles cotations. Les commandes historiques ne sont pas modifiées.</div><div class="modal-footer"><input type="hidden" name="_token" value="{{ csrf_token('deactivate_mapping_' ~ mapping.id) }}"><button class="btn btn-link" type="button" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger" type="submit">Désactiver</button></div></form></div></div>
                             {% else %}
-                                <form method="post" action="{{ path('yoowii_admin_sourcing_mapping_delete', {id: mapping.id}) }}" onsubmit="return confirm('Supprimer définitivement cette ancienne version ? Cette action est irréversible.');">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('delete_mapping_' ~ mapping.id) }}">
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">Supprimer</button>
-                                </form>
+                                <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#delete-mapping-{{ mapping.id }}">Supprimer</button>
+                                <div class="modal modal-blur fade" id="delete-mapping-{{ mapping.id }}" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><form class="modal-content" method="post" action="{{ path('yoowii_admin_sourcing_mapping_delete', {id: mapping.id}) }}"><div class="modal-header"><h2 class="modal-title">Supprimer cette version ?</h2><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body">Cette suppression est définitive et n’est possible que si la version n’est ni publiée ni référencée.</div><div class="modal-footer"><input type="hidden" name="_token" value="{{ csrf_token('delete_mapping_' ~ mapping.id) }}"><button class="btn btn-link" type="button" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger" type="submit">Supprimer définitivement</button></div></form></div></div>
                             {% endif %}
                         </td>
                     </tr>
@@ -71,7 +109,9 @@
             </table>
         </div>
     </div>
+    {% endif %}
 
+    {% if section == 'suppliers' %}
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="card-title">Fournisseurs</h2>
@@ -99,7 +139,9 @@
             </table>
         </div>
     </div>
+    {% endif %}
 
+    {% if section == 'suppliers' %}
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="card-title">Références fournisseurs</h2>
@@ -124,7 +166,9 @@
             </table>
         </div>
     </div>
+    {% endif %}
 
+    {% if section == 'routes' %}
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="card-title">Routage principal et secours</h2>
@@ -159,7 +203,9 @@
             </table>
         </div>
     </div>
+    {% endif %}
 
+    {% if section == 'matrices' %}
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h2 class="card-title">Matrices tarifaires</h2>
@@ -187,10 +233,8 @@
                                     </form>
                                 {% endif %}
                                 {% if matrix.status.value != 'archived' %}
-                                    <form method="post" action="{{ path('yoowii_admin_sourcing_matrix_archive', {id: matrix.id}) }}" onsubmit="return confirm('Archiver définitivement cette matrice ?');">
-                                        <input type="hidden" name="_token" value="{{ csrf_token('archive_matrix_' ~ matrix.id) }}">
-                                        <button class="btn btn-sm btn-outline-danger" type="submit">Archiver</button>
-                                    </form>
+                                    <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#archive-matrix-{{ matrix.id }}">Archiver</button>
+                                    <div class="modal modal-blur fade" id="archive-matrix-{{ matrix.id }}" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><form class="modal-content" method="post" action="{{ path('yoowii_admin_sourcing_matrix_archive', {id: matrix.id}) }}"><div class="modal-header"><h2 class="modal-title">Archiver cette matrice ?</h2><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body">Une matrice archivée ne pourra jamais être réactivée. Les snapshots de commandes restent inchangés.</div><div class="modal-footer"><input type="hidden" name="_token" value="{{ csrf_token('archive_matrix_' ~ matrix.id) }}"><button class="btn btn-link" type="button" data-bs-dismiss="modal">Annuler</button><button class="btn btn-danger" type="submit">Archiver définitivement</button></div></form></div></div>
                                 {% endif %}
                             </div>
                         </td>
@@ -202,4 +246,5 @@
             </table>
         </div>
     </div>
+    {% endif %}
 {% endblock %}

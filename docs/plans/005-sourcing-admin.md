@@ -80,3 +80,11 @@ Aucune migration n’est introduite par ce lot. Les tables proviennent des lots 
 - comparaison dynamique des délais et frais de livraison ;
 - écran de mapping entre les options Yoowii et les codes propres à chaque API ;
 - exposition des coûts au storefront.
+
+## Cockpit sourcing
+
+Le tableau de bord expose des sections URL-partageables (`overview`, `products`, `suppliers`, `mappings`, `routes`, `matrices`).
+La vue `products` est une lecture opérationnelle calculée à l'instant courant : elle agrège routes, mappings et matrices sans modifier leur état.
+Elle accepte les paramètres `q`, `supplier`, `health`, `inactive` et `page` et renvoie vers la fiche `/print-sourcing/products/{code}`.
+
+La fiche produit sépare les blocages actuels des recommandations et des changements planifiés. Une absence de mapping n'est bloquante que pour une route principale API ou hybride ; une absence de route de secours reste une recommandation.

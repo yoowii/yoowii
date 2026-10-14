@@ -23,4 +23,12 @@ final class SourcingAdminAccessTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(405);
     }
+
+    public function testProductCockpitRouteIsRegisteredAndProtected(): void
+    {
+        $client = self::createClient();
+        $client->request('GET', '/admin/print-sourcing/products/PRINT_FLYER');
+
+        self::assertResponseRedirects('/admin/login');
+    }
 }
