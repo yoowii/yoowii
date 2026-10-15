@@ -92,10 +92,26 @@ export default class extends Controller {
 
         const isReady = this.embedTarget.children.length > 0;
         this.element.classList.toggle('is-prescript-ready', isReady);
+        if (isReady) {
+            this.decorateSupplierDocument();
+        }
 
         if (isReady && this.hasStatusTarget) {
             this.statusTarget.classList.add('hidden');
         }
+    }
+
+    // Prescript replaces parts of its document while options change. Classes
+    // are deliberately additive: no provider element, id, name or handler is
+    // renamed or moved, so its legacy scripts keep their contract.
+    decorateSupplierDocument() {
+        this.embedTarget.classList.add('yoowii-prescript-document');
+        this.embedTarget.querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
+            row.classList.add('yoowii-prescript-field');
+        });
+        this.embedTarget.querySelectorAll('.tableau-prix, .tableaux.tableau-prix').forEach((table) => {
+            table.classList.add('yoowii-prescript-price-table');
+        });
     }
 
     syncConfiguration() {

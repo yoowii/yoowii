@@ -280,6 +280,104 @@
         outline-offset: 2px;
     }
 
+    /* Prescript retains ownership of its HTML and behaviours. These are only
+       scoped visual overrides for its stable public class names. */
+    .yoowii-prescript-document {
+        padding: 1rem;
+        color: var(--color-base-content);
+        background: var(--color-base-100);
+    }
+
+    .yoowii-prescript-document .yoowii-prescript-field,
+    .yoowii-prescript-document .web_ligne_variable_saisie {
+        margin: 0 0 1rem;
+        padding: 1rem;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-box);
+        background: var(--color-base-100);
+        box-shadow: 0 1px 2px rgb(30 27 58 / 0.04);
+    }
+
+    .yoowii-prescript-document .web_ligne_variable_saisie_intitule,
+    .yoowii-prescript-document .web_ligne_variable_saisie label:not(.infobulle_css) {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--color-base-content);
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .yoowii-prescript-document :is(select, textarea, input[type='text'], input[type='number']) {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 2.75rem;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-field);
+        color: var(--color-base-content);
+        background: var(--color-base-100);
+    }
+
+    .yoowii-prescript-document .yoowii-prescript-price-table,
+    .yoowii-prescript-document .tableaux.tableau-prix {
+        width: 100%;
+        min-width: 42rem;
+        margin: 1.25rem 0 0;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-box);
+        color: var(--color-base-content);
+        background: var(--color-base-100);
+    }
+
+    .yoowii-prescript-document .tableaux.tableau-prix :is(th, td) {
+        padding: 0.625rem 0.5rem;
+        border: 0;
+        border-bottom: 1px solid var(--color-base-300);
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .yoowii-prescript-document .tableaux.tableau-prix th {
+        color: var(--color-base-content);
+        background: var(--color-base-200);
+        font-size: 0.8125rem;
+        font-weight: 700;
+    }
+
+    .yoowii-prescript-document .tableaux.tableau-prix tr:last-child :is(th, td) {
+        border-bottom: 0;
+    }
+
+    .yoowii-prescript-document .tableaux.tableau-prix tr:is(.select-cellStandard, .select-cellExpress, .select-cellUrgence) td {
+        background: color-mix(in srgb, var(--color-primary) 8%, var(--color-base-100));
+    }
+
+    .yoowii-prescript-document .tableaux.tableau-prix input[type='radio'] {
+        width: 1.125rem;
+        height: 1.125rem;
+        accent-color: var(--color-primary);
+    }
+
+    .yoowii-prescript-document .infobulle_css_info,
+    .yoowii-prescript-document .infobulle_css_description,
+    .yoowii-prescript-document .infobulle_css_alerte {
+        max-width: min(24rem, calc(100vw - 3rem));
+    }
+
+    @media (max-width: 639px) {
+        .yoowii-prescript-document {
+            padding: 0.75rem;
+        }
+
+        .yoowii-prescript-document .yoowii-prescript-field,
+        .yoowii-prescript-document .web_ligne_variable_saisie {
+            padding: 0.875rem;
+        }
+    }
+
     .yoowii-prescript-quote:empty {
         display: none;
     }

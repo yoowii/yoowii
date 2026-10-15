@@ -48,6 +48,16 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('sequence !== this.quoteSequence', $controller);
     }
 
+    public function testVisualAdaptationOnlyAddsScopedClassesToSupplierMarkup(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('decorateSupplierDocument()', $controller);
+        self::assertStringContainsString("classList.add('yoowii-prescript-document')", $controller);
+        self::assertStringContainsString("classList.add('yoowii-prescript-field')", $controller);
+        self::assertStringNotContainsString('replaceWith(', $controller);
+    }
+
     private function controller(): string
     {
         $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/realisaprint-prescript-quote_controller.js');
