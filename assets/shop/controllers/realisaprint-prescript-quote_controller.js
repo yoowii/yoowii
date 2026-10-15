@@ -462,6 +462,13 @@ export default class extends Controller {
         this.errorTarget.classList.remove('hidden', 'd-none');
     }
 
+    clearError() {
+        if (!this.hasErrorTarget) return;
+
+        this.errorTarget.textContent = '';
+        this.errorTarget.classList.add('hidden', 'd-none');
+    }
+
     productPage() {
         return this.element.closest('[data-product-experience="print"]');
     }

@@ -75,6 +75,7 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString("querySelectorAll('[id^=\"BALISE_BLOC_\"]')", $controller);
         self::assertStringContainsString("querySelectorAll('[id^=\"VAR_\"]')", $controller);
         self::assertStringContainsString('calculateSupplierPrice(event)', $controller);
+        self::assertStringContainsString('clearError()', $controller);
         self::assertStringContainsString('waitForConfigurationCode()', $controller);
         self::assertStringContainsString('submitQuotedItem()', $controller);
     }
