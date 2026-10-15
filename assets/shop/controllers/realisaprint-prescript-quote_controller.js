@@ -148,7 +148,10 @@ export default class extends Controller {
             }
         }
 
-        this.embedTarget.querySelectorAll('[id^="VAR_"]').forEach((field) => {
+        // Option blocks are moved out of the supplier source before this
+        // point. Scope this lookup to the product page so technical VAR_*
+        // fields remain hidden after their containing block is relocated.
+        this.configurationScope().querySelectorAll('[id^="VAR_"]').forEach((field) => {
             field.classList.add('yoowii-prescript-technical-field');
             field.setAttribute('aria-hidden', 'true');
             field.tabIndex = -1;
@@ -487,9 +490,8 @@ export default class extends Controller {
 
     refreshPurchaseAction() {
         if (!this.hasAddToCartTarget) return;
-        const table = this.configurationScope().querySelector('#div_tableau_de_prix_NUMERO_EN_COURS');
-        const available = Boolean(table?.querySelector('input[name="optionsRadios"]'));
-        this.addToCartTarget.classList.toggle('hidden', !available);
+        const selected = this.selectedPriceOption();
+        this.addToCartTarget.classList.toggle('hidden', !selected);
     }
 
     waitForConfigurationCode() {

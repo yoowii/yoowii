@@ -74,10 +74,22 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString("querySelector('.contenu_bloc_image_tableau')", $controller);
         self::assertStringContainsString("querySelectorAll('[id^=\"BALISE_BLOC_\"]')", $controller);
         self::assertStringContainsString("querySelectorAll('[id^=\"VAR_\"]')", $controller);
+        self::assertStringContainsString("this.configurationScope().querySelectorAll('[id^=\"VAR_\"]')", $controller);
+        self::assertStringContainsString('gallerySlot.append(gallery)', $controller);
+        self::assertStringContainsString('this.optionsTarget.append(block)', $controller);
+        self::assertStringNotContainsString('cloneNode(', $controller);
         self::assertStringContainsString('calculateSupplierPrice(event)', $controller);
         self::assertStringContainsString('clearError()', $controller);
         self::assertStringContainsString('waitForConfigurationCode()', $controller);
         self::assertStringContainsString('submitQuotedItem()', $controller);
+    }
+
+    public function testAddToCartIsOnlyRevealedAfterChoosingASupplierPrice(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('const selected = this.selectedPriceOption();', $controller);
+        self::assertStringContainsString("this.addToCartTarget.classList.toggle('hidden', !selected);", $controller);
     }
 
     private function controller(): string
