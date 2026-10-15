@@ -9,7 +9,8 @@
         {% include 'shop/product/show/print.html.twig' with {
             product,
             quote_token: app.request.query.get('print_quote'),
-            configuration_context: 'print-' ~ product.code
+            configuration_context: 'print-' ~ product.code,
+            configuration
         } only %}
     {% else %}
         {% hook 'sylius_shop.product.show' with { product, configuration } %}

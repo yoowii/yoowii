@@ -5,7 +5,7 @@ import { Controller } from '@hotwired/stimulus';
 // handlers. It never uses that observation to calculate a price automatically.
 export default class extends Controller {
     static values = { quoteUrl: String, csrfToken: String, summaryContext: String, summaryProfile: Object };
-    static targets = ['calculate', 'error', 'embed', 'loading', 'quoteResult', 'quoteStale', 'status'];
+    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
 
     connect() {
         this.configurationCode = null;
@@ -17,11 +17,13 @@ export default class extends Controller {
         this.timer = null;
         this.summaryTimer = null;
         this.onEmbedInput = this.scheduleSummary.bind(this);
+        this.onSupplierInput = this.onSupplierInput.bind(this);
         this.observeVisibility();
         if (this.hasEmbedTarget) {
             this.observeEmbed();
             this.syncEmbedState();
         }
+        this.configurationScope().addEventListener('change', this.onSupplierInput, true);
     }
 
     disconnect() {
@@ -30,10 +32,12 @@ export default class extends Controller {
         window.clearTimeout(this.summaryTimer);
         this.intersectionObserver?.disconnect();
         this.mutationObserver?.disconnect();
+        this.pricingObserver?.disconnect();
         if (this.hasEmbedTarget) {
             this.embedTarget.removeEventListener('change', this.onEmbedInput, true);
             this.embedTarget.removeEventListener('input', this.onEmbedInput, true);
         }
+        this.configurationScope().removeEventListener('change', this.onSupplierInput, true);
     }
 
     observeVisibility() {
@@ -67,6 +71,10 @@ export default class extends Controller {
         this.mutationObserver.observe(this.embedTarget, { childList: true, subtree: true });
         this.embedTarget.addEventListener('change', this.onEmbedInput, true);
         this.embedTarget.addEventListener('input', this.onEmbedInput, true);
+        if (this.hasPricingTarget) {
+            this.pricingObserver = new MutationObserver(() => this.refreshPurchaseAction());
+            this.pricingObserver.observe(this.pricingTarget, { childList: true, subtree: true });
+        }
     }
 
     startPolling() {
@@ -95,6 +103,7 @@ export default class extends Controller {
         this.element.classList.toggle('is-prescript-ready', isReady);
         if (isReady) {
             this.decorateSupplierDocument();
+            this.assembleSupplierDocument();
         }
 
         if (isReady && this.hasStatusTarget) {
@@ -115,12 +124,71 @@ export default class extends Controller {
         });
     }
 
+    assembleSupplierDocument() {
+        const page = this.productPage();
+        const gallery = this.embedTarget.querySelector('.contenu_bloc_image_tableau');
+        const gallerySlot = page?.querySelector('[data-prescript-gallery-slot]');
+        if (gallery && gallerySlot && gallery.parentElement !== gallerySlot) {
+            gallery.classList.add('yoowii-prescript-gallery');
+            gallerySlot.append(gallery);
+            page.querySelector('[data-prescript-gallery-fallback]')?.classList.add('hidden');
+        }
+
+        if (this.hasOptionsTarget) {
+            [...this.embedTarget.querySelectorAll('[id^="BALISE_BLOC_"]')].forEach((block) => {
+                block.classList.add('yoowii-prescript-option-block');
+                this.optionsTarget.append(block);
+            });
+        }
+        if (this.hasPricingTarget) {
+            const pricing = this.embedTarget.querySelector('#div_tableau_de_prix_NUMERO_EN_COURS');
+            if (pricing && pricing.parentElement !== this.pricingTarget) {
+                pricing.classList.add('yoowii-prescript-price-results');
+                this.pricingTarget.append(pricing);
+            }
+        }
+
+        this.embedTarget.querySelectorAll('[id^="VAR_"]').forEach((field) => {
+            field.classList.add('yoowii-prescript-technical-field');
+            field.setAttribute('aria-hidden', 'true');
+            field.tabIndex = -1;
+        });
+        const supplierPriceButton = this.embedTarget.querySelector('#get_price_table');
+        if (supplierPriceButton) {
+            supplierPriceButton.classList.add('yoowii-prescript-supplier-action');
+            supplierPriceButton.setAttribute('aria-hidden', 'true');
+            supplierPriceButton.tabIndex = -1;
+        }
+        this.embedTarget.querySelector('#save_configuration')?.classList.add('yoowii-prescript-supplier-action');
+        this.embedTarget.classList.add('is-prescript-assembled');
+        this.refreshPurchaseAction();
+        this.scheduleSummary();
+    }
+
+    onSupplierInput(event) {
+        const control = event.target;
+        if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement)) return;
+        if (control.matches('[id^="VAR_"], #code_liaison, input[name="optionsRadios"]')) {
+            this.scheduleSummary();
+            this.refreshPurchaseAction();
+
+            return;
+        }
+
+        this.configurationCode = null;
+        const code = this.codeField();
+        if (code) code.value = '';
+        this.markQuoteStale();
+        this.clearQuote();
+        this.scheduleSummary();
+    }
+
     syncConfiguration() {
         if (!this.visible) {
             return;
         }
 
-        const field = this.element.querySelector('#code_liaison');
+        const field = this.codeField();
         const code = field?.value?.trim();
         if (!code || code === this.configurationCode) {
             return;
@@ -152,7 +220,53 @@ export default class extends Controller {
         this.requestQuote(code, quantity);
     }
 
-    async requestQuote(code, quantity) {
+    calculateSupplierPrice(event) {
+        event?.preventDefault();
+        this.clearError();
+        if (typeof window.checkBeforeCalculate !== 'function') {
+            this.showError('Le calculateur Préscript est momentanément indisponible.');
+
+            return;
+        }
+        window.checkBeforeCalculate();
+        window.setTimeout(() => {
+            this.assembleSupplierDocument();
+            this.refreshPurchaseAction();
+        }, 0);
+    }
+
+    async prepareCart(event) {
+        event?.preventDefault();
+        const quantity = this.quantity();
+        if (!quantity || !this.selectedPriceOption()) {
+            this.showError('Choisissez une quantité et un délai dans le tableau des prix.');
+
+            return;
+        }
+        if (typeof window.saveConfiguration !== 'function') {
+            this.showError('L’enregistrement de la configuration Préscript est indisponible.');
+
+            return;
+        }
+
+        this.clearError();
+        this.setLoading(true);
+        const code = this.codeField();
+        if (code) code.value = '';
+        this.configurationCode = null;
+        try {
+            window.saveConfiguration();
+            const configurationCode = await this.waitForConfigurationCode();
+            this.configurationCode = configurationCode;
+            await this.requestQuote(configurationCode, quantity, true);
+        } catch (error) {
+            this.showError(error.message || 'La configuration ne peut pas être enregistrée pour le moment.');
+        } finally {
+            if (!this.pending) this.setLoading(false);
+        }
+    }
+
+    async requestQuote(code, quantity, addToCart = false) {
         if (this.pending) return;
         const abortController = new AbortController();
         this.quoteAbortController = abortController;
@@ -174,6 +288,9 @@ export default class extends Controller {
             this.quoteResultTarget.innerHTML = payload.quote_html;
             this.setQuoteStale(false);
             this.errorTarget.classList.add('hidden', 'd-none');
+            if (addToCart) {
+                this.submitQuotedItem();
+            }
         } catch (error) {
             if (error.name !== 'AbortError') {
                 this.showError(error.message || 'Le prix Préscript ne peut pas être calculé.');
@@ -188,7 +305,8 @@ export default class extends Controller {
     }
 
     quantity() {
-        const field = this.element.querySelector('[name="quantity" i], [name="quantite" i], #quantity, #quantite');
+        const scope = this.configurationScope();
+        const field = scope.querySelector('[name="quantity" i], [name="quantite" i], #quantity, #quantite');
         const value = field?.value?.trim();
         if (value && /^\d+$/.test(value) && Number(value) > 0) {
             return Number(value);
@@ -196,7 +314,7 @@ export default class extends Controller {
 
         // Prescript can render quantities as a price-table radio instead of a
         // named input. Its generated ids end with the selected quantity.
-        const selectedPrice = this.element.querySelector('input[name="optionsRadios"]:checked');
+        const selectedPrice = scope.querySelector('input[name="optionsRadios"]:checked');
         const match = selectedPrice?.id?.match(/_(\d+)$/);
 
         return match && Number(match[1]) > 0 ? Number(match[1]) : null;
@@ -219,7 +337,7 @@ export default class extends Controller {
 
         const steps = [];
         const seen = new Set();
-        this.embedTarget.querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
+        this.configurationScope().querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
             const control = this.customerControl(row);
             const label = this.labelFor(row, control);
             const value = this.valueFor(control);
@@ -260,13 +378,14 @@ export default class extends Controller {
     }
 
     profileControl(field) {
+        const scope = this.configurationScope();
         if (field.input_id) {
-            const control = this.embedTarget.querySelector(`#${CSS.escape(field.input_id)}`);
+            const control = scope.querySelector(`#${CSS.escape(field.input_id)}`);
             if (control) return control;
         }
         if (!field.input_name) return null;
 
-        const controls = [...this.embedTarget.querySelectorAll(`[name="${CSS.escape(field.input_name)}"]`)];
+        const controls = [...scope.querySelectorAll(`[name="${CSS.escape(field.input_name)}"]`)];
         return controls.find((control) => (control.type === 'radio' || control.type === 'checkbox') && control.checked)
             || controls.find((control) => control.type !== 'hidden')
             || null;
@@ -288,7 +407,7 @@ export default class extends Controller {
         const explicit = row.querySelector('.web_ligne_variable_saisie_intitule, label[for]');
         if (explicit?.textContent?.trim()) return explicit.textContent.trim();
         const labelledBy = control?.getAttribute('aria-labelledby');
-        const label = labelledBy ? this.embedTarget.querySelector(`#${CSS.escape(labelledBy)}`) : null;
+        const label = labelledBy ? this.configurationScope().querySelector(`#${CSS.escape(labelledBy)}`) : null;
 
         return label?.textContent?.trim() || '';
     }
@@ -300,7 +419,7 @@ export default class extends Controller {
         }
         if (control.type === 'radio' || control.type === 'checkbox') {
             if (!control.checked) return '';
-            const label = this.embedTarget.querySelector(`label[for="${CSS.escape(control.id)}"]`);
+            const label = this.configurationScope().querySelector(`label[for="${CSS.escape(control.id)}"]`);
             return label?.textContent?.trim() || control.value?.trim() || '';
         }
 
@@ -330,13 +449,62 @@ export default class extends Controller {
         if (this.hasLoadingTarget) {
             this.loadingTarget.classList.toggle('hidden', !loading);
         }
-        if (this.hasCalculateTarget) {
-            this.calculateTarget.toggleAttribute('disabled', loading);
+        if (this.hasSupplierCalculateTarget) {
+            this.supplierCalculateTarget.toggleAttribute('disabled', loading);
+        }
+        if (this.hasAddToCartTarget) {
+            this.addToCartTarget.toggleAttribute('disabled', loading);
         }
     }
 
     showError(message) {
         this.errorTarget.textContent = message;
         this.errorTarget.classList.remove('hidden', 'd-none');
+    }
+
+    productPage() {
+        return this.element.closest('[data-product-experience="print"]');
+    }
+
+    configurationScope() {
+        return this.productPage() || this.element;
+    }
+
+    codeField() {
+        return this.configurationScope().querySelector('#code_liaison');
+    }
+
+    selectedPriceOption() {
+        return this.configurationScope().querySelector('input[name="optionsRadios"]:checked');
+    }
+
+    refreshPurchaseAction() {
+        if (!this.hasAddToCartTarget) return;
+        const table = this.configurationScope().querySelector('#div_tableau_de_prix_NUMERO_EN_COURS');
+        const available = Boolean(table?.querySelector('input[name="optionsRadios"]'));
+        this.addToCartTarget.classList.toggle('hidden', !available);
+    }
+
+    waitForConfigurationCode() {
+        return new Promise((resolve, reject) => {
+            const deadline = Date.now() + 20000;
+            const timer = window.setInterval(() => {
+                const code = this.codeField()?.value?.trim();
+                if (code && /^\d+$/.test(code)) {
+                    window.clearInterval(timer);
+                    resolve(code);
+                } else if (Date.now() >= deadline) {
+                    window.clearInterval(timer);
+                    reject(new Error('L’enregistrement de la configuration Préscript a expiré.'));
+                }
+            }, 150);
+        });
+    }
+
+    submitQuotedItem() {
+        const form = this.quoteResultTarget.querySelector('form');
+        if (form instanceof HTMLFormElement) {
+            form.requestSubmit();
+        }
     }
 }

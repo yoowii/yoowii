@@ -23,9 +23,21 @@
             <span>Chargement du configurateur…</span>
         </div>
 
+        <div class="yoowii-prescript-options" data-realisaprint-prescript-quote-target="options"></div>
+
+        <div class="yoowii-prescript-pricing" data-realisaprint-prescript-quote-target="pricing"></div>
+
+        <button class="btn btn-primary btn-lg w-full sm:w-auto" type="button" data-action="realisaprint-prescript-quote#calculateSupplierPrice" data-realisaprint-prescript-quote-target="supplierCalculate">
+            {{ 'yoowii.storefront.calculate_price'|trans }}
+        </button>
+
+        <button class="btn btn-success btn-lg hidden w-full sm:w-auto" type="button" data-action="realisaprint-prescript-quote#prepareCart" data-realisaprint-prescript-quote-target="addToCart">
+            {{ 'yoowii.storefront.add_to_cart'|trans }}
+        </button>
+
         <div
             id="api_prescript_wrapper"
-            class="yoowii-prescript-embed"
+            class="yoowii-prescript-embed yoowii-prescript-source"
             data-prescript-product-code="{{ product.code }}"
             data-realisaprint-prescript-quote-target="embed"
         >
@@ -34,9 +46,6 @@
 
         <div class="alert alert-error hidden" role="alert" data-realisaprint-prescript-quote-target="error"></div>
 
-        <button class="btn btn-primary btn-lg w-full sm:w-auto" type="button" data-action="realisaprint-prescript-quote#calculate" data-realisaprint-prescript-quote-target="calculate">
-            {{ 'yoowii.storefront.calculate_price'|trans }}
-        </button>
         <p class="hidden text-sm font-medium text-warning" role="status" aria-live="polite" data-realisaprint-prescript-quote-target="quoteStale">
             Votre configuration a changé. Recalculez le prix avant d’ajouter le produit au panier.
         </p>

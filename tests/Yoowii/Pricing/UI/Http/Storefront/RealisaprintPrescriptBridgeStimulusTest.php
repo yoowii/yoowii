@@ -67,6 +67,18 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('quoteStale', $controller);
     }
 
+    public function testItPlacesSupplierMediaAndOptionsInTheYoowiiProductLayout(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString("querySelector('.contenu_bloc_image_tableau')", $controller);
+        self::assertStringContainsString("querySelectorAll('[id^=\"BALISE_BLOC_\"]')", $controller);
+        self::assertStringContainsString("querySelectorAll('[id^=\"VAR_\"]')", $controller);
+        self::assertStringContainsString('calculateSupplierPrice(event)', $controller);
+        self::assertStringContainsString('waitForConfigurationCode()', $controller);
+        self::assertStringContainsString('submitQuotedItem()', $controller);
+    }
+
     private function controller(): string
     {
         $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/realisaprint-prescript-quote_controller.js');

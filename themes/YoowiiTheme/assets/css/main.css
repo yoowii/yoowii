@@ -382,6 +382,114 @@
         display: none;
     }
 
+    .yoowii-prescript-source.is-prescript-assembled {
+        display: none;
+    }
+
+    .yoowii-prescript-technical-field,
+    .yoowii-prescript-supplier-action,
+    .yoowii-prescript-pricing #save_configuration {
+        display: none !important;
+    }
+
+    .yoowii-prescript-gallery-slot:not(:empty) {
+        overflow: hidden;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-box);
+        background: var(--color-base-100);
+    }
+
+    .yoowii-prescript-gallery-slot .contenu_bloc_image_tableau,
+    .yoowii-prescript-gallery-slot .zone_des_visuels_NUMERO_EN_COURS {
+        width: 100%;
+        min-width: 0;
+        margin: 0 !important;
+    }
+
+    .yoowii-prescript-gallery-slot img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .yoowii-prescript-options .yoowii-prescript-option-block {
+        margin-bottom: 1rem;
+    }
+
+    .yoowii-prescript-options .web_ligne_variable_saisie {
+        margin: 0 0 1rem;
+        padding: 1rem;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-box);
+        background: var(--color-base-100);
+        box-shadow: 0 1px 2px rgb(30 27 58 / 0.04);
+    }
+
+    .yoowii-prescript-options .web_ligne_variable_saisie_intitule,
+    .yoowii-prescript-options .web_ligne_variable_saisie label:not(.infobulle_css) {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--color-base-content);
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .yoowii-prescript-options :is(select, textarea, input[type='text'], input[type='number']) {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 2.75rem;
+        padding: 0.625rem 0.75rem;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-field);
+        color: var(--color-base-content);
+        background: var(--color-base-100);
+    }
+
+    .yoowii-prescript-pricing {
+        overflow-x: auto;
+    }
+
+    .yoowii-prescript-pricing .tableaux.tableau-prix {
+        width: 100%;
+        min-width: 42rem;
+        margin: 1.25rem 0 0;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+        border: 1px solid var(--color-base-300);
+        border-radius: var(--radius-box);
+        color: var(--color-base-content);
+        background: var(--color-base-100);
+    }
+
+    .yoowii-prescript-pricing .tableaux.tableau-prix :is(th, td) {
+        padding: 0.625rem 0.5rem;
+        border: 0;
+        border-bottom: 1px solid var(--color-base-300);
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .yoowii-prescript-pricing .tableaux.tableau-prix th {
+        color: var(--color-base-content);
+        background: var(--color-base-200);
+        font-size: 0.8125rem;
+        font-weight: 700;
+    }
+
+    .yoowii-prescript-pricing .tableaux.tableau-prix tr:last-child :is(th, td) {
+        border-bottom: 0;
+    }
+
+    .yoowii-prescript-pricing .tableaux.tableau-prix tr:is(.select-cellStandard, .select-cellExpress, .select-cellUrgence) td {
+        background: color-mix(in srgb, var(--color-primary) 8%, var(--color-base-100));
+    }
+
+    .yoowii-prescript-pricing .tableaux.tableau-prix input[type='radio'] {
+        width: 1.125rem;
+        height: 1.125rem;
+        accent-color: var(--color-primary);
+    }
+
     /* The configurator controller still toggles Bootstrap's legacy d-none
        class for the non-themed storefront. Keep that state functional here
        without coupling the Yoowii theme to Bootstrap. */
