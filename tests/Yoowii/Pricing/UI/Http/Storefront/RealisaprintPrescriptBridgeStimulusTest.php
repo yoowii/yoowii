@@ -58,6 +58,15 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringNotContainsString('replaceWith(', $controller);
     }
 
+    public function testPrescriptPriceIsMarkedStaleWhenTheSupplierConfigurationChanges(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('markQuoteStale()', $controller);
+        self::assertStringContainsString('setQuoteStale(false)', $controller);
+        self::assertStringContainsString('quoteStale', $controller);
+    }
+
     private function controller(): string
     {
         $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/realisaprint-prescript-quote_controller.js');

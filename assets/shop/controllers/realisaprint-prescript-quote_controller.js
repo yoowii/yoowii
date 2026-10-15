@@ -5,13 +5,14 @@ import { Controller } from '@hotwired/stimulus';
 // handlers. It never uses that observation to calculate a price automatically.
 export default class extends Controller {
     static values = { quoteUrl: String, csrfToken: String, summaryContext: String, summaryProfile: Object };
-    static targets = ['calculate', 'error', 'embed', 'loading', 'quoteResult', 'status'];
+    static targets = ['calculate', 'error', 'embed', 'loading', 'quoteResult', 'quoteStale', 'status'];
 
     connect() {
         this.configurationCode = null;
         this.pending = false;
         this.quoteAbortController = null;
         this.quoteSequence = 0;
+        this.quoteStale = false;
         this.visible = false;
         this.timer = null;
         this.summaryTimer = null;
@@ -129,6 +130,7 @@ export default class extends Controller {
         this.configurationCode = code;
         if (hasPreviousConfiguration) {
             this.quoteAbortController?.abort();
+            this.markQuoteStale();
             this.clearQuote();
         }
         this.scheduleSummary();
@@ -170,6 +172,7 @@ export default class extends Controller {
                 throw new Error(payload.message || 'Le prix Préscript ne peut pas être calculé.');
             }
             this.quoteResultTarget.innerHTML = payload.quote_html;
+            this.setQuoteStale(false);
             this.errorTarget.classList.add('hidden', 'd-none');
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -307,6 +310,19 @@ export default class extends Controller {
     clearQuote() {
         if (this.hasQuoteResultTarget) {
             this.quoteResultTarget.innerHTML = '<p class="text-base-content/70" data-empty-quote>Le prix final dépend de votre configuration.</p>';
+        }
+    }
+
+    markQuoteStale() {
+        if (this.quoteResultTarget.querySelector('[data-quote-token]')) {
+            this.setQuoteStale(true);
+        }
+    }
+
+    setQuoteStale(stale) {
+        this.quoteStale = stale;
+        if (this.hasQuoteStaleTarget) {
+            this.quoteStaleTarget.classList.toggle('hidden', !stale);
         }
     }
 

@@ -37,6 +37,9 @@
         <button class="btn btn-primary btn-lg w-full sm:w-auto" type="button" data-action="realisaprint-prescript-quote#calculate" data-realisaprint-prescript-quote-target="calculate">
             {{ 'yoowii.storefront.calculate_price'|trans }}
         </button>
+        <p class="hidden text-sm font-medium text-warning" role="status" aria-live="polite" data-realisaprint-prescript-quote-target="quoteStale">
+            Votre configuration a changé. Recalculez le prix avant d’ajouter le produit au panier.
+        </p>
 
         <div class="alert alert-info hidden" role="status" aria-live="polite" data-realisaprint-prescript-quote-target="loading">
             <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>

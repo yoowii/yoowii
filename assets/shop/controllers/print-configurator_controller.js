@@ -8,6 +8,7 @@ export default class extends Controller {
         'form',
         'loading',
         'quoteResult',
+        'quoteStale',
         'step',
         'option',
         'summaryItem',
@@ -35,6 +36,7 @@ export default class extends Controller {
         this.quoteRequested = false;
         this.hasUserInteracted = false;
         this.providerStateCache = new Map();
+        this.quoteStale = false;
         this.providerState = { visibility: {}, availability: {}, current: {} };
         this.providerVisibility = {};
         this.onSummaryEdit = this.onSummaryEdit.bind(this);
@@ -91,6 +93,7 @@ export default class extends Controller {
         this.cancelPendingInputChange();
         this.cancelPendingRefresh();
         this.clearError();
+        this.markQuoteStale();
         this.clearQuote();
 
         this.inputTimer = window.setTimeout(() => {
@@ -108,6 +111,7 @@ export default class extends Controller {
         const stepIndex = this.stepTargets.indexOf(step);
 
         this.clearError();
+        this.markQuoteStale();
         this.clearQuote();
         this.applyProviderState(this.providerState, { source: 'client', changedStepIndex: stepIndex, applyAvailability: false });
         this.scheduleRefresh(refreshDelay);
@@ -621,6 +625,7 @@ export default class extends Controller {
 
             this.quoteResultTarget.innerHTML = payload.quote_html;
             this.hasQuoteValue = true;
+            this.setQuoteStale(false);
             this.replaceQuoteToken(payload.quote_token);
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -671,6 +676,19 @@ export default class extends Controller {
 
         this.hasQuoteValue = false;
         this.replaceQuoteToken(null);
+    }
+
+    markQuoteStale() {
+        if (this.hasQuoteValue || this.quoteResultTarget.querySelector('[data-quote-token]')) {
+            this.setQuoteStale(true);
+        }
+    }
+
+    setQuoteStale(stale) {
+        this.quoteStale = stale;
+        if (this.hasQuoteStaleTarget) {
+            this.quoteStaleTarget.classList.toggle('hidden', !stale);
+        }
     }
 
     replaceQuoteToken(token) {

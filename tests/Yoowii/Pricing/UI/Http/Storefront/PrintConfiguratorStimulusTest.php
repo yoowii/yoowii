@@ -76,6 +76,15 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringContainsString('this.publishSummary();', $controller);
     }
 
+    public function testAQuoteIsExplicitlyMarkedStaleAfterAConfigurationChange(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('markQuoteStale()', $controller);
+        self::assertStringContainsString('setQuoteStale(false)', $controller);
+        self::assertStringContainsString('quoteStale', $controller);
+    }
+
     public function testRefreshOnlyAutoSelectsWhenOneChoiceRemains(): void
     {
         $controller = $this->controller();
