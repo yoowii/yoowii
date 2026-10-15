@@ -4,7 +4,7 @@ import { Controller } from '@hotwired/stimulus';
 // reading a supplier DOM. Native, matrix and Prescript configurators can then
 // share the exact same summary UI.
 export default class extends Controller {
-    static targets = ['empty', 'list', 'progress'];
+    static targets = ['dialog', 'empty', 'list', 'progress'];
     static values = { context: String };
 
     connect() {
@@ -31,12 +31,28 @@ export default class extends Controller {
         }));
     }
 
+    open() {
+        if (this.hasDialogTarget && !this.dialogTarget.open) {
+            this.dialogTarget.showModal();
+        }
+    }
+
+    close() {
+        if (this.hasDialogTarget && this.dialogTarget.open) {
+            this.dialogTarget.close();
+        }
+    }
+
     render(steps) {
         const completed = steps.filter((step) => step.required && step.complete).length;
         const required = steps.filter((step) => step.required).length;
-        this.progressTarget.textContent = `${completed} choix sur ${required} effectués`;
-        this.listTarget.replaceChildren(...steps.map((step) => this.item(step)));
-        this.emptyTarget.classList.toggle('hidden', steps.length > 0);
+        this.progressTargets.forEach((target) => {
+            target.textContent = `${completed} choix sur ${required} effectués`;
+        });
+        this.listTargets.forEach((target) => {
+            target.replaceChildren(...steps.map((step) => this.item(step)));
+        });
+        this.emptyTargets.forEach((target) => target.classList.toggle('hidden', steps.length > 0));
     }
 
     item(step) {
@@ -60,6 +76,7 @@ export default class extends Controller {
         edit.href = `#yoowii-print-step-${step.code}`;
         edit.textContent = 'Modifier';
         edit.addEventListener('click', () => {
+            this.close();
             document.dispatchEvent(new CustomEvent('yoowii:configuration-edit', {
                 detail: { context: this.contextValue, code: step.code },
             }));

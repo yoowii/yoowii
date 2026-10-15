@@ -14,7 +14,8 @@ final class ConfigurationSummaryControllerTest extends TestCase
 
         self::assertStringContainsString("document.addEventListener('yoowii:configuration-update'", $controller);
         self::assertStringContainsString('context !== this.contextValue || !Array.isArray(steps)', $controller);
-        self::assertStringContainsString('this.listTarget.replaceChildren', $controller);
+        self::assertStringContainsString('this.listTargets.forEach', $controller);
+        self::assertStringContainsString('target.replaceChildren', $controller);
         self::assertStringNotContainsString('innerHTML', $controller);
     }
 
@@ -25,6 +26,14 @@ final class ConfigurationSummaryControllerTest extends TestCase
         self::assertStringContainsString("yoowii:configuration-edit", $controller);
         self::assertStringContainsString("yoowii:configuration-reset", $controller);
         self::assertStringContainsString('edit.href = `#yoowii-print-step-${step.code}`', $controller);
+    }
+
+    public function testItControlsTheMobileSummaryDialogWithoutKnowingTheConfigurator(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('this.dialogTarget.showModal()', $controller);
+        self::assertStringContainsString('this.dialogTarget.close()', $controller);
     }
 
     private function controller(): string
