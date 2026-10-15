@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Pricing\UI\Http\Storefront\Controller;
 
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
+use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -63,8 +64,7 @@ final class RealisaprintPrescriptConfigurationController extends AbstractControl
             if (!$mapping instanceof SupplierProductMappingVersion || 'realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
                 continue;
             }
-            $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
-            if (is_array($provider) && 'prescript' === ($provider['configurator'] ?? 'classic')) {
+            if (ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping())) {
                 return $mapping;
             }
         }

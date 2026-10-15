@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Pricing\Domain\Print\PrescriptSummaryProfile;
 use App\Yoowii\Sourcing\Application\RealisaprintLinkedProductDefinitionEditor;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
@@ -48,6 +49,10 @@ final class RealisaprintLinkedProductDefinitionController extends AbstractContro
         $data->configuratorMode = is_array($provider) && 'prescript' === ($provider['configurator'] ?? null) ? 'prescript' : 'classic';
         $data->options = json_encode($definition->options(), \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
         $data->pricingAxes = json_encode($definition->pricingAxes(), \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
+        $profile = is_array($provider) && is_array($provider['prescript_summary_profile'] ?? null)
+            ? $provider['prescript_summary_profile']
+            : ['version' => 'v1', 'fields' => []];
+        $data->prescriptSummaryProfile = json_encode($profile, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
         $prescriptAvailable = $catalogProduct->supportsPrescriptStock($stock);
         $form = $this->createForm(RealisaprintLinkedProductDefinitionType::class, $data, ['prescript_available' => $prescriptAvailable]);
         $form->handleRequest($request);
@@ -56,10 +61,15 @@ final class RealisaprintLinkedProductDefinitionController extends AbstractContro
             try {
                 $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
                 $axes = json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR);
+                $summaryProfile = json_decode($data->prescriptSummaryProfile, true, 512, \JSON_THROW_ON_ERROR);
                 if (!is_array($options) || array_is_list($options) || !is_array($axes) || !array_is_list($axes) || [] === $axes || array_filter($axes, static fn (mixed $axis): bool => !is_string($axis)) !== []) {
                     throw new \InvalidArgumentException('Les options doivent être un objet JSON et les axes de prix une liste non vide de codes.');
                 }
-                $newMapping = $editor->update($route, $catalogProduct, $definition, $data->configuratorMode, $options, $axes);
+                if (!is_array($summaryProfile) || array_is_list($summaryProfile)) {
+                    throw new \InvalidArgumentException('Le profil de résumé Préscript doit être un objet JSON.');
+                }
+                $profile = PrescriptSummaryProfile::fromArray($summaryProfile);
+                $newMapping = $editor->update($route, $catalogProduct, $definition, $data->configuratorMode, $options, $axes, $profile->toArray());
                 $this->addFlash('success', 'La définition liée a été mise à jour. Relance le contrôle de couverture et de prix avant publication.');
 
                 return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $newMapping->id()]);

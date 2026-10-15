@@ -5,5 +5,13 @@
 {% block title %}{{ product.name }} | {{ parent() }}{% endblock %}
 
 {% block content %}
-    {% hook 'sylius_shop.product.show' with { product, configuration } %}
+    {% if product.fulfillmentType.value == 'print' %}
+        {% include 'shop/product/show/print.html.twig' with {
+            product,
+            quote_token: app.request.query.get('print_quote'),
+            configuration_context: 'print-' ~ product.code
+        } only %}
+    {% else %}
+        {% hook 'sylius_shop.product.show' with { product, configuration } %}
+    {% endif %}
 {% endblock %}

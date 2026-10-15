@@ -16,7 +16,7 @@
     data-print-configurator-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
     data-empty-quote-label="{{ 'yoowii.storefront.price_after_configuration'|trans }}"
     data-print-configurator-pricing-axes-value="{{ pricing_axes|default([])|json_encode|e('html_attr') }}"
-    data-print-configurator-manual-quote-value="{{ manual_quote|default(false) ? 'true' : 'false' }}"
+    data-print-configurator-summary-context-value="{{ configuration_context|default('print-' ~ product.code) }}"
     data-print-configurator-debug-value="{{ app.environment == 'dev' ? 'true' : 'false' }}"
     {% if initial_provider_state is not null %}
         data-print-configurator-initial-provider-state-value="{{ initial_provider_state|json_encode|e('html_attr') }}"
@@ -75,6 +75,7 @@
                     {% set step_enabled = previous_steps_complete %}
 
                     <details
+                        id="yoowii-print-step-{{ field.vars.name }}"
                         class="yoowii-print-step{{ step_complete ? ' is-complete' : '' }}{{ not step_enabled ? ' is-disabled' : '' }}{{ not initially_visible ? ' d-none' : '' }}"
                         data-print-configurator-target="step option"
                         data-step-index="{{ step_index }}"
@@ -141,13 +142,32 @@
                         {{ 'yoowii.storefront.calculate_price'|trans }}
                     </button>
                 </noscript>
-                {% if manual_quote|default(false) %}<button class="btn btn-primary btn-lg mt-4" type="button" data-action="print-configurator#calculate">
+                <button class="btn btn-primary btn-lg mt-4" type="button" data-action="print-configurator#calculate">
                     {{ 'yoowii.storefront.calculate_price'|trans }}
-                </button>{% endif %}
+                </button>
                 {{ form_end(form, {render_rest: false}) }}
+
+                {% if embedded_product_page|default(false) %}
+                    <div
+                        class="yoowii-print-calculating alert alert-info d-none mt-4"
+                        role="status"
+                        aria-live="polite"
+                        data-print-configurator-target="loading"
+                    >
+                        <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+                        <span>{{ 'yoowii.storefront.calculating_price'|trans }}</span>
+                    </div>
+
+                    <div class="mt-4" data-print-configurator-target="quoteResult">
+                        {% include 'shop/product/show/_print_quote.html.twig' with {
+                            pricing_snapshot: stored_quote ? stored_quote.pricingSnapshot : null,
+                            quote_token: quote_token
+                        } only %}
+                    </div>
+                {% endif %}
             </div>
 
-            <div>
+            <div class="{{ embedded_product_page|default(false) ? 'hidden' : '' }}">
                 <aside class="card border border-base-300 bg-base-100 shadow-sm yoowii-print-summary">
                     <div class="card-body gap-4 p-5">
                         <div class="flex items-center justify-between gap-3">
@@ -195,22 +215,24 @@
                             {% endfor %}
                         </ul>
 
-                        <div
-                            class="yoowii-print-calculating alert alert-info d-none"
-                            role="status"
-                            aria-live="polite"
-                            data-print-configurator-target="loading"
-                        >
-                            <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
-                            <span>{{ 'yoowii.storefront.calculating_price'|trans }}</span>
-                        </div>
+                        {% if not embedded_product_page|default(false) %}
+                            <div
+                                class="yoowii-print-calculating alert alert-info d-none"
+                                role="status"
+                                aria-live="polite"
+                                data-print-configurator-target="loading"
+                            >
+                                <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+                                <span>{{ 'yoowii.storefront.calculating_price'|trans }}</span>
+                            </div>
 
-                        <div data-print-configurator-target="quoteResult">
-                            {% include 'shop/product/show/_print_quote.html.twig' with {
-                                pricing_snapshot: stored_quote ? stored_quote.pricingSnapshot : null,
-                                quote_token: quote_token
-                            } only %}
-                        </div>
+                            <div data-print-configurator-target="quoteResult">
+                                {% include 'shop/product/show/_print_quote.html.twig' with {
+                                    pricing_snapshot: stored_quote ? stored_quote.pricingSnapshot : null,
+                                    quote_token: quote_token
+                                } only %}
+                            </div>
+                        {% endif %}
                     </div>
                 </aside>
             </div>

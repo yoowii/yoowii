@@ -20,6 +20,8 @@ use App\Yoowii\Pricing\Application\RealisaprintPrescriptTemplateProvider;
 use App\Yoowii\Pricing\Application\RealisaprintVisibleConfigurationBuilder;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Application\StorefrontInitialConfiguratorValues;
+use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
+use App\Yoowii\Pricing\Domain\Print\PrescriptSummaryProfile;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
 use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
@@ -194,12 +196,15 @@ final class PrintProductConfiguratorController extends AbstractController
         LoggerInterface $logger,
         RealisaprintPrescriptTemplateProvider $prescriptTemplates,
         UriSigner $uriSigner,
+        bool $embeddedProductPage = false,
+        ?string $configurationContext = null,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
         $prescriptMapping = $this->prescriptMapping($definitionCode, $entityManager);
         if ($prescriptMapping instanceof SupplierProductMappingVersion) {
             $provider = $prescriptMapping->configurationMapping()['realisaprint'];
+            $summaryProfile = PrescriptSummaryProfile::tryFromConfigurationMapping($prescriptMapping->configurationMapping());
             $callbackUrl = $uriSigner->sign($this->generateUrl('yoowii_shop_realisaprint_prescript_save_configuration', [
                 'productCode' => $productCode,
                 '_locale' => $request->getLocale(),
@@ -211,12 +216,18 @@ final class PrintProductConfiguratorController extends AbstractController
                 return $this->render('shop/product/show/realisaprint_prescript_configurator.html.twig', [
                     'product' => $product,
                     'prescript_template' => '<div class="alert alert-warning" role="alert">Le configurateur fournisseur est momentanément indisponible.</div>',
+                    'embedded_product_page' => $embeddedProductPage,
+                    'configuration_context' => $configurationContext ?? 'print-' . $productCode,
+                    'prescript_summary_profile' => $summaryProfile?->toArray(),
                 ]);
             }
 
             return $this->render('shop/product/show/realisaprint_prescript_configurator.html.twig', [
                 'product' => $product,
                 'prescript_template' => $template,
+                'embedded_product_page' => $embeddedProductPage,
+                'configuration_context' => $configurationContext ?? 'print-' . $productCode,
+                'prescript_summary_profile' => $summaryProfile?->toArray(),
             ]);
         }
         $definition = $definitions->get($definitionCode);
@@ -256,6 +267,8 @@ final class PrintProductConfiguratorController extends AbstractController
             'initial_provider_state' => $initialState,
             'initial_provider_state_stale' => $initialSnapshot['stale'],
             'manual_quote' => $this->hasRealisaprintMapping($definitionCode, $entityManager),
+            'embedded_product_page' => $embeddedProductPage,
+            'configuration_context' => $configurationContext ?? 'print-' . $productCode,
         ]);
     }
 
@@ -396,7 +409,8 @@ final class PrintProductConfiguratorController extends AbstractController
                 continue;
             }
             $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
-            if (is_array($provider) && 'prescript' === ($provider['configurator'] ?? 'classic') &&
+            if (ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping()) &&
+                is_array($provider) &&
                 is_string($provider['product'] ?? null) && is_string($provider['stock'] ?? null)) {
                 return $mapping;
             }

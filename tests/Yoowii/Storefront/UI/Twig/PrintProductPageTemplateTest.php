@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Yoowii\Storefront\UI\Twig;
+
+use PHPUnit\Framework\TestCase;
+
+final class PrintProductPageTemplateTest extends TestCase
+{
+    public function testPrintProductsUseTheDedicatedPageInsteadOfTheDefaultProductHook(): void
+    {
+        $template = $this->themeTemplate('bundles/SyliusShopBundle/product/show.html.twig');
+
+        self::assertStringContainsString("product.fulfillmentType.value == 'print'", $template);
+        self::assertStringContainsString("'shop/product/show/print.html.twig'", $template);
+        self::assertStringContainsString("{% hook 'sylius_shop.product.show' with { product, configuration } %}", $template);
+    }
+
+    public function testDedicatedPrintPageKeepsTheGalleryAndUsesTheExistingConfiguratorComponent(): void
+    {
+        $template = $this->themeTemplate('shop/product/show/print.html.twig');
+
+        self::assertStringContainsString('data-product-experience="print"', $template);
+        self::assertStringContainsString("PrintProductConfiguratorController::component", $template);
+        self::assertStringContainsString('id="yoowii-print-configurator"', $template);
+        self::assertStringContainsString("sylius_shop.product.show.content.product_listing", $template);
+    }
+
+    private function themeTemplate(string $path): string
+    {
+        $template = file_get_contents(dirname(__DIR__, 5) . '/themes/YoowiiTheme/templates/' . $path);
+
+        self::assertIsString($template);
+
+        return $template;
+    }
+}

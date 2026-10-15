@@ -19,7 +19,7 @@ export default class extends Controller {
         pricingAxes: Array,
         initialProviderState: Object,
         initialProviderStateStale: Boolean,
-        manualQuote: Boolean,
+        summaryContext: String,
         debug: Boolean,
     };
 
@@ -32,12 +32,15 @@ export default class extends Controller {
         this.refreshAbortController = null;
         this.initialStateFrame = null;
         this.refreshPending = false;
-        this.lastAutoQuoteFingerprint = null;
         this.quoteRequested = false;
         this.hasUserInteracted = false;
         this.providerStateCache = new Map();
         this.providerState = { visibility: {}, availability: {}, current: {} };
         this.providerVisibility = {};
+        this.onSummaryEdit = this.onSummaryEdit.bind(this);
+        this.onSummaryReset = this.onSummaryReset.bind(this);
+        document.addEventListener('yoowii:configuration-edit', this.onSummaryEdit);
+        document.addEventListener('yoowii:configuration-reset', this.onSummaryReset);
         if (this.debugValue) {
             console.debug('[print-configurator] initial provider state', {
                 hasInitialProviderStateValue: this.hasInitialProviderStateValue,
@@ -77,6 +80,8 @@ export default class extends Controller {
         this.cancelPendingCalculation();
         this.cancelPendingInputChange();
         this.cancelPendingRefresh();
+        document.removeEventListener('yoowii:configuration-edit', this.onSummaryEdit);
+        document.removeEventListener('yoowii:configuration-reset', this.onSummaryReset);
     }
 
     input(event) {
@@ -135,6 +140,9 @@ export default class extends Controller {
         this.formTarget.querySelectorAll('select').forEach((select) => {
             select.selectedIndex = 0;
         });
+        this.formTarget.querySelectorAll('input[type="number"], input[type="text"], textarea').forEach((input) => {
+            input.value = '';
+        });
 
         this.clearError();
         this.clearQuote();
@@ -154,6 +162,29 @@ export default class extends Controller {
             candidate.open = candidate === step;
         });
         step.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    onSummaryEdit(event) {
+        const { context, code } = event.detail || {};
+        if (context !== this.summaryContextValue) {
+            return;
+        }
+
+        const step = this.optionTargets.find((candidate) => candidate.dataset.optionCode === code);
+        if (!step || step.classList.contains('is-disabled') || step.classList.contains('d-none')) {
+            return;
+        }
+
+        this.stepTargets.forEach((candidate) => {
+            candidate.open = candidate === step;
+        });
+        step.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    onSummaryReset(event) {
+        if (event.detail?.context === this.summaryContextValue) {
+            this.reset();
+        }
     }
 
     guardStep(event) {
@@ -221,15 +252,32 @@ export default class extends Controller {
             if (number) number.textContent = String(index + 1);
         });
 
-        if (!this.manualQuoteValue && shouldCalculate && previousStepsComplete) {
-            this.scheduleCalculation();
-        }
         const quoteButton = this.element.querySelector('[data-action="print-configurator#calculate"]');
         if (quoteButton) quoteButton.disabled = this.refreshPending || !this.isComplete();
+        this.publishSummary();
     }
 
     visibleSteps() {
         return this.stepTargets.filter((step) => this.isOptionVisible(step.dataset.optionCode) && !step.classList.contains('d-none'));
+    }
+
+    publishSummary() {
+        const steps = this.visibleSteps().map((step) => {
+            const label = step.querySelector('summary .font-semibold')?.textContent?.trim() || step.dataset.optionCode;
+            const values = this.selectedLabels(step);
+
+            return {
+                code: step.dataset.optionCode,
+                label,
+                value: values.join(', '),
+                complete: values.length > 0,
+                required: true,
+            };
+        });
+
+        document.dispatchEvent(new CustomEvent('yoowii:configuration-update', {
+            detail: { context: this.summaryContextValue, steps },
+        }));
     }
 
     summaryForStep(step) {
@@ -312,11 +360,6 @@ export default class extends Controller {
         });
     }
 
-    scheduleCalculation() {
-        this.cancelPendingCalculation();
-        this.calculationTimer = window.setTimeout(() => this.calculate(), 250);
-    }
-
     scheduleRefresh(delay = REFRESH_DEBOUNCE_MILLISECONDS) {
         this.cancelPendingRefresh();
         if (!this.hasRefreshUrlValue) {
@@ -343,7 +386,6 @@ export default class extends Controller {
             if (cachedState) {
                 this.applyProviderState(cachedState, { source: 'browser-cache' });
                 refreshSucceeded = true;
-                this.scheduleAutomaticQuote();
                 return;
             }
             const response = await fetch(this.refreshUrlValue, {
@@ -366,7 +408,6 @@ export default class extends Controller {
             // show_variables response. Do not immediately call the supplier
             // again just to echo that deterministic correction.
             refreshSucceeded = true;
-            this.scheduleAutomaticQuote();
         } catch (error) {
             if (sequence === this.refreshSequence && error.name !== 'AbortError') {
                 this.showError(error.message);
@@ -475,17 +516,6 @@ export default class extends Controller {
             || current.length > 0
             || messages.length > 0
             || visibility.some(([, visible]) => visible === false);
-    }
-
-    scheduleAutomaticQuote() {
-        if (!this.manualQuoteValue || !this.hasUserInteracted || !this.isComplete()) {
-            return;
-        }
-        const fingerprint = this.visibleConfigurationFingerprint();
-        if (fingerprint !== this.lastAutoQuoteFingerprint) {
-            this.lastAutoQuoteFingerprint = fingerprint;
-            this.scheduleCalculation();
-        }
     }
 
     applyProviderState(state, { source = 'refresh', changedStepIndex = -1, applyAvailability = true } = {}) {
@@ -602,15 +632,6 @@ export default class extends Controller {
                 this.setLoading(false);
             }
         }
-    }
-
-    visibleConfigurationFingerprint() {
-        const options = {};
-        for (const [name, value] of new FormData(this.formTarget).entries()) {
-            const match = name.match(/\[([^\[\]]+)\]$/);
-            if (match && match[1] !== '_token') options[match[1]] = value;
-        }
-        return JSON.stringify(options);
     }
 
     cancelPendingCalculation() {

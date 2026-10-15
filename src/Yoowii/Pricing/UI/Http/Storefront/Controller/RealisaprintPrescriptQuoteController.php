@@ -10,6 +10,7 @@ use App\Yoowii\Commerce\Domain\FulfillmentType;
 use App\Yoowii\Pricing\Application\Quote\PrintQuoteStore;
 use App\Yoowii\Pricing\Application\RealisaprintPrescriptQuoteCreator;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
+use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
@@ -63,8 +64,7 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
     private function mapping(string $productCode, EntityManagerInterface $entityManager): ?SupplierProductMappingVersion
     {
         foreach ($entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]) as $mapping) {
-            $provider = $mapping instanceof SupplierProductMappingVersion ? ($mapping->configurationMapping()['realisaprint'] ?? null) : null;
-            if ($mapping instanceof SupplierProductMappingVersion && 'realisaprint' === $mapping->supplierProduct()->supplier()->code() && is_array($provider) && 'prescript' === ($provider['configurator'] ?? 'classic')) {
+            if ($mapping instanceof SupplierProductMappingVersion && 'realisaprint' === $mapping->supplierProduct()->supplier()->code() && ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping())) {
                 return $mapping;
             }
         }

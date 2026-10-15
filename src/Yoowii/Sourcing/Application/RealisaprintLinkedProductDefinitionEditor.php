@@ -17,8 +17,8 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
     {
     }
 
-    /** @param array<string, array<string, mixed>> $options @param list<string> $pricingAxes */
-    public function update(SupplierRoute $route, RealisaprintCatalogProduct $catalog, PersistedPrintProductDefinition $definition, string $configuratorMode, array $options, array $pricingAxes): SupplierProductMappingVersion
+    /** @param array<string, array<string, mixed>> $options @param list<string> $pricingAxes @param array<string, mixed> $prescriptSummaryProfile */
+    public function update(SupplierRoute $route, RealisaprintCatalogProduct $catalog, PersistedPrintProductDefinition $definition, string $configuratorMode, array $options, array $pricingAxes, array $prescriptSummaryProfile): SupplierProductMappingVersion
     {
         $previous = $this->latestMapping($route);
         $this->assertDraft($definition, $previous);
@@ -36,6 +36,11 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
         $definition->replaceDraftDefinition($options, $pricingAxes);
         $provider['configurator'] = $configuratorMode;
         $provider['variables'] = $this->rules($options, $catalog);
+        if ('prescript' === $configuratorMode && [] !== ($prescriptSummaryProfile['fields'] ?? [])) {
+            $provider['prescript_summary_profile'] = $prescriptSummaryProfile;
+        } else {
+            unset($provider['prescript_summary_profile']);
+        }
         $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
 
         $mapping = new SupplierProductMappingVersion($route->supplierProduct(), $route->yoowiiProductCode(), $this->nextVersion($route), ['realisaprint' => $provider], new \DateTimeImmutable('now', new \DateTimeZone('UTC')), null, $definition);

@@ -55,9 +55,25 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringContainsString('visibility.some(([, visible]) => visible === false)', $controller);
     }
 
-    public function testInitialRefreshNeverCalculatesAPrice(): void
+    public function testThePriceIsOnlyCalculatedAfterAnExplicitCustomerAction(): void
     {
-        self::assertStringContainsString('this.manualQuoteValue && this.hasUserInteracted && this.isComplete()', $this->controller());
+        $controller = $this->controller();
+
+        self::assertStringContainsString('if (this.isComplete()) {', $controller);
+        self::assertStringContainsString('this.calculate();', $controller);
+        self::assertStringNotContainsString('scheduleAutomaticQuote', $controller);
+        self::assertStringNotContainsString('scheduleCalculation', $controller);
+    }
+
+    public function testItPublishesTheSameSummaryContractAsOtherConfiguratorDrivers(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('summaryContext: String', $controller);
+        self::assertStringContainsString("yoowii:configuration-update", $controller);
+        self::assertStringContainsString("yoowii:configuration-edit", $controller);
+        self::assertStringContainsString("yoowii:configuration-reset", $controller);
+        self::assertStringContainsString('this.publishSummary();', $controller);
     }
 
     public function testRefreshOnlyAutoSelectsWhenOneChoiceRemains(): void

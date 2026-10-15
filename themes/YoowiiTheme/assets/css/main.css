@@ -491,6 +491,16 @@
         font-size: 0.9375rem;
     }
 
+    .yoowii-print-product-page .yoowii-print-summary-list li {
+        display: grid;
+        grid-template-columns: 1rem minmax(0, 1fr) minmax(0, 1fr) auto;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.7rem 0;
+        border-bottom: 1px solid var(--color-base-300);
+        font-size: 0.875rem;
+    }
+
     .yoowii-print-configurator .yoowii-print-summary-check {
         width: 1rem;
         height: 1rem;
@@ -498,7 +508,33 @@
         font-size: 0.62rem;
     }
 
+    .yoowii-print-product-page .yoowii-print-summary-check {
+        display: inline-flex;
+        width: 1rem;
+        height: 1rem;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--color-base-300);
+        border-radius: 9999px;
+        color: transparent;
+        font-size: 0.62rem;
+        font-weight: 700;
+    }
+
+    .yoowii-print-product-page .yoowii-print-summary-list li.is-complete .yoowii-print-summary-check {
+        border-color: var(--color-primary);
+        color: var(--color-primary-content);
+        background: var(--color-primary);
+    }
+
     .yoowii-print-configurator .yoowii-print-summary-list strong {
+        overflow: hidden;
+        text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .yoowii-print-product-page .yoowii-print-summary-list strong {
         overflow: hidden;
         text-align: right;
         text-overflow: ellipsis;

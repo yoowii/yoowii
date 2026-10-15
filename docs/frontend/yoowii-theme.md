@@ -27,10 +27,36 @@ and supplier configurators.
 
 The Prescript response is injected into `#api_prescript_wrapper` as supplier
 HTML. The Yoowii shell only adds a surrounding layout, responsive containment
-and focus styling. Its Stimulus controller observes `#code_liaison` to request
-the Yoowii quote, but never renames supplier fields, replaces its markup or
-intercepts its events. This keeps the Prescript contract intact while avoiding
-polling when the configurator is outside the viewport.
+and focus styling. Its Stimulus controller observes `#code_liaison` only to
+know that the supplier configuration changed; it requests a Yoowii quote only
+after an explicit click on **Calculer mon prix**. It never renames supplier
+fields, replaces its markup or intercepts its events. This keeps the Prescript
+contract intact while avoiding polling when the configurator is outside the
+viewport.
+
+### Profil du résumé Préscript
+
+The generic summary is a compatibility fallback. For each Prescript product,
+the linked-product revision form provides **Profil du résumé Préscript**. The
+profile is stored in the immutable supplier mapping under
+`realisaprint.prescript_summary_profile` and is therefore versioned with the
+supplier mapping.
+
+```json
+{
+  "version": "v1",
+  "fields": [
+    {"code": "format", "label": "Format", "input_id": "VARTICLE_FORMAT", "required": true},
+    {"code": "quantity", "label": "Quantité", "input_name": "optionsRadios", "required": true}
+  ]
+}
+```
+
+Use `input_id` for a stable Prescript control, or `input_name` for a group of
+radios such as the quantity table. The profile intentionally does not accept
+CSS selectors, JavaScript or supplier HTML. If the profile is invalid or has
+no fields, the product remains usable and the generic summary is used; review
+the product before publishing a corrected revision.
 
 ## Matrices et API fournisseur
 

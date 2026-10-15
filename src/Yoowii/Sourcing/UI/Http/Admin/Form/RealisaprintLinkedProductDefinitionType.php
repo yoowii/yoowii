@@ -38,6 +38,12 @@ final class RealisaprintLinkedProductDefinitionType extends AbstractType
                 'label' => 'Axes de prix',
                 'attr' => ['rows' => 4, 'class' => 'form-control font-monospace sourcing-code-editor'],
                 'help' => 'JSON : liste non vide des codes d’options déterminant la cotation.',
+            ])
+            ->add('prescriptSummaryProfile', TextareaType::class, [
+                'label' => 'Profil du résumé Préscript (avancé)',
+                'required' => false,
+                'attr' => ['rows' => 12, 'class' => 'form-control font-monospace sourcing-code-editor'],
+                'help' => 'Uniquement pour Préscript. Version v1, champs avec code, label et input_id ou input_name. Aucun sélecteur CSS ou JavaScript fournisseur.',
             ]);
     }
 
