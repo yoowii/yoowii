@@ -95,7 +95,7 @@ final class RealisaprintPublicationController extends AbstractController
             if (!is_array($call) || !is_string($call['operation'] ?? null) || !is_array($call['request'] ?? null)) {
                 continue;
             }
-            $priceDiagnostics[] = $call + ['curl' => $client->diagnosticCurl($call['operation'], $call['request'])];
+            $priceDiagnostics[] = $call + ['curl' => $client->diagnosticCurl($call['operation'], $this->diagnosticParameters($call['request']))];
         }
 
         return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', [
@@ -109,7 +109,7 @@ final class RealisaprintPublicationController extends AbstractController
             'sample' => $sample,
             'test_fields' => $this->testFields($definition, $mapping),
             'initial_display_state' => $initialState,
-            'api_diagnostic_curl' => is_array($showVariablesRequest) ? $client->diagnosticCurl('show_variables', $showVariablesRequest) : null,
+            'api_diagnostic_curl' => is_array($showVariablesRequest) ? $client->diagnosticCurl('show_variables', $this->diagnosticParameters($showVariablesRequest)) : null,
             'price_api_diagnostics' => $priceDiagnostics,
         ]);
     }
@@ -130,14 +130,11 @@ final class RealisaprintPublicationController extends AbstractController
         return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
     }
 
-    /**  array<string, string|int|float> */
+    /** @return array<string, string|int|float> */
     private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request, SupplierProductMappingVersion $mapping): array
     {
         $sample = $this->withFixedValues($validator->sample($definition), $mapping);
         $submitted = $request->request->all('test_values');
-        if (!is_array($submitted)) {
-            throw new \InvalidArgumentException('Les valeurs d’essai sont requises.');
-        }
         $fields = $this->testFields($definition, $mapping);
         foreach ($fields as $code => $field) {
             if (!$field['editable']) {
@@ -151,10 +148,19 @@ final class RealisaprintPublicationController extends AbstractController
         return $this->withFixedValues($sample, $mapping);
     }
 
-    /** @param array<string, string|int|float> $values @return array<string, string|int|float> */
+    /**
+     * @param array<string, string|int|float> $values
+     *
+     * @return array<string, string|int|float>
+     */
     private function withFixedValues(array $values, SupplierProductMappingVersion $mapping): array
     {
-        $rules = $mapping->configurationMapping()['realisaprint']['variables'] ?? [];
+        $configuration = $mapping->configurationMapping();
+        $realisaprint = $configuration['realisaprint'] ?? [];
+        if (!is_array($realisaprint)) {
+            return $values;
+        }
+        $rules = $realisaprint['variables'] ?? [];
         if (!is_array($rules)) {
             return $values;
         }
@@ -162,7 +168,11 @@ final class RealisaprintPublicationController extends AbstractController
             if (!is_array($rule) || !is_string($rule['option'] ?? null) || !is_scalar($rule['fixed_value'] ?? null)) {
                 continue;
             }
-            foreach ((is_array($rule['values'] ?? null) ? $rule['values'] : []) as $canonical => $provider) {
+            $ruleValues = is_array($rule['values'] ?? null) ? $rule['values'] : [];
+            foreach ($ruleValues as $canonical => $provider) {
+                if (!is_scalar($provider)) {
+                    continue;
+                }
                 if ((string) $provider === (string) $rule['fixed_value']) {
                     $values[$rule['option']] = ctype_digit((string) $canonical) ? (int) $canonical : (string) $canonical;
 
@@ -176,34 +186,63 @@ final class RealisaprintPublicationController extends AbstractController
         return $values;
     }
 
-    /** @return array<string, array{label: string, type: string, choices: array<string, string>, editable: bool, required: bool, fixed_label: string|null}> */
+    /** @return array<string, array{label: string, control: 'select'|'textarea'|'input', input_type: 'text'|'number', choices: array<string, string>, editable: bool, fixed_label: string|null}> */
     private function testFields(PersistedPrintProductDefinition $definition, SupplierProductMappingVersion $mapping): array
     {
         $fixed = $this->withFixedValues([], $mapping);
         $fields = [];
         foreach ($definition->options() as $code => $option) {
-            if (!is_array($option)) {
-                continue;
-            }
             $choices = [];
-            foreach (($option['allowed_values'] ?? []) as $value) {
+            $allowedValues = $option['allowed_values'] ?? [];
+            $valueLabels = is_array($option['value_labels'] ?? null) ? $option['value_labels'] : [];
+            if (!is_array($allowedValues)) {
+                $allowedValues = [];
+            }
+            foreach ($allowedValues as $value) {
                 if (!is_string($value) && !is_int($value)) {
                     continue;
                 }
                 $key = (string) $value;
-                $choices[$key] = is_string($option['value_labels'][$key] ?? null) ? $option['value_labels'][$key] : $key;
+                $choices[$key] = is_string($valueLabels[$key] ?? null) ? $valueLabels[$key] : $key;
+            }
+            $type = is_string($option['type'] ?? null) ? $option['type'] : 'text';
+            $providerType = is_string($option['provider_type'] ?? null) ? $option['provider_type'] : null;
+            $control = 'input';
+            if ('textarea' === $providerType || 'textarea' === $type) {
+                $control = 'textarea';
+            } elseif ('select' === $providerType || [] !== $choices || in_array($type, ['code', 'checkbox'], true)) {
+                // A checkbox option has canonical values such as oui/non. A select
+                // keeps both values explicit, including the supplier default.
+                $control = 'select';
             }
             $fields[$code] = [
                 'label' => is_string($option['label'] ?? null) ? $option['label'] : $code,
-                'type' => is_string($option['type'] ?? null) ? $option['type'] : 'text',
+                'control' => $control,
+                'input_type' => in_array($type, ['integer', 'float'], true) ? 'number' : 'text',
                 'choices' => $choices,
                 'editable' => !array_key_exists($code, $fixed),
-                'required' => (bool) ($option['required'] ?? true),
                 'fixed_label' => array_key_exists($code, $fixed) ? (string) $fixed[$code] : null,
             ];
         }
 
         return $fields;
+    }
+
+    /**
+     * @param array<mixed, mixed> $parameters
+     *
+     * @return array<string, mixed>
+     */
+    private function diagnosticParameters(array $parameters): array
+    {
+        $namedParameters = [];
+        foreach ($parameters as $name => $value) {
+            if (is_string($name)) {
+                $namedParameters[$name] = $value;
+            }
+        }
+
+        return $namedParameters;
     }
 
     private function mapping(int $id, EntityManagerInterface $entityManager): SupplierProductMappingVersion

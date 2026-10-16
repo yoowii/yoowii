@@ -106,8 +106,16 @@
                             {% if not field.editable %}
                                 <input class="form-control" id="test_{{ code }}" value="{{ sample[code]|default(field.fixed_label) }}" disabled>
                                 <div class="form-hint">Valeur fixe Realisaprint.</div>
+                            {% elseif field.control == 'select' %}
+                                <select class="form-select" id="test_{{ code }}" name="test_values[{{ code }}]">
+                                    {% for value, label in field.choices %}
+                                        <option value="{{ value }}"{% if sample[code] is defined and value == sample[code] %} selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% elseif field.control == 'textarea' %}
+                                <textarea class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" rows="3">{{ sample[code] is defined ? sample[code] : '' }}</textarea>
                             {% else %}
-                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code]|default('') }}" type="text">
+                                <input class="form-control" id="test_{{ code }}" name="test_values[{{ code }}]" value="{{ sample[code] is defined ? sample[code] : '' }}" type="{{ field.input_type }}">
                             {% endif %}
                         </div>
                     {% endfor %}
