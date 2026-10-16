@@ -35,13 +35,19 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
 
         $definition->replaceDraftDefinition($options, $pricingAxes);
         $provider['configurator'] = $configuratorMode;
-        $provider['variables'] = $this->rules($options, $catalog);
+        if ('classic' === $configuratorMode) {
+            $provider['variables'] = $this->rules($options, $catalog);
+        } else {
+            unset($provider['variables']);
+        }
         if ('prescript' === $configuratorMode && [] !== ($prescriptSummaryProfile['fields'] ?? [])) {
             $provider['prescript_summary_profile'] = $prescriptSummaryProfile;
         } else {
             unset($provider['prescript_summary_profile']);
         }
-        $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
+        if ('classic' === $configuratorMode) {
+            $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
+        }
 
         $mapping = new SupplierProductMappingVersion($route->supplierProduct(), $route->yoowiiProductCode(), $this->nextVersion($route), ['realisaprint' => $provider], new \DateTimeImmutable('now', new \DateTimeZone('UTC')), null, $definition);
         $mapping->deactivate();

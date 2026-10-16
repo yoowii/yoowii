@@ -14,8 +14,12 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class RealisaprintPublicationService
 {
-    public function __construct(private EntityManagerInterface $entityManager, private RealisaprintMappingCompleteness $completeness)
-    {
+    public function __construct(
+        private EntityManagerInterface $entityManager,
+        private RealisaprintMappingCompleteness $completeness,
+        private RealisaprintPrescriptPublicationPolicy $prescriptPolicy,
+        private bool $prescriptQuickPublicationEnabled,
+    ) {
     }
 
     public function publish(SupplierProductMappingVersion $mapping, SupplierRoute $route, \DateTimeImmutable $now): void
@@ -57,21 +61,59 @@ final readonly class RealisaprintPublicationService
             $providerMapping[$key] = $value;
         }
         $this->completeness->assertComplete($definition, $catalog->configuration(), $providerMapping);
-        foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
-            'supplierProduct' => $route->supplierProduct(),
-            'yoowiiProductCode' => $mapping->yoowiiProductCode(),
-            'active' => true,
-        ]) as $previous) {
-            if ($previous !== $mapping) {
-                $previous->deactivate();
-            }
+        $this->activate($mapping, $route, $product, $definition, $now, true);
+    }
+
+    public function prescriptQuickPublicationEnabled(): bool
+    {
+        return $this->prescriptQuickPublicationEnabled;
+    }
+
+    /**
+     * Publishes an explicitly selected Prescript mapping without exercising the
+     * native API configurator validation path. Runtime Prescript quotations keep
+     * their own server-side get_price boundary.
+     */
+    public function publishPrescript(SupplierProductMappingVersion $mapping, SupplierRoute $route, \DateTimeImmutable $now): void
+    {
+        if (!$this->prescriptQuickPublicationEnabled) {
+            throw new \DomainException('La publication rapide Préscript est désactivée par le feature flag.');
         }
-        foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([
-            'productCode' => $mapping->yoowiiProductCode(),
-            'active' => true,
-        ]) as $previousDefinition) {
-            if ($previousDefinition !== $definition) {
-                $previousDefinition->deactivate();
+
+        /** @var Product|null $product */
+        $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $mapping->yoowiiProductCode()]);
+        $definition = $mapping->printProductDefinition();
+        if (!$product instanceof Product || !$definition instanceof PersistedPrintProductDefinition) {
+            throw new \DomainException('Le produit Sylius ou sa définition de configurateur est introuvable.');
+        }
+        $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
+        if (!$catalog instanceof RealisaprintCatalogProduct) {
+            throw new \DomainException('Publication Préscript refusée : produit fournisseur synchronisé introuvable.');
+        }
+        $this->prescriptPolicy->assertPublishable($mapping, $route, $catalog);
+        $this->assertNoActiveAlternative($mapping, $definition);
+        $this->activate($mapping, $route, $product, $definition, $now, false);
+    }
+
+    private function activate(SupplierProductMappingVersion $mapping, SupplierRoute $route, Product $product, PersistedPrintProductDefinition $definition, \DateTimeImmutable $now, bool $replaceActiveVersions): void
+    {
+        if ($replaceActiveVersions) {
+            foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
+                'supplierProduct' => $route->supplierProduct(),
+                'yoowiiProductCode' => $mapping->yoowiiProductCode(),
+                'active' => true,
+            ]) as $previous) {
+                if ($previous !== $mapping) {
+                    $previous->deactivate();
+                }
+            }
+            foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([
+                'productCode' => $mapping->yoowiiProductCode(),
+                'active' => true,
+            ]) as $previousDefinition) {
+                if ($previousDefinition !== $definition) {
+                    $previousDefinition->deactivate();
+                }
             }
         }
 
@@ -84,5 +126,25 @@ final readonly class RealisaprintPublicationService
             $variant->setEnabled(true);
         }
         $this->entityManager->flush();
+    }
+
+    private function assertNoActiveAlternative(SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition): void
+    {
+        foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
+            'yoowiiProductCode' => $mapping->yoowiiProductCode(),
+            'active' => true,
+        ]) as $activeMapping) {
+            if ($activeMapping !== $mapping) {
+                throw new \DomainException('Publication Préscript refusée : un autre mapping actif existe déjà pour ce produit.');
+            }
+        }
+        foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([
+            'productCode' => $mapping->yoowiiProductCode(),
+            'active' => true,
+        ]) as $activeDefinition) {
+            if ($activeDefinition !== $definition) {
+                throw new \DomainException('Publication Préscript refusée : une autre définition active existe déjà pour ce produit.');
+            }
+        }
     }
 }

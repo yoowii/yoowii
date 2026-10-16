@@ -23,7 +23,7 @@ class RealisaprintCatalogProduct
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $configuration = null;
 
-    /** @var array<string, string> */
+    /** @var array<int|string, string> */
     #[ORM\Column(name: 'prescript_stocks', type: Types::JSON)]
     private array $prescriptStocks = [];
 
@@ -96,7 +96,7 @@ class RealisaprintCatalogProduct
         return is_array($stocks) ? count($stocks) : 0;
     }
 
-    /** @return array<string, string> stock identifier => supplier label */
+    /** @return array<int|string, string> stock identifier => supplier label */
     public function prescriptStocks(): array
     {
         return $this->prescriptStocks;
@@ -121,7 +121,7 @@ class RealisaprintCatalogProduct
         $this->configurationSyncedAt = $at;
     }
 
-    /** @param array<string, string> $stocks */
+    /** @param array<int|string, string> $stocks */
     public function refreshPrescriptStocks(array $stocks): void
     {
         $this->prescriptStocks = $stocks;

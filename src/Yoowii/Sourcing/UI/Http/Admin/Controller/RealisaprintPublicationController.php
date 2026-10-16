@@ -130,6 +130,22 @@ final class RealisaprintPublicationController extends AbstractController
         return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
     }
 
+    #[Route('/realisaprint-publications/catalog/{catalogId}/mappings/{id}/publish-prescript', name: 'yoowii_admin_realisaprint_mapping_publish_prescript', requirements: ['catalogId' => '\\d+', 'id' => '\\d+'], methods: ['POST'])]
+    public function publishPrescript(int $catalogId, int $id, Request $request, EntityManagerInterface $entityManager, CsrfTokenManagerInterface $csrf, RealisaprintPublicationService $publication): Response
+    {
+        $mapping = $this->mapping($id, $entityManager);
+        $this->token($request, $csrf, 'publish_realisaprint_prescript_mapping_' . $id);
+
+        try {
+            $publication->publishPrescript($mapping, $this->route($mapping, $entityManager), new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+            $this->addFlash('success', 'Publication Préscript terminée : produit, configurateur, mapping et route sont activés.');
+        } catch (\DomainException|\InvalidArgumentException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('yoowii_admin_realisaprint_catalog_show', ['id' => $catalogId]);
+    }
+
     /** @return array<string, string|int|float> */
     private function testSample(PersistedPrintProductDefinition $definition, RealisaprintMappingValidator $validator, Request $request, SupplierProductMappingVersion $mapping): array
     {

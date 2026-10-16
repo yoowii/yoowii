@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Entity\Product\Product;
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Application\RealisaprintCatalogSynchronizer;
 use App\Yoowii\Sourcing\Application\RealisaprintDraftRepair;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingCompleteness;
-use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Sourcing\Application\RealisaprintPublicationService;
+use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
-use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
@@ -49,7 +50,7 @@ final class RealisaprintCatalogController extends AbstractController
     }
 
     #[Route('/realisaprint-catalog/{id}', name: 'yoowii_admin_realisaprint_catalog_show', requirements: ['id' => '\\d+'], methods: ['GET'])]
-    public function show(int $id, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness, RealisaprintDraftRepair $repair): Response
+    public function show(int $id, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness, RealisaprintDraftRepair $repair, RealisaprintPublicationService $publication): Response
     {
         $product = $entityManager->find(RealisaprintCatalogProduct::class, $id);
         if (!$product instanceof RealisaprintCatalogProduct) {
@@ -59,6 +60,7 @@ final class RealisaprintCatalogController extends AbstractController
         return $this->render('admin/sourcing/realisaprint_catalog_show.html.twig', [
             'product' => $product,
             'generated_products' => $this->generatedProducts($product, $entityManager, $completeness, $repair),
+            'prescript_quick_publication_enabled' => $publication->prescriptQuickPublicationEnabled(),
         ]);
     }
 
@@ -115,7 +117,9 @@ final class RealisaprintCatalogController extends AbstractController
             $configurationStatus = 'À vérifier';
             if ($mapping instanceof SupplierProductMappingVersion) {
                 $definition = $mapping->printProductDefinition();
-                if ($definition instanceof PersistedPrintProductDefinition) {
+                if ('prescript' === $configuratorMode) {
+                    $configurationStatus = $catalogProduct->supportsPrescriptStock($stock) ? 'Préscript prêt' : 'Intervention nécessaire';
+                } elseif ($definition instanceof PersistedPrintProductDefinition) {
                     try {
                         $completeness->assertComplete($definition, $configuration, $providerMapping);
                         $configurationStatus = 'Compatible';
@@ -132,6 +136,7 @@ final class RealisaprintCatalogController extends AbstractController
             }
             $items[$route->yoowiiProductCode()] = ['product' => $product, 'stock' => $stock . ' — ' . $stockLabel, 'configurator_mode' => $configuratorMode, 'mapping_status' => $mappingStatus, 'route_status' => $route->isActive() ? 'publiée' : 'brouillon', 'configuration_status' => $configurationStatus, 'mapping' => $mapping instanceof SupplierProductMappingVersion ? $mapping : null, 'route' => $route];
         }
+
         return array_values($items);
     }
 

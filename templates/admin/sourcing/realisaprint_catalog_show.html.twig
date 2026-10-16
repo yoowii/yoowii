@@ -47,11 +47,20 @@
                                 {% if not item.product.enabled %}
                                     <a class="btn btn-sm btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_draft_repair', {routeId: item.route.id}) }}">Prévisualiser / corriger le brouillon</a>
                                 {% endif %}
-                                <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: item.mapping.id}) }}">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ item.mapping.id) }}">
-                                    <button class="btn btn-sm btn-outline-primary">Vérifier la configuration et le prix</button>
-                                </form>
-                                {% if item.configuration_status != 'Compatible' %}
+                                {% if item.configurator_mode == 'prescript' %}
+                                    {% if prescript_quick_publication_enabled and not item.product.enabled %}
+                                        <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_publish_prescript', {catalogId: product.id, id: item.mapping.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('publish_realisaprint_prescript_mapping_' ~ item.mapping.id) }}">
+                                            <button class="btn btn-sm btn-success">Publier avec Préscript</button>
+                                        </form>
+                                    {% endif %}
+                                {% else %}
+                                    <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: item.mapping.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ item.mapping.id) }}">
+                                        <button class="btn btn-sm btn-outline-primary">Vérifier la configuration et le prix</button>
+                                    </form>
+                                {% endif %}
+                                {% if item.configurator_mode == 'classic' and item.configuration_status != 'Compatible' %}
                                     <a class="btn btn-sm btn-outline-warning" href="{{ path('yoowii_admin_realisaprint_mapping', {routeId: item.route.id}) }}">Corriger les correspondances</a>
                                 {% endif %}
                             {% endif %}

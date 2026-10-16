@@ -109,8 +109,12 @@ final readonly class RealisaprintDraftCreator
             }
             $variables[$option['provider_variable']] = $rule;
         }
-        $configurationMapping = ['realisaprint' => ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'configurator' => $configuratorMode, 'variables' => $variables]];
-        (new RealisaprintMappingCompleteness())->assertComplete($definition, $catalogProduct->configuration(), $configurationMapping['realisaprint']);
+        $providerMapping = ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'configurator' => $configuratorMode];
+        if ('classic' === $configuratorMode) {
+            $providerMapping['variables'] = $variables;
+            (new RealisaprintMappingCompleteness())->assertComplete($definition, $catalogProduct->configuration(), $providerMapping);
+        }
+        $configurationMapping = ['realisaprint' => $providerMapping];
         $mapping = new SupplierProductMappingVersion(
             $supplierProduct,
             $productCode,

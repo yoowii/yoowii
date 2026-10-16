@@ -176,6 +176,10 @@ services:
         arguments:
             $timeToLive: '%yoowii.realisaprint.initial_display_state_ttl%'
 
+    App\Yoowii\Sourcing\Application\RealisaprintPublicationService:
+        arguments:
+            $prescriptQuickPublicationEnabled: '%yoowii.realisaprint.prescript_quick_publication_enabled%'
+
     App\Yoowii\Pricing\Application\RealisaprintPrescriptTemplateProvider:
         arguments:
             $cache: '@cache.app'
