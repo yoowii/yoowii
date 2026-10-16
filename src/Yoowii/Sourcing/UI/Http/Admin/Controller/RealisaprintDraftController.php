@@ -55,7 +55,10 @@ final class RealisaprintDraftController extends AbstractController
             }
         }
 
-        return $this->render('admin/sourcing/realisaprint_catalog_draft.html.twig', ['catalog_product' => $catalogProduct, 'form' => $form]);
+        return $this->render('admin/sourcing/realisaprint_catalog_draft.html.twig', [
+            'catalog_product' => $catalogProduct,
+            'form' => $form,
+        ]);
     }
 
     private function suggestedCode(RealisaprintCatalogProduct $catalogProduct): string

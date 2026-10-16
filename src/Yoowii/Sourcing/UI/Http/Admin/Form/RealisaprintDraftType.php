@@ -19,10 +19,10 @@ final class RealisaprintDraftType extends AbstractType
         $builder
             ->add('productCode', TextType::class, [
                 'label' => 'Code produit Yoowii',
-                'help' => 'Doit commencer par PRINT_. Il devient aussi le code du configurateur.',
+                'help' => 'Doit commencer par PRINT_. Il devient aussi le code du configurateur, suivi du stock choisi séparé par « _ ». Les apostrophes sont retirées et les accents normalisés.',
                 'attr' => ['class' => 'form-control'],
             ])
-            ->add('name', TextType::class, ['label' => 'Nom commercial', 'attr' => ['class' => 'form-control']])
+            ->add('name', TextType::class, ['label' => 'Nom commercial', 'help' => 'Le libellé du stock sélectionné est repris tel quel.', 'attr' => ['class' => 'form-control']])
             ->add('stock', ChoiceType::class, [
                 'label' => 'Stock Realisaprint',
                 'choices' => $options['stock_choices'],
