@@ -16,6 +16,7 @@ export default class extends Controller {
         this.visible = false;
         this.timer = null;
         this.summaryTimer = null;
+        this.galleryResizeObserver = null;
         this.onEmbedInput = this.scheduleSummary.bind(this);
         this.onSupplierInput = this.onSupplierInput.bind(this);
         this.observeVisibility();
@@ -33,6 +34,7 @@ export default class extends Controller {
         this.intersectionObserver?.disconnect();
         this.mutationObserver?.disconnect();
         this.pricingObserver?.disconnect();
+        this.galleryResizeObserver?.disconnect();
         if (this.hasEmbedTarget) {
             this.embedTarget.removeEventListener('change', this.onEmbedInput, true);
             this.embedTarget.removeEventListener('input', this.onEmbedInput, true);
@@ -133,6 +135,7 @@ export default class extends Controller {
             gallerySlot.append(gallery);
             page.querySelector('[data-prescript-gallery-fallback]')?.classList.add('hidden');
         }
+        this.resizeSupplierGallery(gallerySlot);
 
         if (this.hasOptionsTarget) {
             [...this.embedTarget.querySelectorAll('[id^="BALISE_BLOC_"]')].forEach((block) => {
@@ -166,6 +169,28 @@ export default class extends Controller {
         this.embedTarget.classList.add('is-prescript-assembled');
         this.refreshPurchaseAction();
         this.scheduleSummary();
+    }
+
+    // GalleryView gives every inner element a dimension derived from the
+    // wrapper. Scaling that one wrapper keeps its active panel, filmstrip and
+    // navigation in sync while allowing the Yoowii column to use its full width.
+    resizeSupplierGallery(gallerySlot) {
+        const galleryWrap = gallerySlot?.querySelector('.gv_galleryWrap');
+        if (!galleryWrap) return;
+
+        const nativeWidth = Number.parseFloat(galleryWrap.dataset.yoowiiGalleryWidth || galleryWrap.style.width);
+        if (!Number.isFinite(nativeWidth) || nativeWidth <= 0) return;
+
+        galleryWrap.dataset.yoowiiGalleryWidth = String(nativeWidth);
+        const styles = window.getComputedStyle(gallerySlot);
+        const availableWidth = gallerySlot.clientWidth - Number.parseFloat(styles.paddingLeft) - Number.parseFloat(styles.paddingRight);
+        if (availableWidth <= 0) return;
+
+        galleryWrap.style.setProperty('--yoowii-gallery-scale', String(availableWidth / nativeWidth));
+        if (!('ResizeObserver' in window) || this.galleryResizeObserver) return;
+
+        this.galleryResizeObserver = new ResizeObserver(() => this.resizeSupplierGallery(gallerySlot));
+        this.galleryResizeObserver.observe(gallerySlot);
     }
 
     onSupplierInput(event) {

@@ -78,6 +78,9 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('gallerySlot.append(gallery)', $controller);
         self::assertStringContainsString('this.optionsTarget.append(block)', $controller);
         self::assertStringNotContainsString('cloneNode(', $controller);
+        self::assertStringContainsString('resizeSupplierGallery(gallerySlot)', $controller);
+        self::assertStringContainsString('new ResizeObserver', $controller);
+        self::assertStringContainsString("setProperty('--yoowii-gallery-scale'", $controller);
         self::assertStringContainsString('calculateSupplierPrice(event)', $controller);
         self::assertStringContainsString('clearError()', $controller);
         self::assertStringContainsString('waitForConfigurationCode()', $controller);

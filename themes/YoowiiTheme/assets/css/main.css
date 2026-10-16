@@ -397,6 +397,7 @@
         border: 1px solid var(--color-base-300);
         border-radius: var(--radius-box);
         background: var(--color-base-100);
+        padding: 0.5rem;
     }
 
     .yoowii-prescript-gallery-slot .contenu_bloc_image_tableau,
@@ -406,9 +407,27 @@
         margin: 0 !important;
     }
 
-    .yoowii-prescript-gallery-slot img {
+    /* GalleryView keeps a set of interdependent inline dimensions. Preserve
+       them so its panel, filmstrip and controls remain synchronized. */
+    .yoowii-prescript-gallery-slot {
+        display: flex;
+        width: 100%;
+        box-sizing: border-box;
+        justify-content: center;
+    }
+
+    .yoowii-prescript-gallery-slot .contenu_bloc_image_tableau {
+        display: flex;
+        justify-content: center;
+    }
+
+    .yoowii-prescript-gallery-slot .gv_galleryWrap {
+        flex: 0 0 auto;
         max-width: 100%;
-        height: auto;
+        border-radius: calc(var(--radius-box) - 0.25rem);
+        overflow: hidden;
+        transform-origin: top center;
+        zoom: var(--yoowii-gallery-scale, 1);
     }
 
     .yoowii-prescript-options .yoowii-prescript-option-block {
