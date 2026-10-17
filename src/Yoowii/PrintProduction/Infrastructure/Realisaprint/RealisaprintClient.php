@@ -72,24 +72,29 @@ final readonly class RealisaprintClient
             return ['simulation' => true, 'operation' => $operation, 'payload' => $this->redact($parameters)];
         }
 
-        $this->throttle->acquire($operation);
+        $lease = $this->throttle->acquire();
 
-        $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . '/' . rawurlencode($operation), [
-            'body' => ['shop_id' => $this->shopId, 'api_key' => $this->apiKey] + $parameters,
-            'timeout' => $this->idleTimeout,
-            'max_duration' => $this->maxDuration,
-        ]);
+        try {
+            $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . '/' . rawurlencode($operation), [
+                'body' => ['shop_id' => $this->shopId, 'api_key' => $this->apiKey] + $parameters,
+                'timeout' => $this->idleTimeout,
+                'max_duration' => $this->maxDuration,
+            ]);
 
-        $body = $response->getContent(false);
-        $decoded = json_decode($body, true);
+            $body = $response->getContent(false);
+            $decoded = json_decode($body, true);
 
-        if (!is_array($decoded)) {
-            return ['_http_status' => $response->getStatusCode(), '_malformed_response' => true];
+            if (!is_array($decoded)) {
+                return ['_http_status' => $response->getStatusCode(), '_malformed_response' => true];
+            }
+            /** @var array<string, mixed> $configuration */
+            $configuration = $decoded;
+            $configuration['_http_status'] = $response->getStatusCode();
+
+            return $configuration;
+        } finally {
+            $this->throttle->complete($lease);
         }
-        /** @var array<string, mixed> $decoded */
-        $decoded['_http_status'] = $response->getStatusCode();
-
-        return $decoded;
     }
 
     /**
@@ -104,18 +109,23 @@ final readonly class RealisaprintClient
             throw new \DomainException('Realisaprint is disabled.');
         }
 
-        $this->throttle->acquire($operation);
-        $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . '/' . rawurlencode($operation), [
-            'body' => ['shop_id' => $this->shopId, 'api_key' => $this->apiKey] + $parameters,
-            'timeout' => $this->idleTimeout,
-            'max_duration' => $this->maxDuration,
-        ]);
-        $content = $response->getContent(false);
-        if ($response->getStatusCode() >= 400 || '' === trim($content)) {
-            throw new \RuntimeException(sprintf('Realisaprint did not return a Prescript template (HTTP %d).', $response->getStatusCode()));
-        }
+        $lease = $this->throttle->acquire();
 
-        return $content;
+        try {
+            $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . '/' . rawurlencode($operation), [
+                'body' => ['shop_id' => $this->shopId, 'api_key' => $this->apiKey] + $parameters,
+                'timeout' => $this->idleTimeout,
+                'max_duration' => $this->maxDuration,
+            ]);
+            $content = $response->getContent(false);
+            if ($response->getStatusCode() >= 400 || '' === trim($content)) {
+                throw new \RuntimeException(sprintf('Realisaprint did not return a Prescript template (HTTP %d).', $response->getStatusCode()));
+            }
+
+            return $content;
+        } finally {
+            $this->throttle->complete($lease);
+        }
     }
 
     /**

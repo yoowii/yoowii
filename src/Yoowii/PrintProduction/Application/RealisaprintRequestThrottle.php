@@ -9,5 +9,13 @@ namespace App\Yoowii\PrintProduction\Application;
  */
 interface RealisaprintRequestThrottle
 {
-    public function acquire(string $operation): void;
+    /**
+     * Acquires the single, global Realisaprint API slot.
+     *
+     * The returned lease must be completed after the provider response has been
+     * consumed, so the cooldown starts after (not before) that response.
+     */
+    public function acquire(): string;
+
+    public function complete(string $lease): void;
 }

@@ -77,7 +77,27 @@ final readonly class RealisaprintCatalogSynchronizer
             throw new \DomainException('Realisaprint is disabled.');
         }
         $configuration = $this->client->post('configurations', ['product' => $product->providerProductId()]);
+        $status = $configuration['_http_status'] ?? 200;
+        if (array_key_exists('error', $configuration) || array_key_exists('_malformed_response', $configuration) || !is_int($status) || $status >= 400) {
+            throw new \DomainException($this->configurationError($configuration));
+        }
         $product->refreshConfiguration($configuration, $at);
         $this->entityManager->flush();
+    }
+
+    /** @param array<string, mixed> $configuration */
+    private function configurationError(array $configuration): string
+    {
+        $error = $configuration['error'] ?? null;
+        if (is_scalar($error) && '' !== trim((string) $error)) {
+            return 'Realisaprint a refusé la configuration : ' . $this->redact((string) $error);
+        }
+
+        return 'Realisaprint n’a pas retourné une configuration exploitable.';
+    }
+
+    private function redact(string $message): string
+    {
+        return preg_replace('/(?:api[_-]?key|password|authorization)\s*[:=]\s*\S+/i', '[redacted]', $message) ?? 'Erreur Realisaprint.';
     }
 }

@@ -6,20 +6,25 @@ namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Entity\Product\Product;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Sourcing\Application\Message\SynchronizeRealisaprintCatalogConfigurations;
 use App\Yoowii\Sourcing\Application\RealisaprintCatalogSynchronizer;
+use App\Yoowii\Sourcing\Application\RealisaprintConfigurationSyncRunFactory;
 use App\Yoowii\Sourcing\Application\RealisaprintDraftRepair;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingCompleteness;
 use App\Yoowii\Sourcing\Application\RealisaprintPublicationService;
 use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
+use App\Yoowii\Sourcing\Domain\Model\RealisaprintConfigurationSyncRun;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintMappingValidation;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
+use App\Yoowii\Sourcing\Domain\RealisaprintConfigurationSyncMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
@@ -31,7 +36,34 @@ final class RealisaprintCatalogController extends AbstractController
     {
         return $this->render('admin/sourcing/realisaprint_catalog.html.twig', [
             'products' => $entityManager->getRepository(RealisaprintCatalogProduct::class)->findBy([], ['archived' => 'ASC', 'name' => 'ASC']),
+            'latest_sync_run' => $entityManager->getRepository(RealisaprintConfigurationSyncRun::class)->findOneBy([], ['id' => 'DESC']),
         ]);
+    }
+
+    #[Route('/realisaprint-catalog/configurations/synchronize', name: 'yoowii_admin_realisaprint_catalog_configurations_synchronize', methods: ['POST'])]
+    public function synchronizeConfigurations(Request $request, CsrfTokenManagerInterface $csrf, RealisaprintConfigurationSyncRunFactory $runs, MessageBusInterface $bus): Response
+    {
+        $this->assertToken($request, $csrf, 'realisaprint_catalog_configurations_sync');
+        $mode = RealisaprintConfigurationSyncMode::tryFrom((string) $request->request->get('mode'));
+        if (null === $mode) {
+            $this->addFlash('error', 'Mode de synchronisation invalide.');
+
+            return $this->redirectToRoute('yoowii_admin_realisaprint_catalog');
+        }
+
+        try {
+            $run = $runs->create($mode);
+            $runId = $run->id();
+            if (null === $runId) {
+                throw new \LogicException('Le lot de synchronisation n’a pas été enregistré.');
+            }
+            $bus->dispatch(new SynchronizeRealisaprintCatalogConfigurations($runId));
+            $this->addFlash('success', 'Synchronisation des configurations mise en file d’attente.');
+        } catch (\Throwable $exception) {
+            $this->addFlash('error', 'Synchronisation des configurations impossible : ' . $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('yoowii_admin_realisaprint_catalog');
     }
 
     #[Route('/realisaprint-catalog/synchronize', name: 'yoowii_admin_realisaprint_catalog_synchronize', methods: ['POST'])]

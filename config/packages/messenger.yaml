@@ -13,6 +13,7 @@ framework:
             # Route your messages to the transports
             # 'App\Message\YourMessage': async
             'App\Yoowii\PrintProduction\Application\Message\PreflightPrintAsset': async
+            'App\Yoowii\Sourcing\Application\Message\SynchronizeRealisaprintCatalogConfigurations': async
 
 # when@test:
 #    framework:

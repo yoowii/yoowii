@@ -7,6 +7,8 @@ namespace App\Tests\Yoowii\PrintProduction\Infrastructure\Realisaprint;
 use App\Yoowii\PrintProduction\Application\RealisaprintRequestThrottle;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class RealisaprintClientTest extends TestCase
@@ -69,5 +71,26 @@ final class RealisaprintClientTest extends TestCase
             10,
             9,
         );
+    }
+
+    public function testItCompletesTheGlobalLeaseAfterTheResponseWasRead(): void
+    {
+        $events = [];
+        $throttle = $this->createMock(RealisaprintRequestThrottle::class);
+        $throttle->expects(self::once())->method('acquire')->willReturnCallback(static function () use (&$events): string {
+            $events[] = 'acquire';
+
+            return 'lease';
+        });
+        $throttle->expects(self::once())->method('complete')->with('lease')->willReturnCallback(static function () use (&$events): void { $events[] = 'complete'; });
+        $http = new MockHttpClient(static function () use (&$events): MockResponse {
+            $events[] = 'request';
+
+            return new MockResponse('{"stocks":[]}');
+        });
+        $client = new RealisaprintClient($http, $throttle, 'shop', 'key', true, 'https://api.example.test', 10, 30);
+
+        self::assertSame([], $client->post('configurations', ['product' => '42'])['stocks']);
+        self::assertSame(['acquire', 'request', 'complete'], $events);
     }
 }

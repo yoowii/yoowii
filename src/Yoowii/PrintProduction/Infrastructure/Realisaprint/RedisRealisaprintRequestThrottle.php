@@ -9,13 +9,17 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 
 /**
- * Globally spaces calls to one Realisaprint endpoint across all PHP workers.
+ * Globally serializes every Realisaprint API call across all PHP workers.
  */
 final class RedisRealisaprintRequestThrottle implements RealisaprintRequestThrottle
 {
     private const int MINIMUM_INTERVAL_MILLISECONDS = 15_000;
+
     private const int MAXIMUM_WAIT_MILLISECONDS = 90_000;
+
     private const int MAXIMUM_SLEEP_MILLISECONDS = 1_000;
+
+    private const int IN_FLIGHT_TTL_MILLISECONDS = 120_000;
 
     private ?\Redis $connection = null;
 
@@ -23,32 +27,33 @@ final class RedisRealisaprintRequestThrottle implements RealisaprintRequestThrot
     {
     }
 
-    public function acquire(string $operation): void
+    public function acquire(): string
     {
-        $key = 'yoowii.realisaprint.rate_limit.' . hash('sha256', $operation);
+        $key = 'yoowii.realisaprint.rate_limit.global';
+        $lease = bin2hex(random_bytes(16));
         $deadline = (microtime(true) * 1000) + self::MAXIMUM_WAIT_MILLISECONDS;
         $waitedMilliseconds = 0;
 
         do {
-            $remaining = (int) $this->redis()->eval(<<<'LUA'
+            $remaining = $this->redis()->eval(<<<'LUA'
                 local ttl = redis.call('pttl', KEYS[1])
                 if ttl <= 0 then
-                    redis.call('psetex', KEYS[1], ARGV[1], 'reserved')
+                    redis.call('psetex', KEYS[1], ARGV[1], ARGV[2])
 
                     return 0
                 end
 
                 return ttl
-                LUA, [$key, (string) self::MINIMUM_INTERVAL_MILLISECONDS], 1);
+                LUA, [$key, (string) self::IN_FLIGHT_TTL_MILLISECONDS, $lease], 1);
+            $remaining = is_int($remaining) ? $remaining : 1_000;
             if (0 === $remaining) {
                 if (0 < $waitedMilliseconds) {
                     $this->logger->info('Realisaprint request waited for a rate-limit slot.', [
-                        'operation' => $operation,
                         'waited_milliseconds' => $waitedMilliseconds,
                     ]);
                 }
 
-                return;
+                return $lease;
             }
 
             $sleepMilliseconds = min($remaining, self::MAXIMUM_SLEEP_MILLISECONDS);
@@ -56,7 +61,16 @@ final class RedisRealisaprintRequestThrottle implements RealisaprintRequestThrot
             usleep($sleepMilliseconds * 1_000);
         } while ((microtime(true) * 1000) < $deadline);
 
-        throw new \RuntimeException(sprintf('Realisaprint rate limit: timed out while waiting for "%s".', $operation));
+        throw new \RuntimeException('Realisaprint rate limit: timed out while waiting for the global API slot.');
+    }
+
+    public function complete(string $lease): void
+    {
+        $this->redis()->eval(<<<'LUA'
+            if redis.call('get', KEYS[1]) == ARGV[2] then
+                redis.call('pexpire', KEYS[1], ARGV[1])
+            end
+            LUA, ['yoowii.realisaprint.rate_limit.global', (string) self::MINIMUM_INTERVAL_MILLISECONDS, $lease], 1);
     }
 
     private function redis(): \Redis
