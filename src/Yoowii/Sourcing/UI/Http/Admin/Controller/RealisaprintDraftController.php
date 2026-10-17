@@ -41,11 +41,8 @@ final class RealisaprintDraftController extends AbstractController
 
         if ($form->isSubmitted() && [] !== $stocks && $form->isValid()) {
             try {
-                $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
-                $axes = json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR);
-                if (!is_array($options) || !is_array($axes) || [] === $axes) {
-                    throw new \InvalidArgumentException('Les options doivent être un objet et les axes de prix une liste non vide.');
-                }
+                $options = $this->draftOptions(json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR));
+                $axes = $this->pricingAxes(json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR));
                 $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $data->configuratorMode, $options, $axes);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
@@ -87,7 +84,10 @@ final class RealisaprintDraftController extends AbstractController
             if ('text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false) && false === ($providerVariable['values'] ?? null) && !$fixedText) {
                 throw new \DomainException(sprintf('La variable %s est en lecture seule sans valeur par défaut exploitable.', $name));
             }
-            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $numericOption, (string) ($providerVariable['type'] ?? ''));
+            $providerType = is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : '';
+            $area = is_int($providerVariable['area'] ?? null) || is_string($providerVariable['area'] ?? null) ? (int) $providerVariable['area'] : 1;
+            $position = is_int($providerVariable['position'] ?? null) || is_string($providerVariable['position'] ?? null) ? (int) $providerVariable['position'] : 0;
+            $optionCode = $this->canonicalOptionCode($name, array_keys($options), $numericOption, $providerType);
             $valueLabels = $this->providerValues($providerVariable['values'] ?? null);
             $providerValueMap = $this->providerValueMap($providerVariable['values'] ?? null);
             $fixedCode = $fixedText ? $providerVariable['default'] : '';
@@ -108,11 +108,11 @@ final class RealisaprintDraftController extends AbstractController
                 'allowed_values' => $allowedValues,
                 'label' => $name,
                 'provider_variable' => is_string($providerVariable['id'] ?? null) ? $providerVariable['id'] : null,
-                'provider_type' => $fixedText ? 'select' : (is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : 'select'),
+                'provider_type' => $fixedText ? 'select' : ('' !== $providerType ? $providerType : 'select'),
                 'value_labels' => $valueLabels,
                 'provider_values' => $providerValueMap,
-                'area' => (int) ($providerVariable['area'] ?? 1),
-                'position' => (int) ($providerVariable['position'] ?? 0),
+                'area' => $area,
+                'position' => $position,
                 'readonly' => $fixedText ? false : (bool) ($providerVariable['readonly'] ?? false),
                 'default' => $fixedText ? $fixedCode : ('text' === ($providerVariable['type'] ?? null) && is_string($providerVariable['default'] ?? null)
                     ? $providerVariable['default'] : $this->canonicalDefault($providerVariable, $providerValueMap, $numericOption)),
@@ -163,7 +163,10 @@ final class RealisaprintDraftController extends AbstractController
         return is_array($stocks) ? $stocks : [];
     }
 
-    /** @param array<string, mixed> $configuration @return list<array<string, mixed>> */
+    /**
+     * @param array<string, mixed> $configuration
+     * @return list<array<string, mixed>>
+     */
     private function providerVariables(array $configuration): array
     {
         $variables = $configuration['variables'] ?? [];
@@ -237,7 +240,10 @@ final class RealisaprintDraftController extends AbstractController
         return $mapped;
     }
 
-    /** @param array<string, mixed> $providerVariable @param array<string, string> $providerValues */
+    /**
+     * @param array<string, mixed> $providerVariable
+     * @param array<string, string> $providerValues
+     */
     private function canonicalDefault(array $providerVariable, array $providerValues, bool $numericOption): string|int|float|null
     {
         $default = $providerVariable['default'] ?? null;
@@ -254,6 +260,49 @@ final class RealisaprintDraftController extends AbstractController
         }
 
         return null;
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function draftOptions(mixed $options): array
+    {
+        if (!is_array($options)) {
+            throw new \InvalidArgumentException('Les options doivent être un objet.');
+        }
+
+        $normalized = [];
+        foreach ($options as $code => $option) {
+            if (!is_string($code) || !is_array($option)) {
+                throw new \InvalidArgumentException('Les options doivent être un objet.');
+            }
+            $normalizedOption = [];
+            foreach ($option as $key => $value) {
+                if (!is_string($key)) {
+                    throw new \InvalidArgumentException('Les options doivent être un objet.');
+                }
+                $normalizedOption[$key] = $value;
+            }
+            $normalized[$code] = $normalizedOption;
+        }
+
+        return $normalized;
+    }
+
+    /** @return non-empty-list<string> */
+    private function pricingAxes(mixed $axes): array
+    {
+        if (!is_array($axes) || [] === $axes) {
+            throw new \InvalidArgumentException('Les axes de prix doivent être une liste non vide.');
+        }
+
+        $normalized = [];
+        foreach ($axes as $axis) {
+            if (!is_string($axis) || '' === trim($axis)) {
+                throw new \InvalidArgumentException('Les axes de prix doivent être une liste non vide.');
+            }
+            $normalized[] = $axis;
+        }
+
+        return $normalized;
     }
 
     private function slug(string $value): string
