@@ -1,6 +1,6 @@
 # Synchronisation des configurations catalogue RealiSAPrint
 
-Depuis le catalogue sourcing, « Synchroniser les configurations de produit » crée un lot asynchrone. Le worker traite les produits un par un, conserve la dernière réponse valide et attend au moins 15 secondes après chaque réponse API avant l’appel suivant. Le rapport est disponible sur la page catalogue.
+Depuis le catalogue sourcing, « Synchroniser les configurations de produit » crée un lot asynchrone. Le worker traite les produits un par un, conserve la dernière réponse valide et attend au moins 17 secondes après chaque réponse API avant l’appel suivant (15 secondes fournisseur + 2 secondes de marge). Le rapport est disponible sur la page catalogue.
 
 Le worker doit être actif en production :
 

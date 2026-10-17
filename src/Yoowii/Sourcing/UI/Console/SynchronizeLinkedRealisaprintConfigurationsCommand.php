@@ -32,7 +32,6 @@ final class SynchronizeLinkedRealisaprintConfigurationsCommand extends Command
         $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class);
         $seen = [];
         $failed = false;
-        $lastCallAt = null;
         foreach ($this->entityManager->getRepository(SupplierRoute::class)->findAll() as $route) {
             if (!$route instanceof SupplierRoute || 'realisaprint' !== $route->supplierProduct()->supplier()->code()) {
                 continue;
@@ -48,14 +47,6 @@ final class SynchronizeLinkedRealisaprintConfigurationsCommand extends Command
                 $failed = true;
                 continue;
             }
-            // The provider limits successive calls to the same operation to one per 15 seconds.
-            if (null !== $lastCallAt) {
-                $wait = 16 - (time() - $lastCallAt);
-                if ($wait > 0) {
-                    sleep($wait);
-                }
-            }
-            $lastCallAt = time();
             try {
                 $this->synchronizer->synchronizeConfiguration($product, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
                 $output->writeln(sprintf('<info>%s: configuration refreshed.</info>', $providerId));

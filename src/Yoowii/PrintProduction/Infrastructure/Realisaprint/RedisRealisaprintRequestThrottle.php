@@ -13,7 +13,8 @@ use Symfony\Component\Cache\Adapter\RedisAdapter;
  */
 final class RedisRealisaprintRequestThrottle implements RealisaprintRequestThrottle
 {
-    private const int MINIMUM_INTERVAL_MILLISECONDS = 15_000;
+    // Realisaprint documents 15 seconds; keep a two-second safety margin.
+    private const int MINIMUM_INTERVAL_MILLISECONDS = 17_000;
 
     private const int MAXIMUM_WAIT_MILLISECONDS = 90_000;
 
