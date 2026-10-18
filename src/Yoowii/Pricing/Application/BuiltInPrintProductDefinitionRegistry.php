@@ -46,6 +46,29 @@ final readonly class BuiltInPrintProductDefinitionRegistry
         return array_keys($this->all());
     }
 
+    /**
+     * Includes inactive persisted definitions so administration can finish a
+     * draft product before its supplier mapping is published. Storefront and
+     * quote resolution deliberately keep using active definitions only.
+     *
+     * @return list<string>
+     */
+    public function adminCodes(): array
+    {
+        $codes = array_fill_keys(array_keys($this->definitions), true);
+        if (null === $this->entityManager) {
+            return array_keys($codes);
+        }
+
+        foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([], ['id' => 'ASC']) as $persisted) {
+            if ($persisted instanceof PersistedPrintProductDefinition) {
+                $codes[$persisted->productCode()] = true;
+            }
+        }
+
+        return array_keys($codes);
+    }
+
     public function get(string $productCode): PrintProductDefinition
     {
         $definitions = $this->all();

@@ -13,6 +13,7 @@ use App\Yoowii\Sourcing\Application\RealisaprintDraftTaxonResolver;
 use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
+use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
 use App\Yoowii\Sourcing\Infrastructure\Translation\ProductTranslationDictionary;
 use Doctrine\ORM\EntityManagerInterface;
@@ -90,8 +91,11 @@ final class RealisaprintDraftCreatorTest extends TestCase
 
         $productRepository = $this->repository();
         $productRepository->method('findOneBy')->willReturn(null);
+        $sharedDefinition = null;
         $definitionRepository = $this->repository();
-        $definitionRepository->method('findOneBy')->willReturn(null);
+        $definitionRepository->method('findOneBy')->willReturnCallback(static function () use (&$sharedDefinition): ?PersistedPrintProductDefinition {
+            return $sharedDefinition;
+        });
         $supplierRepository = $this->repository();
         $supplierRepository->method('findOneBy')->willReturn($supplier);
         $supplierProductRepository = $this->repository();
@@ -107,7 +111,14 @@ final class RealisaprintDraftCreatorTest extends TestCase
         ];
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturnCallback(static fn (string $class): EntityRepository => $repositories[$class]);
-        $entityManager->expects(self::exactly(10))->method('persist');
+        $persisted = [];
+        $entityManager->expects(self::exactly(9))->method('persist')
+            ->willReturnCallback(static function (object $entity) use (&$persisted, &$sharedDefinition): void {
+                $persisted[] = $entity;
+                if ($entity instanceof PersistedPrintProductDefinition) {
+                    $sharedDefinition = $entity;
+                }
+            });
         $entityManager->expects(self::exactly(2))->method('flush');
 
         $taxonRepository = $this->repository();
@@ -132,7 +143,7 @@ final class RealisaprintDraftCreatorTest extends TestCase
 
         self::assertFalse($product->isEnabled());
         self::assertSame('PRINT_AGENDA_MENSUEL_CHOISI', $product->getCode());
-        self::assertSame('PRINT_AGENDA', $product->getPrintDefinitionCode());
+        self::assertSame('PRINT_REALISAPRINT_42', $product->getPrintDefinitionCode());
         self::assertSame('Agenda mensuel', $product->getTranslation('fr_FR')->getName());
         self::assertSame('Monthly Planner', $product->getTranslation('en_US')->getName());
         self::assertSame('agenda-mensuel', $product->getTranslation('fr_FR')->getSlug());
@@ -151,6 +162,13 @@ final class RealisaprintDraftCreatorTest extends TestCase
             self::assertSame(100, $pricing->getOriginalPrice());
             self::assertSame(100, $pricing->getMinimumPrice());
         }
+
+        $definition = array_values(array_filter($persisted, static fn (object $entity): bool => $entity instanceof PersistedPrintProductDefinition))[0] ?? null;
+        $mapping = array_values(array_filter($persisted, static fn (object $entity): bool => $entity instanceof SupplierProductMappingVersion))[0] ?? null;
+        self::assertInstanceOf(PersistedPrintProductDefinition::class, $definition);
+        self::assertInstanceOf(SupplierProductMappingVersion::class, $mapping);
+        self::assertSame($product->getPrintDefinitionCode(), $definition->productCode());
+        self::assertSame($definition, $mapping->printProductDefinition());
 
         $emptyTaxonRepository = $this->repository();
         $emptyTaxonRepository->method('findAll')->willReturn([]);
@@ -173,6 +191,8 @@ final class RealisaprintDraftCreatorTest extends TestCase
 
         self::assertNull($productWithoutTaxon->getMainTaxon());
         self::assertCount(0, $productWithoutTaxon->getTaxons());
+        self::assertSame('PRINT_REALISAPRINT_42', $productWithoutTaxon->getPrintDefinitionCode());
+        self::assertCount(1, array_filter($persisted, static fn (object $entity): bool => $entity instanceof PersistedPrintProductDefinition));
     }
 
     /** @param array<int|string, string> $stocks */

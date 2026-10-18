@@ -69,13 +69,19 @@ final readonly class RealisaprintDraftCreator
         if (null !== $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $productCode])) {
             throw new \DomainException('Un produit Sylius utilise déjà ce code.');
         }
-        if (null !== $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $productCode])) {
-            throw new \DomainException('Une définition de configurateur utilise déjà ce code.');
+        // A configurator belongs to the supplier catalogue product, not to one
+        // of its stocks. Several Yoowii products can therefore share it while
+        // retaining one stock-specific supplier mapping each.
+        $definitionCode = RealisaprintPrintDefinitionCode::fromProviderProductId($catalogProduct->providerProductId());
+        $candidateDefinition = new PersistedPrintProductDefinition($definitionCode, 'v1', $this->definitionOptions($options), $pricingAxes);
+        $candidateDefinition->replaceDraftDefinition($options, $pricingAxes);
+        /** @var PersistedPrintProductDefinition|null $definition */
+        $definition = $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $definitionCode], ['id' => 'DESC']);
+        if ($definition instanceof PersistedPrintProductDefinition) {
+            $this->assertCompatibleDefinition($definition, $candidateDefinition);
+        } else {
+            $definition = $candidateDefinition;
         }
-
-        // Build it now to reject malformed option definitions before anything is persisted.
-        $definition = new PersistedPrintProductDefinition($productCode, 'v1', $this->definitionOptions($options), $pricingAxes);
-        $definition->replaceDraftDefinition($options, $pricingAxes);
 
         /** @var PrintSupplier|null $supplier */
         $supplier = $this->entityManager->getRepository(PrintSupplier::class)->findOneBy(['code' => 'realisaprint']);
@@ -101,7 +107,10 @@ final readonly class RealisaprintDraftCreator
         $product->setCurrentLocale('fr_FR');
         $product->setEnabled(false);
         $product->setFulfillmentType(FulfillmentType::Print);
-        $product->setPrintDefinitionCode($this->defaultPrintDefinitionCode($catalogProduct));
+        // The product must resolve the exact definition created above.  A
+        // supplier catalogue label is not a stable identity: several Yoowii
+        // products may be derived from the same supplier product.
+        $product->setPrintDefinitionCode($definition->productCode());
 
         $variant = new ProductVariant();
         $variant->setCode($productCode . '_DEFAULT');
@@ -155,7 +164,9 @@ final readonly class RealisaprintDraftCreator
         );
         $mapping->deactivate();
 
-        $this->entityManager->persist($definition);
+        if ($definition === $candidateDefinition) {
+            $this->entityManager->persist($definition);
+        }
         $this->entityManager->persist($product);
         $this->entityManager->persist($route);
         $this->entityManager->persist($mapping);
@@ -185,6 +196,13 @@ final readonly class RealisaprintDraftCreator
     private function isValidPrintCode(string $productCode): bool
     {
         return 1 === preg_match('/^PRINT_[A-Z0-9_]+$/D', $productCode);
+    }
+
+    private function assertCompatibleDefinition(PersistedPrintProductDefinition $existing, PersistedPrintProductDefinition $candidate): void
+    {
+        if ($existing->options() !== $candidate->options() || $existing->pricingAxes() !== $candidate->pricingAxes()) {
+            throw new \DomainException('La définition de configurateur partagée ne correspond pas aux options sélectionnées. Créez une révision avant de modifier son schéma.');
+        }
     }
 
     /** @return array<string, array<string, mixed>> */
@@ -271,16 +289,6 @@ final readonly class RealisaprintDraftCreator
         }
 
         $this->translate($product, 'en_US', $translation);
-    }
-
-    private function defaultPrintDefinitionCode(RealisaprintCatalogProduct $catalogProduct): string
-    {
-        $suffix = strtoupper(str_replace('-', '_', (new AsciiSlugger())->slug($catalogProduct->name())->toString()));
-        if ('' === $suffix) {
-            throw new \DomainException('Le produit fournisseur ne permet pas de déterminer le calculateur print par défaut.');
-        }
-
-        return 'PRINT_' . $suffix;
     }
 
     private function initializeChannelPricings(Product $product, ProductVariant $variant): void

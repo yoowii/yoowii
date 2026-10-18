@@ -94,7 +94,7 @@ Le prix de vente et le sourcing restent séparés :
 - un futur `SourcingSnapshot` sur le travail d'impression conservera le fournisseur, la référence, la grille de coût et la règle de routage retenus ;
 - le coût d'achat ne sera jamais exposé par les endpoints du storefront.
 
-Les produits matriciels utilisent un moteur commun piloté par `PrintProductDefinition`. Chaque définition déclare ses options, leur type et l'ordre des axes tarifaires. Les flyers et cartes de visite partagent ainsi `PrintPricingMatrixCsvImporter` et `MatrixPrintPriceCalculator` sans dupliquer le calcul.
+Les produits matriciels utilisent un moteur commun piloté par `PrintProductDefinition`. Chaque définition déclare ses options, leur type et l'ordre des axes tarifaires. Pour Realisaprint, une définition est partagée par les produits Yoowii issus de la même référence catalogue ; chaque produit conserve son propre mapping fournisseur, notamment son stock. Une définition inactive reste visible dans l’administration pour terminer un brouillon, mais elle reste exclue du storefront et des devis. Les flyers et cartes de visite partagent ainsi `PrintPricingMatrixCsvImporter` et `MatrixPrintPriceCalculator` sans dupliquer le calcul.
 
 Le calculateur classe les routes fixes, charge les versions actives et effectives, puis passe à la route de secours si la combinaison n'existe pas chez le fournisseur principal. La politique commerciale est exprimée séparément en majoration, marge minimale et frais de traitement.
 

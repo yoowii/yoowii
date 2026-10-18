@@ -41,6 +41,7 @@ final readonly class RealisaprintPublicationService
         if (!$product instanceof Product || !$definition instanceof PersistedPrintProductDefinition) {
             throw new \DomainException('Le produit Sylius ou sa définition de configurateur est introuvable.');
         }
+        $this->assertCanonicalDefinition($product, $definition, $route);
         if ($route->supplierProduct() !== $mapping->supplierProduct() || $route->yoowiiProductCode() !== $mapping->yoowiiProductCode()) {
             throw new \DomainException('La route ne correspond pas au mapping à publier.');
         }
@@ -86,6 +87,7 @@ final readonly class RealisaprintPublicationService
         if (!$product instanceof Product || !$definition instanceof PersistedPrintProductDefinition) {
             throw new \DomainException('Le produit Sylius ou sa définition de configurateur est introuvable.');
         }
+        $this->assertCanonicalDefinition($product, $definition, $route);
         $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
         if (!$catalog instanceof RealisaprintCatalogProduct) {
             throw new \DomainException('Publication Préscript refusée : produit fournisseur synchronisé introuvable.');
@@ -145,6 +147,14 @@ final readonly class RealisaprintPublicationService
             if ($activeDefinition !== $definition) {
                 throw new \DomainException('Publication Préscript refusée : une autre définition active existe déjà pour ce produit.');
             }
+        }
+    }
+
+    private function assertCanonicalDefinition(Product $product, PersistedPrintProductDefinition $definition, SupplierRoute $route): void
+    {
+        $expected = RealisaprintPrintDefinitionCode::fromProviderProductId($route->supplierProduct()->code());
+        if ($definition->productCode() !== $expected || $product->getPrintDefinitionCode() !== $expected) {
+            throw new \DomainException('Publication refusée : les produits issus du catalogue Realisaprint doivent utiliser la définition de configurateur partagée de leur produit fournisseur.');
         }
     }
 }

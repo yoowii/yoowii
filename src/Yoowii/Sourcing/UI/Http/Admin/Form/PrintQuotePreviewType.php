@@ -53,7 +53,7 @@ final class PrintQuotePreviewType extends AbstractType
     {
         $choices = [];
 
-        foreach ($this->definitions->codes() as $code) {
+        foreach ($this->definitions->adminCodes() as $code) {
             $choices[$code] = $code;
         }
 

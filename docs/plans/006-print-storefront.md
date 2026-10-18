@@ -30,7 +30,7 @@ Il n’existe pas de second catalogue technique. Chaque produit print est un pro
 | Donnée | Rôle |
 |---|---|
 | `Product::fulfillmentType` | Active l’expérience print quand sa valeur est `print` |
-| `Product::printDefinitionCode` | Sélectionne le schéma de calculateur et ses matrices |
+| `Product::printDefinitionCode` | Sélectionne le schéma de calculateur ; les matrices et mappings fournisseur sont résolus séparément |
 | Prix de la variante par canal | Prix marketing affiché sous la forme « À partir de » |
 | `PricingSnapshot` | Prix réellement calculé et verrouillé dans le panier |
 

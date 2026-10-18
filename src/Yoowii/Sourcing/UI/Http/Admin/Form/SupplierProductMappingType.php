@@ -26,7 +26,7 @@ final class SupplierProductMappingType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('yoowiiProductCode', ChoiceType::class, ['label' => 'Produit Yoowii', 'choices' => array_combine($this->definitions->codes(), $this->definitions->codes()), 'attr' => ['class' => 'form-select']])
+            ->add('yoowiiProductCode', ChoiceType::class, ['label' => 'Produit Yoowii', 'choices' => array_combine($this->definitions->adminCodes(), $this->definitions->adminCodes()), 'attr' => ['class' => 'form-select']])
             ->add('supplierProduct', EntityType::class, [
                 'class' => SupplierProduct::class,
                 'label' => 'Référence fournisseur',

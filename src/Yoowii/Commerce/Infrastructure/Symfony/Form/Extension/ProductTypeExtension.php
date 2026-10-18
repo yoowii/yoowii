@@ -23,7 +23,7 @@ final class ProductTypeExtension extends AbstractTypeExtension
     {
         $printDefinitionChoices = [];
 
-        foreach ($this->printDefinitions->codes() as $code) {
+        foreach ($this->printDefinitions->adminCodes() as $code) {
             $printDefinitionChoices[$code] = $code;
         }
 
