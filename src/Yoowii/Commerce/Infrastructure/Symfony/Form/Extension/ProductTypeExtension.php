@@ -22,9 +22,8 @@ final class ProductTypeExtension extends AbstractTypeExtension
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $printDefinitionChoices = [];
-
-        foreach ($this->printDefinitions->adminCodes() as $code) {
-            $printDefinitionChoices[$code] = $code;
+        foreach ($this->printDefinitions->adminChoiceLabels() as $code => $label) {
+            $printDefinitionChoices[$label] = $code;
         }
 
         $builder->add('fulfillmentType', EnumType::class, [
@@ -35,7 +34,6 @@ final class ProductTypeExtension extends AbstractTypeExtension
 
         $builder->add('printDefinitionCode', ChoiceType::class, [
             'choices' => $printDefinitionChoices,
-            'choice_label' => static fn (string $code): string => sprintf('yoowii.print_definition.%s', $code),
             'label' => 'yoowii.form.product.print_definition',
             'help' => 'yoowii.form.product.print_definition_help',
             'placeholder' => 'yoowii.form.product.print_definition_placeholder',

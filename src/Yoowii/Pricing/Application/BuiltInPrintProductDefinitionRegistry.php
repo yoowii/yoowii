@@ -7,6 +7,8 @@ namespace App\Yoowii\Pricing\Application;
 use App\Yoowii\Pricing\Domain\Print\Definition\BuiltInPrintProductDefinitions;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition;
+use App\Yoowii\Sourcing\Application\RealisaprintPrintDefinitionCode;
+use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class BuiltInPrintProductDefinitionRegistry
@@ -67,6 +69,45 @@ final readonly class BuiltInPrintProductDefinitionRegistry
         }
 
         return array_keys($codes);
+    }
+
+    /**
+     * Choice labels for the Sylius product form. Legacy unlinked definitions
+     * are deliberately omitted: a product must select a built-in calculator or
+     * the canonical calculator of a Realisaprint catalogue product.
+     *
+     * @return array<string, string> code => label
+     */
+    public function adminChoiceLabels(): array
+    {
+        $labels = [
+            'PRINT_FLYER' => 'Flyers',
+            'PRINT_BUSINESS_CARD' => 'Cartes de visite',
+        ];
+        if (null === $this->entityManager) {
+            return $labels;
+        }
+
+        $available = [];
+        foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([], ['id' => 'ASC']) as $definition) {
+            if ($definition instanceof PersistedPrintProductDefinition) {
+                $available[$definition->productCode()] = true;
+            }
+        }
+
+        $catalogChoices = [];
+        foreach ($this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findAll() as $catalogProduct) {
+            if (!$catalogProduct instanceof RealisaprintCatalogProduct) {
+                continue;
+            }
+            $code = RealisaprintPrintDefinitionCode::fromProviderProductId($catalogProduct->providerProductId());
+            if (isset($available[$code])) {
+                $catalogChoices[$code] = sprintf('%s — Realisaprint', $catalogProduct->name());
+            }
+        }
+        asort($catalogChoices, \SORT_NATURAL | \SORT_FLAG_CASE);
+
+        return $labels + $catalogChoices;
     }
 
     public function get(string $productCode): PrintProductDefinition

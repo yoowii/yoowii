@@ -6,6 +6,7 @@ namespace App\Tests\Yoowii\Pricing\Application;
 
 use App\Yoowii\Pricing\Application\BuiltInPrintProductDefinitionRegistry;
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
@@ -53,5 +54,25 @@ final class BuiltInPrintProductDefinitionRegistryTest extends TestCase
 
         self::assertNotContains('PRINT_REALISAPRINT_356', $registry->codes());
         self::assertContains('PRINT_REALISAPRINT_356', $registry->adminCodes());
+    }
+
+    public function testItsProductChoiceLabelsOnlyExposeCanonicalRealisaprintDefinitions(): void
+    {
+        $canonical = new PersistedPrintProductDefinition('PRINT_REALISAPRINT_356', 'v1', ['format' => ['type' => 'code', 'allowed_values' => ['a4']]], ['format']);
+        $legacy = new PersistedPrintProductDefinition('PRINT_BADGE_BOUTON', 'v1', ['format' => ['type' => 'code', 'allowed_values' => ['a4']]], ['format']);
+        $definitionRepository = $this->createMock(EntityRepository::class);
+        $definitionRepository->method('findBy')->with([], ['id' => 'ASC'])->willReturn([$canonical, $legacy]);
+        $catalogRepository = $this->createMock(EntityRepository::class);
+        $catalogRepository->method('findAll')->willReturn([new RealisaprintCatalogProduct('356', 'Badge bouton', new \DateTimeImmutable())]);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturnCallback(static function (string $class) use ($definitionRepository, $catalogRepository): EntityRepository {
+            return PersistedPrintProductDefinition::class === $class ? $definitionRepository : $catalogRepository;
+        });
+
+        self::assertSame([
+            'PRINT_FLYER' => 'Flyers',
+            'PRINT_BUSINESS_CARD' => 'Cartes de visite',
+            'PRINT_REALISAPRINT_356' => 'Badge bouton — Realisaprint',
+        ], (new BuiltInPrintProductDefinitionRegistry($entityManager))->adminChoiceLabels());
     }
 }
