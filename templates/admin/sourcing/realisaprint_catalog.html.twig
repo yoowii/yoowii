@@ -1,16 +1,18 @@
 {% extends 'admin/sourcing/base.html.twig' %}
 {% set page_title = 'Catalogue Realisaprint' %}
 {% block sourcing_actions %}
-<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_sourcing_dashboard') }}">Retour Sourcing</a>
-<form method="post" action="{{ path('yoowii_admin_realisaprint_catalog_synchronize') }}"><input type="hidden" name="_token" value="{{ csrf_token('realisaprint_catalog_sync') }}"><button class="btn btn-primary">Synchroniser les produits</button></form>
-<button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-configuration-sync">Synchroniser les configurations de produit</button>
+<div class="d-flex flex-wrap align-items-center gap-2">
+    <a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_sourcing_dashboard') }}">Retour Sourcing</a>
+    <form method="post" action="{{ path('yoowii_admin_realisaprint_catalog_synchronize') }}"><input type="hidden" name="_token" value="{{ csrf_token('realisaprint_catalog_sync') }}"><button class="btn btn-primary">Synchroniser les produits</button></form>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#realisaprint-configuration-sync">Synchroniser les configurations de produit</button>
+</div>
 {% endblock %}
 {% block sourcing_content %}
 <div class="alert alert-info">Catalogue fournisseur en lecture seule. La synchronisation n’active ni produit Yoowii, ni route, ni mapping.</div>
 {% if latest_sync_run %}
     {% set sync_summary = latest_sync_run.summary %}
     <div class="card mb-3"><div class="card-body">
-        <div class="d-flex justify-content-between align-items-center"><h2 class="card-title mb-0">Dernière synchronisation des configurations</h2><span class="badge bg-{{ latest_sync_run.active ? 'primary' : (sync_summary.failed ? 'danger' : 'success') }}">{{ latest_sync_run.status.value }}</span></div>
+        <div class="d-flex justify-content-between align-items-center"><h2 class="card-title mb-0">Dernière synchronisation des configurations</h2><span class="badge text-white bg-{{ latest_sync_run.active ? 'primary' : (sync_summary.failed ? 'danger' : 'success') }}">{{ latest_sync_run.status.value }}</span></div>
         <p class="text-secondary mb-2">Mode {{ latest_sync_run.mode.value }} · créée le {{ latest_sync_run.createdAt|date('d/m/Y H:i') }}{% if latest_sync_run.finishedAt %} · terminée le {{ latest_sync_run.finishedAt|date('d/m/Y H:i') }}{% endif %}</p>
         <p class="mb-2">{{ sync_summary.synchronized }} synchronisé(s), {{ sync_summary.failed }} échec(s).</p>
         {% if latest_sync_run.report %}<details><summary>Voir le rapport ({{ sync_summary.selected }} produit(s))</summary><ul class="mb-0 mt-2">{% for entry in latest_sync_run.report %}<li><code>{{ entry.provider_product_id }}</code> — {{ entry.name }} : {{ entry.outcome }}{% if entry.detail is defined %} — {{ entry.detail }}{% endif %}</li>{% endfor %}</ul></details>{% endif %}
