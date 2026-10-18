@@ -176,6 +176,10 @@ services:
         arguments:
             $timeToLive: '%yoowii.realisaprint.initial_display_state_ttl%'
 
+    App\Yoowii\Sourcing\Infrastructure\Translation\ProductTranslationDictionary:
+        arguments:
+            $dictionaryPath: '%kernel.project_dir%/config/yoowii/product_translations.en_US.json'
+
     App\Yoowii\Sourcing\Application\RealisaprintPublicationService:
         arguments:
             $prescriptQuickPublicationEnabled: '%yoowii.realisaprint.prescript_quick_publication_enabled%'

@@ -14,10 +14,12 @@ use App\Yoowii\Sourcing\Domain\Model\PrintSupplier;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
+use App\Yoowii\Sourcing\Infrastructure\Translation\ProductTranslationDictionary;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\NullLogger;
 
 final class RealisaprintDraftCreatorTest extends TestCase
 {
@@ -84,7 +86,7 @@ final class RealisaprintDraftCreatorTest extends TestCase
         $channelFr->setCode('WEB_FR');
         $channelEn = new Channel();
         $channelEn->setCode('WEB_EN');
-        $taxon = $this->taxon('AGENDA_MENSUEL_PERSONNALISE', 'Agenda mensuel personnalisé');
+        $taxon = $this->taxon('AGENDA_MENSUEL', 'Agenda mensuel');
 
         $productRepository = $this->repository();
         $productRepository->method('findOneBy')->willReturn(null);
@@ -113,10 +115,15 @@ final class RealisaprintDraftCreatorTest extends TestCase
         $taxonEntityManager = $this->createMock(EntityManagerInterface::class);
         $taxonEntityManager->method('getRepository')->with(Taxon::class)->willReturn($taxonRepository);
 
-        $product = (new RealisaprintDraftCreator($entityManager, new RealisaprintDraftTaxonResolver($taxonEntityManager)))->create(
+        $product = (new RealisaprintDraftCreator(
+            $entityManager,
+            new RealisaprintDraftTaxonResolver($taxonEntityManager),
+            $this->dictionary(),
+            new NullLogger(),
+        ))->create(
             $catalogProduct,
             'PRINT_AGENDA_MENSUEL_CHOISI',
-            'Agenda mensuel personnalisé',
+            'Agenda mensuel',
             '1229',
             'prescript',
             ['format' => ['type' => 'code', 'allowed_values' => ['a4']]],
@@ -126,9 +133,9 @@ final class RealisaprintDraftCreatorTest extends TestCase
         self::assertFalse($product->isEnabled());
         self::assertSame('PRINT_AGENDA_MENSUEL_CHOISI', $product->getCode());
         self::assertSame('PRINT_AGENDA', $product->getPrintDefinitionCode());
-        self::assertSame('Agenda mensuel personnalisé', $product->getTranslation('fr_FR')->getName());
-        self::assertSame('Agenda mensuel personnalisé', $product->getTranslation('en_US')->getName());
-        self::assertSame('agenda-mensuel-personnalise', $product->getTranslation('fr_FR')->getSlug());
+        self::assertSame('Agenda mensuel', $product->getTranslation('fr_FR')->getName());
+        self::assertSame('Monthly Planner', $product->getTranslation('en_US')->getName());
+        self::assertSame('agenda-mensuel', $product->getTranslation('fr_FR')->getSlug());
         self::assertTrue($product->getTranslations()->containsKey('fr_FR'));
         self::assertTrue($product->getTranslations()->containsKey('en_US'));
         self::assertCount(2, $product->getChannels());
@@ -149,7 +156,12 @@ final class RealisaprintDraftCreatorTest extends TestCase
         $emptyTaxonRepository->method('findAll')->willReturn([]);
         $emptyTaxonEntityManager = $this->createMock(EntityManagerInterface::class);
         $emptyTaxonEntityManager->method('getRepository')->with(Taxon::class)->willReturn($emptyTaxonRepository);
-        $productWithoutTaxon = (new RealisaprintDraftCreator($entityManager, new RealisaprintDraftTaxonResolver($emptyTaxonEntityManager)))->create(
+        $productWithoutTaxon = (new RealisaprintDraftCreator(
+            $entityManager,
+            new RealisaprintDraftTaxonResolver($emptyTaxonEntityManager),
+            $this->dictionary(),
+            new NullLogger(),
+        ))->create(
             $catalogProduct,
             'PRINT_AGENDA_SANS_TAXON',
             'Agenda sans taxon',
@@ -177,7 +189,14 @@ final class RealisaprintDraftCreatorTest extends TestCase
         return new RealisaprintDraftCreator(
             $this->createMock(EntityManagerInterface::class),
             new RealisaprintDraftTaxonResolver($this->createMock(EntityManagerInterface::class)),
+            $this->dictionary(),
+            new NullLogger(),
         );
+    }
+
+    private function dictionary(): ProductTranslationDictionary
+    {
+        return new ProductTranslationDictionary(dirname(__DIR__, 4) . '/config/yoowii/product_translations.en_US.json');
     }
 
     /** @return EntityRepository<object>&MockObject */

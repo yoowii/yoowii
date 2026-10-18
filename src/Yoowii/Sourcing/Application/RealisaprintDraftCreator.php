@@ -18,14 +18,20 @@ use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
+use App\Yoowii\Sourcing\Infrastructure\Translation\ProductTranslationDictionary;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 
 /** Creates a disabled, non-routable Sylius print product from the read-only provider catalogue. */
 final readonly class RealisaprintDraftCreator
 {
-    public function __construct(private EntityManagerInterface $entityManager, private RealisaprintDraftTaxonResolver $taxons)
-    {
+    public function __construct(
+        private EntityManagerInterface $entityManager,
+        private RealisaprintDraftTaxonResolver $taxons,
+        private ProductTranslationDictionary $translations,
+        private LoggerInterface $logger,
+    ) {
     }
 
     /**
@@ -91,7 +97,7 @@ final readonly class RealisaprintDraftCreator
         $product->setCode($productCode);
         $product->setFallbackLocale('fr_FR');
         $this->translate($product, 'fr_FR', $name);
-        $this->translate($product, 'en_US', $name);
+        $this->translateEnglish($product, $name, $stockName);
         $product->setCurrentLocale('fr_FR');
         $product->setEnabled(false);
         $product->setFulfillmentType(FulfillmentType::Print);
@@ -243,6 +249,28 @@ final readonly class RealisaprintDraftCreator
         $translation->setName($name);
         $translation->setSlug((new AsciiSlugger())->slug($name)->lower()->toString());
         $product->addTranslation($translation);
+    }
+
+    private function translateEnglish(Product $product, string $name, string $stockName): void
+    {
+        if ($product->getTranslations()->containsKey('en_US')) {
+            return;
+        }
+
+        $translation = $name === $stockName
+            ? $this->translations->stock($stockName)
+            : $this->translations->product($name);
+        if (null === $translation) {
+            $this->logger->warning('Missing English product draft translation.', [
+                'label' => $name,
+                'source' => $name === $stockName ? 'stock' : 'product',
+            ]);
+            // Preserve the previous draft-creation behavior until the local
+            // dictionary is deliberately extended.
+            $translation = $name;
+        }
+
+        $this->translate($product, 'en_US', $translation);
     }
 
     private function defaultPrintDefinitionCode(RealisaprintCatalogProduct $catalogProduct): string
