@@ -26,6 +26,11 @@ final class PrintConfiguratorTemplateTest extends TestCase
         self::assertStringContainsString('data-print-configurator-initial-provider-state-stale-value="{{ initial_provider_state_stale|default(false) ? \'true\' : \'false\' }}"', $template);
     }
 
+    public function testItOnlyMountsTheStimulusControllerWhenTheConfiguratorIsAvailable(): void
+    {
+        self::assertStringContainsString('{% if available %}data-controller="print-configurator"{% endif %}', $this->template());
+    }
+
     public function testDorureAChaudVisibilityIsAppliedByTwigBeforeStimulusConnects(): void
     {
         $template = $this->template();

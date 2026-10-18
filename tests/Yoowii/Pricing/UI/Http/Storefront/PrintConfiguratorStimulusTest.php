@@ -33,6 +33,14 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringNotContainsString('if (!this.hasInitialProviderStateValue || this.initialProviderStateStaleValue) {', $this->controller());
     }
 
+    public function testItDoesNotStartWhenTheUnavailableTemplateHasNoForm(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('if (!this.hasFormTarget) {', $controller);
+        self::assertStringContainsString('if (!this.hasErrorTarget) {', $controller);
+    }
+
     public function testRefreshFailureDoesNotResetTheAppliedProviderVisibility(): void
     {
         $controller = $this->controller();

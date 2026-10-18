@@ -25,6 +25,13 @@ export default class extends Controller {
     };
 
     connect() {
+        // The product template can render the unavailable-state alert without
+        // the configurator form. Do not start provider requests in that state:
+        // their error handling itself requires the form's feedback target.
+        if (!this.hasFormTarget) {
+            return;
+        }
+
         this.abortController = null;
         this.calculationTimer = null;
         this.inputTimer = null;
@@ -715,11 +722,19 @@ export default class extends Controller {
     }
 
     showError(message) {
+        if (!this.hasErrorTarget) {
+            return;
+        }
+
         this.errorTarget.textContent = message;
         this.errorTarget.classList.remove('d-none');
     }
 
     clearError() {
+        if (!this.hasErrorTarget) {
+            return;
+        }
+
         this.errorTarget.textContent = '';
         this.errorTarget.classList.add('d-none');
     }

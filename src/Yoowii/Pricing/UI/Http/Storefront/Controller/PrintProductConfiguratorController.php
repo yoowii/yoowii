@@ -201,7 +201,11 @@ final class PrintProductConfiguratorController extends AbstractController
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
-        $prescriptMapping = $this->prescriptMapping($definitionCode, $entityManager);
+        // A shared Realisaprint definition describes the configurator schema,
+        // while a mapping remains specific to the commercial Yoowii product
+        // because it carries the supplier stock. Resolve Prescript from the
+        // latter, otherwise shared-definition codes cannot find their mapping.
+        $prescriptMapping = $this->prescriptMapping($productCode, $entityManager);
         if ($prescriptMapping instanceof SupplierProductMappingVersion) {
             $provider = $prescriptMapping->configurationMapping()['realisaprint'];
             $summaryProfile = PrescriptSummaryProfile::tryFromConfigurationMapping($prescriptMapping->configurationMapping());
@@ -402,9 +406,9 @@ final class PrintProductConfiguratorController extends AbstractController
         return false;
     }
 
-    private function prescriptMapping(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager): ?SupplierProductMappingVersion
+    private function prescriptMapping(string $productCode, \Doctrine\ORM\EntityManagerInterface $entityManager): ?SupplierProductMappingVersion
     {
-        foreach ($entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
+        foreach ($entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]) as $mapping) {
             if (!$mapping instanceof SupplierProductMappingVersion || 'realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
                 continue;
             }
