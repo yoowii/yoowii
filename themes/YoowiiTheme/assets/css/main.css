@@ -393,11 +393,11 @@
     }
 
     .yoowii-prescript-gallery-slot:not(:empty) {
-        overflow: hidden;
+        overflow: visible;
         border: 1px solid var(--color-base-300);
         border-radius: var(--radius-box);
         background: var(--color-base-100);
-        padding: 0.5rem;
+        padding: 0.5rem 0.5rem 1rem;
     }
 
     .yoowii-prescript-gallery-slot .contenu_bloc_image_tableau,
@@ -422,8 +422,15 @@
 
     .yoowii-prescript-gallery-slot .gv_galleryWrap {
         flex: 0 0 auto;
+        border: 0 !important;
         border-radius: calc(var(--radius-box) - 0.25rem);
-        overflow: hidden;
+        box-shadow: none !important;
+        overflow: visible;
+    }
+
+    .yoowii-prescript-gallery-slot .gv_gallery {
+        border: 0 !important;
+        box-shadow: none !important;
     }
 
     /* GalleryView writes fixed inline sizes after it initializes. The custom

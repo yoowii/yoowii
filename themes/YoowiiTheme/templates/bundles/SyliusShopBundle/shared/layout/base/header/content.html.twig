@@ -14,7 +14,6 @@
                 <form id="yoowii-search-form" action="{{ path('yoowii_shop_search') }}" method="get" role="search">
                     <label class="sr-only" for="yoowii-search">Rechercher</label>
                     <div class="input flex h-12 w-full items-center gap-3 rounded-btn border-base-300 bg-base-200 px-4 focus-within:border-primary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
-                        {{ ux_icon('tabler:search', {class: 'size-5 shrink-0 text-base-content/70', 'aria-hidden': 'true'}) }}
                         <input id="yoowii-search" class="min-w-0 grow text-base-content" name="q" type="search" placeholder="Rechercher : cartes de visite, flyers, étiquettes…" autocomplete="off" data-search-autocomplete-target="input" data-action="input->search-autocomplete#search focus->search-autocomplete#search">
                         <button class="btn btn-primary btn-sm btn-square shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" type="submit" aria-label="Rechercher">{{ ux_icon('tabler:search', {class: 'size-5', 'aria-hidden': 'true'}) }}</button>
                     </div>
