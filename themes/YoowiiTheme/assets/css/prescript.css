@@ -120,6 +120,73 @@
     display: none !important;
 }
 
+/* Dynamic messages written by Prescript after an option changes. Their inline
+   display:none state is kept; these rules only style messages that are shown. */
+.yoowii-prescript-options :is(.infobulle_css_info, .infobulle_css_alerte, .infobulle_css_description):not(:empty),
+.yoowii-prescript-document :is(.infobulle_css_info, .infobulle_css_alerte, .infobulle_css_description):not(:empty) {
+    position: relative;
+    margin-block-start: 0.75rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.875rem 0.75rem 2.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.yoowii-prescript-options :is(.infobulle_css_info, .infobulle_css_alerte, .infobulle_css_description):not(:empty)::before,
+.yoowii-prescript-document :is(.infobulle_css_info, .infobulle_css_alerte, .infobulle_css_description):not(:empty)::before {
+    position: absolute;
+    inset-block-start: 0.75rem;
+    inset-inline-start: 0.875rem;
+    display: grid;
+    place-items: center;
+    inline-size: 1.125rem;
+    block-size: 1.125rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.yoowii-prescript-options .infobulle_css_info:not(:empty),
+.yoowii-prescript-document .infobulle_css_info:not(:empty) {
+    border-color: color-mix(in srgb, var(--color-info) 25%, var(--color-base-300));
+    color: var(--color-base-content);
+    background: color-mix(in srgb, var(--color-info) 8%, var(--color-base-100));
+}
+
+.yoowii-prescript-options .infobulle_css_info:not(:empty)::before,
+.yoowii-prescript-document .infobulle_css_info:not(:empty)::before {
+    content: "i";
+    color: var(--color-info-content);
+    background: var(--color-info);
+}
+
+.yoowii-prescript-options .infobulle_css_alerte:not(:empty),
+.yoowii-prescript-document .infobulle_css_alerte:not(:empty) {
+    border-color: color-mix(in srgb, var(--color-error) 30%, var(--color-base-300));
+    color: var(--color-base-content);
+    background: color-mix(in srgb, var(--color-error) 8%, var(--color-base-100));
+}
+
+.yoowii-prescript-options .infobulle_css_alerte:not(:empty)::before,
+.yoowii-prescript-document .infobulle_css_alerte:not(:empty)::before {
+    content: "!";
+    color: var(--color-error-content);
+    background: var(--color-error);
+}
+
+.yoowii-prescript-options .infobulle_css_description:not(:empty),
+.yoowii-prescript-document .infobulle_css_description:not(:empty) {
+    background: var(--color-base-200);
+}
+
+.yoowii-prescript-options .infobulle_css_description:not(:empty)::before,
+.yoowii-prescript-document .infobulle_css_description:not(:empty)::before {
+    content: "…";
+    color: var(--color-base-content);
+    background: var(--color-base-300);
+}
+
 /* Never let a legacy supplier popover appear from a field hover. The local
    information icon is the only supported tooltip trigger in Prescript. */
 .yoowii-prescript-document :is(select, textarea, input):is([data-original-title], [data-content]) + .popover,
@@ -199,7 +266,7 @@
     inline-size: min(18rem, calc(100vw - 3rem));
     overflow: hidden;
     border-radius: 0.5rem;
-    padding: 0;
+    padding: 5px;
     color: var(--color-base-content);
     background: var(--color-base-100);
     box-shadow: 0 8px 24px rgb(30 27 58 / 0.22);
