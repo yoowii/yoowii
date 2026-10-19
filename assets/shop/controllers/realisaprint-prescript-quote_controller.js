@@ -180,8 +180,24 @@ export default class extends Controller {
             'dorure-a-chaud', 'dorure-a-chaud-3d', 'gaufrage',
             'code-barres-unitaire', 'personnalisation-unitaire', 'nfc',
         ]);
-        if (knownOptions.has(slug)) row.dataset.prescriptOption = slug;
-        else delete row.dataset.prescriptOption;
+        const thumbnails = {
+            'vernis-selectif': 'vernis_selectif.png',
+            'vernis-selectif-3d': 'vernis_selectif_3d.png',
+            'zone-de-grattage': 'zone_de_grattage.png',
+            'dorure-a-chaud': 'dorure_a_chaud.png',
+            'dorure-a-chaud-3d': 'dorure_a_chaud_3d.png',
+            gaufrage: 'gaufrage.png',
+            'code-barres-unitaire': 'code_barres_unitaire.png',
+            'personnalisation-unitaire': 'personnalisation_unitaire.png',
+            nfc: 'nfc.png',
+        };
+        if (knownOptions.has(slug)) {
+            row.dataset.prescriptOption = slug;
+            row.style.setProperty('--yoowii-option-thumb', `url("/themes/yoowii-theme/media/prescript-options/${thumbnails[slug]}")`);
+        } else {
+            delete row.dataset.prescriptOption;
+            row.style.removeProperty('--yoowii-option-thumb');
+        }
         this.syncOptionCard(row);
     }
 

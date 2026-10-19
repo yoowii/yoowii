@@ -28,5 +28,14 @@
   "themes/yoowii-theme/fonts/dm-sans-latin-ext-500-normal.woff2": "/themes/yoowii-theme/fonts/dm-sans-latin-ext-500-normal.50b040ac.woff2",
   "themes/yoowii-theme/fonts/sora-latin-ext-800-normal.woff2": "/themes/yoowii-theme/fonts/sora-latin-ext-800-normal.9a759208.woff2",
   "themes/yoowii-theme/fonts/dm-sans-latin-ext-400-normal.woff2": "/themes/yoowii-theme/fonts/dm-sans-latin-ext-400-normal.2d149d08.woff2",
-  "themes/yoowii-theme/media/mega-menu-icons.svg": "/themes/yoowii-theme/media/mega-menu-icons.svg"
+  "themes/yoowii-theme/media/mega-menu-icons.svg": "/themes/yoowii-theme/media/mega-menu-icons.svg",
+  "themes/yoowii-theme/media/prescript-options/gaufrage.svg": "/themes/yoowii-theme/media/prescript-options/gaufrage.svg",
+  "themes/yoowii-theme/media/prescript-options/personnalisation-unitaire.svg": "/themes/yoowii-theme/media/prescript-options/personnalisation-unitaire.svg",
+  "themes/yoowii-theme/media/prescript-options/zone-de-grattage.svg": "/themes/yoowii-theme/media/prescript-options/zone-de-grattage.svg",
+  "themes/yoowii-theme/media/prescript-options/nfc.svg": "/themes/yoowii-theme/media/prescript-options/nfc.svg",
+  "themes/yoowii-theme/media/prescript-options/code-barres-unitaire.svg": "/themes/yoowii-theme/media/prescript-options/code-barres-unitaire.svg",
+  "themes/yoowii-theme/media/prescript-options/vernis-selectif.svg": "/themes/yoowii-theme/media/prescript-options/vernis-selectif.svg",
+  "themes/yoowii-theme/media/prescript-options/vernis-selectif-3d.svg": "/themes/yoowii-theme/media/prescript-options/vernis-selectif-3d.svg",
+  "themes/yoowii-theme/media/prescript-options/dorure-a-chaud-3d.svg": "/themes/yoowii-theme/media/prescript-options/dorure-a-chaud-3d.svg",
+  "themes/yoowii-theme/media/prescript-options/dorure-a-chaud.svg": "/themes/yoowii-theme/media/prescript-options/dorure-a-chaud.svg"
 }

@@ -61,6 +61,8 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('disableUnavailableSupplierControls(row)', $controller);
         self::assertStringContainsString("row.classList.contains('css_zone_grisee')", $controller);
         self::assertStringContainsString('control.disabled = true;', $controller);
+        self::assertStringContainsString("'vernis-selectif': 'vernis_selectif.png'", $controller);
+        self::assertStringContainsString('themes/yoowii-theme/media/prescript-options/', $controller);
         self::assertStringNotContainsString('replaceWith(', $controller);
     }
 
