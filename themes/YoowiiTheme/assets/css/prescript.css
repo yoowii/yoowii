@@ -89,6 +89,13 @@
     display: none !important;
 }
 
+/* Never let a legacy supplier popover appear from a field hover. The local
+   information icon is the only supported tooltip trigger in Prescript. */
+.yoowii-prescript-document :is(select, textarea, input):is([data-original-title], [data-content]) + .popover,
+.yoowii-prescript-document .popover {
+    display: none !important;
+}
+
 .yoowii-prescript-tooltip-content p {
     padding: 10px;
 }
@@ -141,6 +148,7 @@
     flex: 0 0 1.25rem;
     font-family: inherit;
     font-size: 0;
+    padding: 4px 6px;
 }
 
 .yoowii-prescript-tooltip-trigger::after {
@@ -174,8 +182,12 @@
     max-block-size: 10rem;
     margin: 0;
     object-fit: contain;
-    background: var(--color-base-200);
-    padding: 4px 6px;
+    background: white;
+}
+
+.class_variable_element_visible.class_saisie_type_checkbox {
+    display: flex;
+    gap: 5px;
 }
 
 .yoowii-prescript-tooltip-details {

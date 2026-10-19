@@ -21,6 +21,7 @@ export default class extends Controller {
         this.onEmbedInput = this.scheduleSummary.bind(this);
         this.onSupplierInput = this.onSupplierInput.bind(this);
         this.onOptionCardClick = this.onOptionCardClick.bind(this);
+        this.onSupplierControlHover = this.onSupplierControlHover.bind(this);
         this.observeVisibility();
         if (this.hasEmbedTarget) {
             this.observeEmbed();
@@ -28,6 +29,7 @@ export default class extends Controller {
         }
         this.configurationScope().addEventListener('change', this.onSupplierInput, true);
         this.configurationScope().addEventListener('click', this.onOptionCardClick);
+        this.configurationScope().addEventListener('mouseover', this.onSupplierControlHover, true);
     }
 
     disconnect() {
@@ -44,6 +46,7 @@ export default class extends Controller {
         }
         this.configurationScope().removeEventListener('change', this.onSupplierInput, true);
         this.configurationScope().removeEventListener('click', this.onOptionCardClick);
+        this.configurationScope().removeEventListener('mouseover', this.onSupplierControlHover, true);
     }
 
     observeVisibility() {
@@ -138,6 +141,7 @@ export default class extends Controller {
         });
         this.embedTarget.querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
             this.decorateSupplierTooltip(row);
+            this.disableSupplierControlTooltips(row);
             this.disableUnavailableSupplierControls(row);
             this.decorateOptionCard(row);
         });
@@ -254,6 +258,32 @@ export default class extends Controller {
         row.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach((control) => {
             control.disabled = true;
         });
+    }
+
+    // Prescript attaches Bootstrap/jQuery Popovers directly to selects with a
+    // hover trigger. The supplier CSS is intentionally absent, so those
+    // popovers are both visually inconsistent and redundant with our icon.
+    disableSupplierControlTooltips(row) {
+        row.querySelectorAll('select, textarea, input:not([type="hidden"])').forEach((control) => {
+            this.disableSupplierControlTooltip(control);
+        });
+    }
+
+    onSupplierControlHover(event) {
+        const control = event.target.closest?.('select, textarea, input:not([type="hidden"])');
+        if (control && this.configurationScope().contains(control)) this.disableSupplierControlTooltip(control);
+    }
+
+    disableSupplierControlTooltip(control) {
+        control.removeAttribute('title');
+        control.removeAttribute('data-original-title');
+        const jquery = window.jQuery;
+        if (!jquery?.fn?.popover) return;
+        try {
+            jquery(control).popover('destroy');
+        } catch {
+            // A supplier page can initialize a different Popover API.
+        }
     }
 
     assembleSupplierDocument() {
