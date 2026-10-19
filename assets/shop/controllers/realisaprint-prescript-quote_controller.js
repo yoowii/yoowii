@@ -20,12 +20,14 @@ export default class extends Controller {
         this.gallerySignature = null;
         this.onEmbedInput = this.scheduleSummary.bind(this);
         this.onSupplierInput = this.onSupplierInput.bind(this);
+        this.onOptionCardClick = this.onOptionCardClick.bind(this);
         this.observeVisibility();
         if (this.hasEmbedTarget) {
             this.observeEmbed();
             this.syncEmbedState();
         }
         this.configurationScope().addEventListener('change', this.onSupplierInput, true);
+        this.configurationScope().addEventListener('click', this.onOptionCardClick);
     }
 
     disconnect() {
@@ -41,6 +43,7 @@ export default class extends Controller {
             this.embedTarget.removeEventListener('input', this.onEmbedInput, true);
         }
         this.configurationScope().removeEventListener('change', this.onSupplierInput, true);
+        this.configurationScope().removeEventListener('click', this.onOptionCardClick);
     }
 
     observeVisibility() {
@@ -114,6 +117,7 @@ export default class extends Controller {
             this.decorateSupplierDocument();
             this.assembleSupplierDocument();
             this.scheduleGalleryUpdate();
+            this.syncOptionCardStates();
         }
 
         if (isReady && this.hasStatusTarget) {
@@ -135,6 +139,7 @@ export default class extends Controller {
         this.embedTarget.querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
             this.decorateSupplierTooltip(row);
             this.disableUnavailableSupplierControls(row);
+            this.decorateOptionCard(row);
         });
     }
 
@@ -159,6 +164,47 @@ export default class extends Controller {
         }
         trigger.setAttribute('aria-describedby', content.id);
         content.classList.add('yoowii-prescript-tooltip-content');
+    }
+
+
+    // Visual decoration only: provider inputs, handlers and their positions remain unchanged.
+    decorateOptionCard(row) {
+        const checkbox = row.querySelector('.class_champ_variable[type="checkbox"]');
+        if (!checkbox) return;
+        row.classList.add('yoowii-prescript-option-card');
+        const label = row.querySelector('.web_ligne_variable_saisie_intitule label')?.textContent?.trim() || '';
+        const slug = label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const knownOptions = new Set([
+            'vernis-selectif', 'vernis-selectif-3d', 'zone-de-grattage',
+            'dorure-a-chaud', 'dorure-a-chaud-3d', 'gaufrage',
+            'code-barres-unitaire', 'personnalisation-unitaire', 'nfc',
+        ]);
+        if (knownOptions.has(slug)) row.dataset.prescriptOption = slug;
+        else delete row.dataset.prescriptOption;
+        this.syncOptionCard(row);
+    }
+
+    syncOptionCard(row) {
+        const checkbox = row.querySelector('.class_champ_variable[type="checkbox"]');
+        if (!checkbox) return;
+        row.classList.toggle('is-selected', checkbox.checked);
+        row.classList.toggle('is-disabled', checkbox.disabled || row.classList.contains('css_zone_grisee'));
+    }
+
+    onOptionCardClick(event) {
+        const row = event.target.closest('.yoowii-prescript-option-card');
+        if (!row || !this.configurationScope().contains(row)) return;
+        if (event.target.closest('input, label, button, a, select, textarea, .yoowii-prescript-tooltip')) return;
+        const checkbox = row.querySelector('.class_champ_variable[type="checkbox"]');
+        if (!checkbox || checkbox.disabled || row.classList.contains('css_zone_grisee')) return;
+        checkbox.click(); // invokes the original Prescript onclick exactly once
+        this.syncOptionCard(row);
+    }
+
+    syncOptionCardStates() {
+        this.configurationScope().querySelectorAll('.yoowii-prescript-option-card')
+            .forEach((row) => this.syncOptionCard(row));
     }
 
     disableUnavailableSupplierControls(row) {
@@ -253,6 +299,7 @@ export default class extends Controller {
 
     onSupplierInput(event) {
         const control = event.target;
+        this.syncOptionCardStates();
         if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement)) return;
         if (control.matches('[id^="VAR_"], #code_liaison, input[name="optionsRadios"]')) {
             this.scheduleSummary();
