@@ -132,6 +132,42 @@ export default class extends Controller {
         this.embedTarget.querySelectorAll('.tableau-prix, .tableaux.tableau-prix').forEach((table) => {
             table.classList.add('yoowii-prescript-price-table');
         });
+        this.embedTarget.querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
+            this.decorateSupplierTooltip(row);
+            this.disableUnavailableSupplierControls(row);
+        });
+    }
+
+    // Supplier tooltip markup is retained, but its former Bulletip stylesheet
+    // is intentionally not loaded. These classes give the local stylesheet a
+    // stable and accessible hook for the image and description.
+    decorateSupplierTooltip(row) {
+        const tooltip = row.querySelector('.infobulle_css');
+        const trigger = tooltip?.querySelector('.bulletip-item');
+        const content = tooltip?.querySelector('.infobulle_css_contenu');
+        if (!tooltip || !trigger || !content) return;
+
+        tooltip.classList.remove('hidden');
+        tooltip.classList.add('yoowii-prescript-tooltip');
+        trigger.classList.add('yoowii-prescript-tooltip-trigger');
+        trigger.removeAttribute('aria-hidden');
+        trigger.setAttribute('role', 'button');
+        trigger.tabIndex = 0;
+        trigger.setAttribute('aria-label', trigger.getAttribute('alt') || 'Informations complémentaires');
+        if (!content.id) {
+            content.id = `yoowii-prescript-tooltip-${crypto.randomUUID?.() || Math.random().toString(36).slice(2)}`;
+        }
+        trigger.setAttribute('aria-describedby', content.id);
+        content.classList.add('yoowii-prescript-tooltip-content');
+    }
+
+    disableUnavailableSupplierControls(row) {
+        if (!row.classList.contains('css_zone_grisee')) return;
+
+        row.setAttribute('aria-disabled', 'true');
+        row.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach((control) => {
+            control.disabled = true;
+        });
     }
 
     assembleSupplierDocument() {

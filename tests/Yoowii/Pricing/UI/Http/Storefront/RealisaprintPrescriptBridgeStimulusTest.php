@@ -57,6 +57,10 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('decorateSupplierDocument()', $controller);
         self::assertStringContainsString("classList.add('yoowii-prescript-document')", $controller);
         self::assertStringContainsString("classList.add('yoowii-prescript-field')", $controller);
+        self::assertStringContainsString('decorateSupplierTooltip(row)', $controller);
+        self::assertStringContainsString('disableUnavailableSupplierControls(row)', $controller);
+        self::assertStringContainsString("row.classList.contains('css_zone_grisee')", $controller);
+        self::assertStringContainsString('control.disabled = true;', $controller);
         self::assertStringNotContainsString('replaceWith(', $controller);
     }
 

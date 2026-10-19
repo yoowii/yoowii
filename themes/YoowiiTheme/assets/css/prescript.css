@@ -10,6 +10,115 @@
     pointer-events: none;
 }
 
+.yoowii-prescript-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.yoowii-prescript-options .yoowii-prescript-option-block {
+    grid-column: 1 / -1;
+}
+
+/* Checkbox options are short decisions, so they use compact cards instead of
+   consuming the full width reserved for selects and text fields. */
+.yoowii-prescript-options .web_ligne_variable_saisie:has(input[type="checkbox"]) {
+    display: flex;
+    min-block-size: 5.5rem;
+    margin: 0;
+    padding: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.yoowii-prescript-options .web_ligne_variable_saisie:has(input[type="checkbox"]) .web_ligne_variable_saisie_intitule {
+    margin: 0;
+}
+
+.yoowii-prescript-options .web_ligne_variable_saisie:has(input[type="checkbox"]) .web_ligne_variable_saisie_saisie {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.yoowii-prescript-options .web_ligne_variable_saisie:has(input[type="checkbox"]) input[type="checkbox"] {
+    inline-size: 1.125rem;
+    block-size: 1.125rem;
+    accent-color: var(--color-primary);
+}
+
+.yoowii-prescript-options .web_ligne_variable_saisie.css_zone_grisee {
+    opacity: 0.55;
+    background: var(--color-base-200);
+}
+
+.yoowii-prescript-options .web_ligne_variable_saisie.css_zone_grisee :is(input, select, textarea, button) {
+    cursor: not-allowed;
+}
+
+.yoowii-prescript-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.yoowii-prescript-tooltip-trigger {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    border: 0;
+    border-radius: 9999px;
+    color: var(--color-primary);
+    cursor: help;
+    font-family: inherit;
+    font-size: 0;
+}
+
+.yoowii-prescript-tooltip-trigger::after {
+    content: "i";
+    font-size: 0.8125rem;
+    font-style: normal;
+    font-weight: 800;
+}
+
+.yoowii-prescript-tooltip-content {
+    position: absolute;
+    z-index: 20;
+    inset-block-end: calc(100% + 0.5rem);
+    inset-inline-start: 0;
+    display: none;
+    inline-size: min(18rem, calc(100vw - 3rem));
+    overflow: hidden;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    color: var(--color-base-content);
+    background: var(--color-base-100);
+    box-shadow: 0 8px 24px rgb(30 27 58 / 0.22);
+    font-size: 0.8125rem;
+    line-height: 1.35;
+}
+
+.yoowii-prescript-tooltip-content img {
+    display: block;
+    inline-size: calc(100% + 1.5rem);
+    max-block-size: 10rem;
+    margin: -0.75rem -0.75rem 0.625rem;
+    object-fit: contain;
+    background: var(--color-base-200);
+}
+
+.yoowii-prescript-tooltip:hover .yoowii-prescript-tooltip-content,
+.yoowii-prescript-tooltip:focus-within .yoowii-prescript-tooltip-content {
+    display: block;
+}
+
+@media (max-width: 639px) {
+    .yoowii-prescript-options { grid-template-columns: minmax(0, 1fr); }
+    .yoowii-prescript-options .web_ligne_variable_saisie:has(input[type="checkbox"]) { min-block-size: 4.75rem; }
+}
+
 .yoowii-product-gallery {
     overflow: hidden;
     border: 1px solid var(--color-base-300);
