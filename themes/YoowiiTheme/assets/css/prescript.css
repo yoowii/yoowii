@@ -82,6 +82,7 @@
     position: relative;
     display: inline-flex;
     align-items: center;
+    align-self: center;
 }
 
 .yoowii-prescript-tooltip-trigger {
@@ -110,12 +111,13 @@
     position: absolute;
     z-index: 20;
     inset-block-end: calc(100% + 0.5rem);
-    inset-inline-start: 0;
+    inset-inline-start: auto;
+    inset-inline-end: 0;
     display: none;
     inline-size: min(18rem, calc(100vw - 3rem));
     overflow: hidden;
     border-radius: 0.5rem;
-    padding: 0.75rem;
+    padding: 0;
     color: var(--color-base-content);
     background: var(--color-base-100);
     box-shadow: 0 8px 24px rgb(30 27 58 / 0.22);
@@ -125,11 +127,15 @@
 
 .yoowii-prescript-tooltip-content img {
     display: block;
-    inline-size: calc(100% + 1.5rem);
+    inline-size: 100%;
     max-block-size: 10rem;
-    margin: -0.75rem -0.75rem 0.625rem;
+    margin: 0;
     object-fit: contain;
     background: var(--color-base-200);
+}
+
+.yoowii-prescript-tooltip-details {
+    padding: 0.75rem;
 }
 
 .yoowii-prescript-tooltip:hover .yoowii-prescript-tooltip-content,

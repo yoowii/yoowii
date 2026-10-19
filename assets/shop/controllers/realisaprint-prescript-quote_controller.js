@@ -164,6 +164,14 @@ export default class extends Controller {
         }
         trigger.setAttribute('aria-describedby', content.id);
         content.classList.add('yoowii-prescript-tooltip-content');
+        if (!content.querySelector('.yoowii-prescript-tooltip-details')) {
+            const details = document.createElement('div');
+            details.className = 'yoowii-prescript-tooltip-details';
+            [...content.childNodes].forEach((node) => {
+                if (!(node instanceof HTMLImageElement)) details.append(node);
+            });
+            content.append(details);
+        }
     }
 
 
