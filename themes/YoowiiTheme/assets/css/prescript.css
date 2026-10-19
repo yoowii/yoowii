@@ -20,6 +20,37 @@
     grid-column: 1 / -1;
 }
 
+/* Prescript uses direct paragraphs as group headings (for example “Options”
+   and “Vernis sélectif”). Make that hierarchy explicit in the Yoowii layout. */
+.yoowii-prescript-options .class_option_descriptif > p {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    gap: 0.625rem;
+    margin: 1.35rem 0 0.55rem;
+    color: var(--color-primary);
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.25;
+    text-transform: uppercase;
+}
+
+.class_element_mep_NUMERO_EN_COURS.class_tableau_double {
+    margin-top: 1.5em;
+}
+
+.yoowii-prescript-options .class_option_descriptif > p::after {
+    content: "";
+    block-size: 1px;
+    flex: 1;
+    background: color-mix(in srgb, var(--color-primary) 45%, var(--color-base-300));
+}
+
+.yoowii-prescript-options .class_option_descriptif > p:first-child {
+    margin-block-start: 0;
+}
+
 /* Some Prescript products group their option rows in this dedicated listing.
    Keep that supplier grouping, but give every checkbox card one third of the
    available line rather than one row per option. */
