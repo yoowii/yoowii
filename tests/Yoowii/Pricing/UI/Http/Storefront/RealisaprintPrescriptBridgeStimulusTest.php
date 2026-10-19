@@ -70,6 +70,8 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('control.disabled = true;', $controller);
         self::assertStringContainsString('disableSupplierControlTooltips(row)', $controller);
         self::assertStringContainsString("jquery(control).popover('destroy')", $controller);
+        self::assertStringContainsString('decorateSupplierPriceTable(table)', $controller);
+        self::assertStringContainsString('deliveryKey(value)', $controller);
         self::assertStringContainsString("'vernis-selectif': 'vernis_selectif.png'", $controller);
         self::assertStringContainsString('themes/yoowii-theme/media/prescript-options/', $controller);
         self::assertStringNotContainsString('replaceWith(', $controller);

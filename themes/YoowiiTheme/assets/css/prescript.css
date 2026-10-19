@@ -51,6 +51,55 @@
     margin-block-start: 0;
 }
 
+/* Delivery groups are marked by the controller from the table headings. */
+.yoowii-prescript-pricing .tableau-prix [data-yoowii-delivery="urgence"] {
+    background: color-mix(in srgb, var(--color-secondary) 8%, var(--color-base-100)) !important;
+}
+
+.yoowii-prescript-pricing .tableau-prix [data-yoowii-delivery="express"] {
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-base-100)) !important;
+}
+
+.yoowii-prescript-pricing .tableau-prix [data-yoowii-delivery="standard"] {
+    background: color-mix(in srgb, var(--color-success) 7%, var(--color-base-100)) !important;
+}
+
+.yoowii-prescript-pricing .tableau-prix th[data-yoowii-delivery] {
+    border-bottom: 2px solid currentColor !important;
+    font-weight: 800;
+}
+
+.yoowii-prescript-pricing .tableau-prix th[data-yoowii-delivery="urgence"] { color: var(--color-secondary); }
+.yoowii-prescript-pricing .tableau-prix th[data-yoowii-delivery="express"] { color: var(--color-primary); }
+.yoowii-prescript-pricing .tableau-prix th[data-yoowii-delivery="standard"] { color: var(--color-success); }
+
+.yoowii-prescript-pricing .tableau-prix tbody td[data-yoowii-delivery] {
+    border-inline-start: 1px solid color-mix(in srgb, currentColor 10%, var(--color-base-300));
+}
+
+/* Current Prescript markup exposes delivery classes too. These selectors keep
+   the visual grouping even before a supplier script finishes rebuilding rows. */
+.yoowii-prescript-pricing .tableau-prix :is(.titre-urgence, .col-urgence, .cellUrgence) {
+    background: color-mix(in srgb, var(--color-secondary) 8%, var(--color-base-100)) !important;
+}
+
+.yoowii-prescript-pricing .tableau-prix :is(.titre-express, .col-express, .cellExpress) {
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-base-100)) !important;
+}
+
+.yoowii-prescript-pricing .tableau-prix :is(.titre-standard, .col-standard, .cellStandard) {
+    background: color-mix(in srgb, var(--color-success) 7%, var(--color-base-100)) !important;
+}
+
+.yoowii-prescript-pricing .tableau-prix :is(.titre-urgence, .titre-express, .titre-standard) {
+    border-bottom: 2px solid currentColor !important;
+    font-weight: 800;
+}
+
+.yoowii-prescript-pricing .tableau-prix .titre-urgence { color: var(--color-secondary); }
+.yoowii-prescript-pricing .tableau-prix .titre-express { color: var(--color-primary); }
+.yoowii-prescript-pricing .tableau-prix .titre-standard { color: var(--color-success); }
+
 /* Some Prescript products group their option rows in this dedicated listing.
    Keep that supplier grouping, but give every checkbox card one third of the
    available line rather than one row per option. */
@@ -436,3 +485,10 @@
 
 .yoowii-product-gallery__thumbnail[aria-current="true"] { border-color: var(--color-primary); }
 .yoowii-product-gallery__thumbnail img { block-size: 100%; inline-size: 100%; object-fit: cover; }
+
+
+.tableau-prix th .titreTh {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}

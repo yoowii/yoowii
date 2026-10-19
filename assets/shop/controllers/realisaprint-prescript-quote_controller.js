@@ -138,6 +138,7 @@ export default class extends Controller {
         });
         this.embedTarget.querySelectorAll('.tableau-prix, .tableaux.tableau-prix').forEach((table) => {
             table.classList.add('yoowii-prescript-price-table');
+            this.decorateSupplierPriceTable(table);
         });
         this.embedTarget.querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
             this.decorateSupplierTooltip(row);
@@ -258,6 +259,46 @@ export default class extends Controller {
         row.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach((control) => {
             control.disabled = true;
         });
+    }
+
+    // Mark delivery groups from the supplier's actual headers, rather than
+    // relying on a fixed column order. The local CSS can then distinguish
+    // Urgence, Express and Standard consistently.
+    decorateSupplierPriceTable(table) {
+        const deliveriesByColumn = new Map();
+        let column = 0;
+        const headerRow = table.querySelector('thead tr, tr');
+        if (!headerRow) return;
+
+        [...headerRow.children].forEach((cell) => {
+            const delivery = this.deliveryKey(cell.textContent);
+            const colspan = Number.parseInt(cell.getAttribute('colspan') || '1', 10);
+            if (delivery) {
+                cell.dataset.yoowiiDelivery = delivery;
+                for (let offset = 0; offset < colspan; offset += 1) deliveriesByColumn.set(column + offset, delivery);
+            }
+            column += colspan;
+        });
+        if (deliveriesByColumn.size === 0) return;
+
+        table.querySelectorAll('tr').forEach((row) => {
+            let cellColumn = 0;
+            [...row.children].forEach((cell) => {
+                const colspan = Number.parseInt(cell.getAttribute('colspan') || '1', 10);
+                const delivery = deliveriesByColumn.get(cellColumn);
+                if (delivery) cell.dataset.yoowiiDelivery = delivery;
+                cellColumn += colspan;
+            });
+        });
+    }
+
+    deliveryKey(value) {
+        const label = value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() || '';
+        if (label.includes('urgence')) return 'urgence';
+        if (label.includes('express')) return 'express';
+        if (label.includes('standard')) return 'standard';
+
+        return null;
     }
 
     // Prescript attaches Bootstrap/jQuery Popovers directly to selects with a

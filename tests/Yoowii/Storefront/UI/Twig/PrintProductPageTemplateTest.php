@@ -41,6 +41,16 @@ final class PrintProductPageTemplateTest extends TestCase
         self::assertStringContainsString('data-realisaprint-prescript-quote-summary-profile-value', $template);
     }
 
+    public function testPriceCalculationPrecedesTheSupplierPriceTable(): void
+    {
+        $template = $this->themeTemplate('shop/product/show/realisaprint_prescript_configurator.html.twig');
+
+        self::assertLessThan(
+            strpos($template, 'data-realisaprint-prescript-quote-target="pricing"'),
+            strpos($template, 'data-realisaprint-prescript-quote-target="supplierCalculate"'),
+        );
+    }
+
     private function themeTemplate(string $path): string
     {
         $template = file_get_contents(dirname(__DIR__, 5) . '/themes/YoowiiTheme/templates/' . $path);
