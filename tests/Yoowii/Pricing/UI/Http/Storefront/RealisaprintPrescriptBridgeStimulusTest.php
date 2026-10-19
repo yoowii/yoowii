@@ -27,6 +27,8 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('classs_usage_reserve', $controller);
         self::assertStringContainsString("yoowii:configuration-update", $controller);
         self::assertStringContainsString('summaryContext: String', $controller);
+        self::assertStringContainsString('visibleText(element)', $controller);
+        self::assertStringContainsString("document.createTreeWalker(element, NodeFilter.SHOW_TEXT", $controller);
     }
 
     public function testPrescriptCanUseAnExplicitVersionedSummaryProfile(): void
@@ -58,7 +60,11 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString("classList.add('yoowii-prescript-document')", $controller);
         self::assertStringContainsString("classList.add('yoowii-prescript-field')", $controller);
         self::assertStringContainsString('decorateSupplierTooltip(row)', $controller);
+        self::assertStringContainsString("if (!hasImage && this.visibleText(content) === '')", $controller);
+        self::assertStringContainsString('tooltip.hidden = true;', $controller);
         self::assertStringContainsString("'yoowii-prescript-tooltip-details'", $controller);
+        self::assertStringContainsString('title.after(tooltip)', $controller);
+        self::assertStringContainsString("row.classList.add('yoowii-prescript-field--label-tooltip')", $controller);
         self::assertStringContainsString('disableUnavailableSupplierControls(row)', $controller);
         self::assertStringContainsString("row.classList.contains('css_zone_grisee')", $controller);
         self::assertStringContainsString('control.disabled = true;', $controller);

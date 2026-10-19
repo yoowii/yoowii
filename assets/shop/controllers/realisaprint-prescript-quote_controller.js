@@ -151,8 +151,17 @@ export default class extends Controller {
         const trigger = tooltip?.querySelector('.bulletip-item');
         const content = tooltip?.querySelector('.infobulle_css_contenu');
         if (!tooltip || !trigger || !content) return;
+        const hasImage = [...content.querySelectorAll('img')].some((image) => image.getAttribute('src')?.trim());
+        if (!hasImage && this.visibleText(content) === '') {
+            tooltip.hidden = true;
+            tooltip.setAttribute('aria-hidden', 'true');
+            trigger.tabIndex = -1;
+
+            return;
+        }
 
         tooltip.classList.remove('hidden');
+        tooltip.hidden = false;
         tooltip.classList.add('yoowii-prescript-tooltip');
         trigger.classList.add('yoowii-prescript-tooltip-trigger');
         trigger.removeAttribute('aria-hidden');
@@ -164,6 +173,13 @@ export default class extends Controller {
         }
         trigger.setAttribute('aria-describedby', content.id);
         content.classList.add('yoowii-prescript-tooltip-content');
+        const isCheckboxOption = row.querySelector('input[type="checkbox"]') !== null;
+        const title = row.querySelector('.web_ligne_variable_saisie_intitule');
+        if (!isCheckboxOption && title && tooltip.parentElement !== title) {
+            title.after(tooltip);
+            row.classList.add('yoowii-prescript-field--label-tooltip');
+            tooltip.classList.add('yoowii-prescript-tooltip--label');
+        }
         if (!content.querySelector('.yoowii-prescript-tooltip-details')) {
             const details = document.createElement('div');
             details.className = 'yoowii-prescript-tooltip-details';
@@ -572,11 +588,28 @@ export default class extends Controller {
 
     labelFor(row, control) {
         const explicit = row.querySelector('.web_ligne_variable_saisie_intitule, label[for]');
-        if (explicit?.textContent?.trim()) return explicit.textContent.trim();
+        const explicitLabel = this.visibleText(explicit);
+        if (explicitLabel) return explicitLabel;
         const labelledBy = control?.getAttribute('aria-labelledby');
         const label = labelledBy ? this.configurationScope().querySelector(`#${CSS.escape(labelledBy)}`) : null;
 
-        return label?.textContent?.trim() || '';
+        return this.visibleText(label);
+    }
+
+    // Prescript sometimes appends its Popover initializer as a <script> in the
+    // same node as the label. Keep the script for the provider, but never use
+    // executable source as customer-facing configuration text.
+    visibleText(element) {
+        if (!element) return '';
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+            acceptNode: (node) => node.parentElement?.closest('script, style')
+                ? NodeFilter.FILTER_REJECT
+                : NodeFilter.FILTER_ACCEPT,
+        });
+        const text = [];
+        while (walker.nextNode()) text.push(walker.currentNode.textContent);
+
+        return text.join(' ').replace(/\s+/g, ' ').trim();
     }
 
     valueFor(control) {
