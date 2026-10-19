@@ -30,30 +30,37 @@
 
     <div class="grid items-start gap-8 xl:grid-cols-[minmax(20rem,0.72fr)_minmax(0,1.28fr)] xl:gap-12">
         <aside class="min-w-0 xl:sticky xl:top-6">
-            <div class="yoowii-prescript-gallery-slot" data-prescript-gallery-slot></div>
-            <div class="rounded-box border border-base-300 bg-base-200/60 p-3 sm:p-5" data-prescript-gallery-fallback>
-                <a href="{{ main_original_path }}" class="block aspect-square overflow-hidden rounded-box bg-base-100">
+            <div
+                class="yoowii-prescript-gallery-slot yoowii-product-gallery"
+                data-prescript-gallery-slot
+                data-controller="yoowii-gallery"
+                data-yoowii-gallery-context-value="{{ configuration_context }}"
+                data-action="yoowii:prescript-gallery-update@document->yoowii-gallery#update"
+            >
+                <div class="yoowii-product-gallery__stage">
                     <img
                         src="{{ main_path }}"
                         alt="{{ product.name }}"
-                        class="h-full w-full object-contain"
+                        class="yoowii-product-gallery__image"
+                        data-yoowii-gallery-target="image"
                         {% if main_image %}{{ sylius_test_html_attribute('main-image', main_image.type) }}{% else %}{{ sylius_test_html_attribute('main-image') }}{% endif %}
                     >
-                </a>
-
-                {% if product.images|length > 1 %}
-                    <ul class="mt-4 flex gap-3 overflow-x-auto pb-1" aria-label="{{ 'sylius.ui.product'|trans }}">
-                        {% for image in product.images %}
-                            {% set image_path = image.path is not null ? image.path|imagine_filter('sylius_shop_product_small_thumbnail') : asset('build/shop/images/200x200.png', 'shop') %}
-                            {% set image_original_path = image.path is not null ? image.path|imagine_filter('sylius_shop_product_original') : image_path %}
-                            <li class="w-20 shrink-0">
-                                <a href="{{ image_original_path }}" class="block aspect-square overflow-hidden rounded-box border border-base-300 bg-base-100 p-1 focus:outline-none focus:ring-2 focus:ring-primary">
-                                    <img src="{{ image_path }}" alt="{{ product.name }}" class="h-full w-full object-contain">
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
+                    <button class="yoowii-product-gallery__control" type="button" aria-label="Visuel précédent" hidden data-action="yoowii-gallery#previous" data-yoowii-gallery-target="previous">‹</button>
+                    <button class="yoowii-product-gallery__control" type="button" aria-label="Visuel suivant" hidden data-action="yoowii-gallery#next" data-yoowii-gallery-target="next">›</button>
+                </div>
+                <div class="yoowii-product-gallery__thumbnails" aria-label="{{ 'sylius.ui.product'|trans }}" data-yoowii-gallery-target="thumbnails">
+                    {% for image in product.images %}
+                        {% set image_path = image.path is not null ? image.path|imagine_filter('sylius_shop_product_small_thumbnail') : asset('build/shop/images/200x200.png', 'shop') %}
+                        {% set image_original_path = image.path is not null ? image.path|imagine_filter('sylius_shop_product_original') : image_path %}
+                        <button
+                            class="yoowii-product-gallery__thumbnail"
+                            type="button"
+                            data-gallery-image="{{ image_original_path }}"
+                            data-gallery-thumbnail="{{ image_path }}"
+                            data-gallery-alt="{{ product.name }}"
+                        ><img src="{{ image_path }}" alt="" loading="lazy"></button>
+                    {% endfor %}
+                </div>
             </div>
 
             <div

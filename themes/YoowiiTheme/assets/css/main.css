@@ -1,4 +1,5 @@
 @import "tailwindcss" source(none);
+@import "./prescript.css";
 
 @source "../../templates/bundles/SyliusShopBundle/**/*.twig";
 @source "../../templates/shop/**/*.twig";
@@ -382,74 +383,11 @@
         display: none;
     }
 
-    .yoowii-prescript-source.is-prescript-assembled {
-        display: none;
-    }
-
     .yoowii-prescript-technical-field,
     .yoowii-prescript-supplier-action,
     .yoowii-prescript-pricing #save_configuration {
         display: none !important;
     }
-
-    .yoowii-prescript-gallery-slot:not(:empty) {
-        overflow: visible;
-        border: 1px solid var(--color-base-300);
-        border-radius: var(--radius-box);
-        background: var(--color-base-100);
-        padding: 0.5rem 0.5rem 1rem;
-    }
-
-    .yoowii-prescript-gallery-slot .contenu_bloc_image_tableau,
-    .yoowii-prescript-gallery-slot .zone_des_visuels_NUMERO_EN_COURS {
-        width: 100%;
-        min-width: 0;
-        margin: 0 !important;
-    }
-
-    /* GalleryView dimensions are synchronized by the storefront controller. */
-    .yoowii-prescript-gallery-slot {
-        display: flex;
-        width: 100%;
-        box-sizing: border-box;
-        justify-content: center;
-    }
-
-    .yoowii-prescript-gallery-slot .contenu_bloc_image_tableau {
-        display: flex;
-        justify-content: center;
-    }
-
-    .yoowii-prescript-gallery-slot .gv_galleryWrap {
-        flex: 0 0 auto;
-        border: 0 !important;
-        border-radius: calc(var(--radius-box) - 0.25rem);
-        box-shadow: none !important;
-        overflow: visible;
-    }
-
-    .yoowii-prescript-gallery-slot .gv_gallery {
-        border: 0 !important;
-        box-shadow: none !important;
-    }
-
-    /* GalleryView writes fixed inline sizes after it initializes. The custom
-       properties are calculated by the controller; !important keeps these
-       responsive dimensions authoritative when GalleryView writes again. */
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-width] { width: var(--yoowii-gallery-width) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-height] { height: var(--yoowii-gallery-height) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-top] { top: var(--yoowii-gallery-top) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-right] { right: var(--yoowii-gallery-right) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-bottom] { bottom: var(--yoowii-gallery-bottom) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-left] { left: var(--yoowii-gallery-left) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-padding-top] { padding-top: var(--yoowii-gallery-padding-top) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-padding-right] { padding-right: var(--yoowii-gallery-padding-right) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-padding-bottom] { padding-bottom: var(--yoowii-gallery-padding-bottom) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-padding-left] { padding-left: var(--yoowii-gallery-padding-left) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-margin-top] { margin-top: var(--yoowii-gallery-margin-top) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-margin-right] { margin-right: var(--yoowii-gallery-margin-right) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-margin-bottom] { margin-bottom: var(--yoowii-gallery-margin-bottom) !important; }
-    .yoowii-prescript-gallery-slot [data-yoowii-gallery-margin-left] { margin-left: var(--yoowii-gallery-margin-left) !important; }
 
     .yoowii-prescript-options .yoowii-prescript-option-block {
         margin-bottom: 1rem;

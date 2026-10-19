@@ -27,6 +27,8 @@ final class PrintProductPageTemplateTest extends TestCase
         self::assertStringContainsString('data-configuration-summary-target="dialog"', $template);
         self::assertStringContainsString('Voir le détail', $template);
         self::assertStringContainsString('data-prescript-gallery-slot', $template);
+        self::assertStringContainsString('data-controller="yoowii-gallery"', $template);
+        self::assertStringContainsString('yoowii:prescript-gallery-update@document->yoowii-gallery#update', $template);
         self::assertStringContainsString('sylius_shop.product.show.content.info.overview.accordion', $template);
         self::assertStringContainsString("sylius_shop.product.show.content.product_listing", $template);
     }

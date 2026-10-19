@@ -69,42 +69,36 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('quoteStale', $controller);
     }
 
-    public function testItPlacesSupplierMediaAndOptionsInTheYoowiiProductLayout(): void
+    public function testItPublishesSupplierMediaToTheYoowiiGalleryAndPlacesOptionsInTheProductLayout(): void
     {
         $controller = $this->controller();
 
-        self::assertStringContainsString("querySelectorAll('.contenu_bloc_image_tableau')", $controller);
+        self::assertStringContainsString("querySelector('.contenu_bloc_image_tableau')", $controller);
+        self::assertStringContainsString("yoowii:prescript-gallery-update", $controller);
+        self::assertStringContainsString('scheduleGalleryUpdate()', $controller);
+        self::assertStringContainsString('safeImageUrl(value)', $controller);
+        self::assertStringContainsString("attributeFilter: ['src']", $controller);
         self::assertStringContainsString("querySelectorAll('[id^=\"BALISE_BLOC_\"]')", $controller);
         self::assertStringContainsString("querySelectorAll('[id^=\"VAR_\"]')", $controller);
         self::assertStringContainsString("this.configurationScope().querySelectorAll('[id^=\"VAR_\"]')", $controller);
-        self::assertStringContainsString('gallerySlot.append(gallery)', $controller);
-        self::assertStringContainsString("galleryCandidates.find((candidate) => candidate.querySelector('.gv_galleryWrap'))", $controller);
-        self::assertStringContainsString('retryGalleryAssembly()', $controller);
-        self::assertStringContainsString("'[Yoowii Gallery] Waiting for supplier gallery'", $controller);
         self::assertStringContainsString('this.optionsTarget.append(block)', $controller);
         self::assertStringNotContainsString('cloneNode(', $controller);
-        self::assertStringContainsString('resizeSupplierGallery(gallerySlot)', $controller);
-        self::assertStringContainsString('galleryWrap.dataset.yoowiiGalleryNativeWidth', $controller);
-        self::assertStringContainsString('const scale = availableWidth / nativeWidth;', $controller);
-        self::assertStringContainsString('resizeGalleryDimensions(galleryWrap, scale)', $controller);
-        self::assertStringContainsString("'.gv_panel', '.gv_panel img'", $controller);
-        self::assertStringContainsString('panel: this.galleryDimensions(galleryWrap.querySelector(\'.gv_panel\'))', $controller);
-        self::assertStringContainsString('panelImage: this.galleryDimensions(galleryWrap.querySelector(\'.gv_panel img\'))', $controller);
-        self::assertStringContainsString("console.log('[Yoowii Gallery] Assembly check'", $controller);
-        self::assertStringContainsString("console.log('[Yoowii Gallery] Resize skipped: .gv_galleryWrap was not found')", $controller);
-        self::assertStringContainsString("console.log('[Yoowii Gallery] Responsive dimensions applied'", $controller);
-        self::assertStringContainsString("console.trace('[Yoowii Gallery] Resize call stack')", $controller);
-        self::assertStringContainsString("'width', 'height', 'top', 'right', 'bottom', 'left'", $controller);
-        self::assertStringContainsString('element.style.setProperty(`--yoowii-gallery-${cssProperty}`', $controller);
-        self::assertStringContainsString('element.style.setProperty(property, `${originalDimension * scale}px`, \'important\')', $controller);
-        self::assertStringContainsString('new ResizeObserver', $controller);
-        self::assertStringContainsString('observeSupplierGallery(gallerySlot, galleryWrap)', $controller);
-        self::assertStringContainsString('hasGalleryDimensionDrift(galleryWrap)', $controller);
-        self::assertStringContainsString("'[Yoowii Gallery] GalleryView overwrote dimensions; reapplying responsive dimensions'", $controller);
+        self::assertStringNotContainsString('resizeSupplierGallery(', $controller);
+        self::assertStringNotContainsString('gallerySlot.append(gallery)', $controller);
+        self::assertStringNotContainsString('new ResizeObserver', $controller);
         self::assertStringContainsString('calculateSupplierPrice(event)', $controller);
         self::assertStringContainsString('clearError()', $controller);
         self::assertStringContainsString('waitForConfigurationCode()', $controller);
         self::assertStringContainsString('submitQuotedItem()', $controller);
+    }
+
+    public function testVisibleGalleryIsOwnedByTheYoowiiStimulusController(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/yoowii-gallery_controller.js');
+
+        self::assertIsString($controller);
+        self::assertStringContainsString('this.thumbnailsTarget.replaceChildren', $controller);
+        self::assertStringContainsString("thumbnail.loading = 'lazy'", $controller);
     }
 
     public function testAddToCartIsOnlyRevealedAfterChoosingASupplierPrice(): void

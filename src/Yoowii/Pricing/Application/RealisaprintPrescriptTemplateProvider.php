@@ -15,6 +15,7 @@ final readonly class RealisaprintPrescriptTemplateProvider
         private RealisaprintClient $client,
         private CacheInterface $cache,
         private int $timeToLive,
+        private RealisaprintPrescriptMarkupSanitizer $markupSanitizer,
     ) {
         if ($this->timeToLive < 15) {
             throw new \InvalidArgumentException('The Prescript template cache TTL must be at least 15 seconds.');
@@ -32,18 +33,18 @@ final readonly class RealisaprintPrescriptTemplateProvider
 
         // The callback route must be stable per linked product. Never include a
         // quote/session token here, otherwise a cached template could leak it.
-        $key = 'yoowii.realisaprint.prescript.template.' . hash('sha256', implode('|', [$product, $stock, (string) $margin, $country, $saveConfigurationUrl]));
+        $key = 'yoowii.realisaprint.prescript.template.' . hash('sha256', implode('|', ['sanitized-v2', $product, $stock, (string) $margin, $country, $saveConfigurationUrl]));
 
         return $this->cache->get($key, function (ItemInterface $item) use ($product, $stock, $margin, $country, $saveConfigurationUrl): string {
             $item->expiresAfter($this->timeToLive);
 
-            return $this->client->postContent('get_prescript', [
+            return $this->markupSanitizer->sanitize($this->client->postContent('get_prescript', [
                 'product' => $product,
                 'stock' => $stock,
                 'margin' => $margin,
                 'country' => $country,
                 'save_configuration_url' => $saveConfigurationUrl,
-            ]);
+            ]));
         });
     }
 }

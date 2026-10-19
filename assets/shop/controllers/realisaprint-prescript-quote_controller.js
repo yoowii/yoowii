@@ -16,11 +16,8 @@ export default class extends Controller {
         this.visible = false;
         this.timer = null;
         this.summaryTimer = null;
-        this.galleryResizeObserver = null;
-        this.galleryStyleObserver = null;
-        this.observedGalleryWrap = null;
-        this.galleryAssemblyTimer = null;
-        this.galleryAssemblyRetries = 0;
+        this.galleryTimer = null;
+        this.gallerySignature = null;
         this.onEmbedInput = this.scheduleSummary.bind(this);
         this.onSupplierInput = this.onSupplierInput.bind(this);
         this.observeVisibility();
@@ -35,12 +32,10 @@ export default class extends Controller {
         this.stopPolling();
         this.quoteAbortController?.abort();
         window.clearTimeout(this.summaryTimer);
-        window.clearTimeout(this.galleryAssemblyTimer);
+        window.clearTimeout(this.galleryTimer);
         this.intersectionObserver?.disconnect();
         this.mutationObserver?.disconnect();
         this.pricingObserver?.disconnect();
-        this.galleryResizeObserver?.disconnect();
-        this.galleryStyleObserver?.disconnect();
         if (this.hasEmbedTarget) {
             this.embedTarget.removeEventListener('change', this.onEmbedInput, true);
             this.embedTarget.removeEventListener('input', this.onEmbedInput, true);
@@ -75,8 +70,14 @@ export default class extends Controller {
         this.mutationObserver = new MutationObserver(() => {
             this.syncEmbedState();
             this.scheduleSummary();
+            this.scheduleGalleryUpdate();
         });
-        this.mutationObserver.observe(this.embedTarget, { childList: true, subtree: true });
+        this.mutationObserver.observe(this.embedTarget, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['src'],
+        });
         this.embedTarget.addEventListener('change', this.onEmbedInput, true);
         this.embedTarget.addEventListener('input', this.onEmbedInput, true);
         if (this.hasPricingTarget) {
@@ -112,6 +113,7 @@ export default class extends Controller {
         if (isReady) {
             this.decorateSupplierDocument();
             this.assembleSupplierDocument();
+            this.scheduleGalleryUpdate();
         }
 
         if (isReady && this.hasStatusTarget) {
@@ -133,34 +135,6 @@ export default class extends Controller {
     }
 
     assembleSupplierDocument() {
-        const page = this.productPage();
-        const gallerySlot = page?.querySelector('[data-prescript-gallery-slot]');
-        // GalleryView can create its markup after the supplier document has
-        // loaded. Look in the embed first, then in the product page in case its
-        // script has inserted the gallery outside the supplier wrapper.
-        const galleryCandidates = [
-            ...this.embedTarget.querySelectorAll('.contenu_bloc_image_tableau'),
-            ...(page ? page.querySelectorAll('.contenu_bloc_image_tableau') : []),
-        ];
-        const gallery = galleryCandidates.find((candidate) => candidate.querySelector('.gv_galleryWrap'));
-        console.log('[Yoowii Gallery] Assembly check', {
-            galleryFound: Boolean(gallery),
-            gallerySlotFound: Boolean(gallerySlot),
-            galleryCandidateCount: galleryCandidates.length,
-        });
-        if (!gallery && gallerySlot) {
-            this.retryGalleryAssembly();
-        }
-        if (gallery && gallerySlot && gallery.parentElement !== gallerySlot) {
-            gallery.classList.add('yoowii-prescript-gallery');
-            gallerySlot.append(gallery);
-            page.querySelector('[data-prescript-gallery-fallback]')?.classList.add('hidden');
-        }
-        if (gallery) {
-            this.galleryAssemblyRetries = 0;
-        }
-        this.resizeSupplierGallery(gallerySlot);
-
         if (this.hasOptionsTarget) {
             [...this.embedTarget.querySelectorAll('[id^="BALISE_BLOC_"]')].forEach((block) => {
                 block.classList.add('yoowii-prescript-option-block');
@@ -195,145 +169,50 @@ export default class extends Controller {
         this.scheduleSummary();
     }
 
-    retryGalleryAssembly() {
-        if (this.galleryAssemblyTimer !== null || this.galleryAssemblyRetries >= 50) {
-            if (this.galleryAssemblyRetries === 50) {
-                console.log('[Yoowii Gallery] Assembly stopped: supplier gallery was not injected');
-                this.galleryAssemblyRetries += 1;
-            }
-
-            return;
-        }
-
-        this.galleryAssemblyRetries += 1;
-        console.log('[Yoowii Gallery] Waiting for supplier gallery', { attempt: this.galleryAssemblyRetries });
-        this.galleryAssemblyTimer = window.setTimeout(() => {
-            this.galleryAssemblyTimer = null;
-            this.assembleSupplierDocument();
-        }, 100);
+    scheduleGalleryUpdate() {
+        window.clearTimeout(this.galleryTimer);
+        this.galleryTimer = window.setTimeout(() => this.publishGallery(), 80);
     }
 
-    // GalleryView writes its dimensions inline. Resize every dimension from its
-    // original value so the active panel, filmstrip, thumbnails and navigation
-    // keep the same proportions while filling the Yoowii gallery slot.
-    resizeSupplierGallery(gallerySlot) {
-        const galleryWrap = gallerySlot?.querySelector('.gv_galleryWrap');
-        if (!galleryWrap) {
-            console.log('[Yoowii Gallery] Resize skipped: .gv_galleryWrap was not found');
+    // GalleryView remains an invisible supplier data source only. Yoowii owns
+    // the visible carousel, its responsive layout and its accessibility.
+    publishGallery() {
+        const gallery = this.embedTarget.querySelector('.contenu_bloc_image_tableau');
+        if (!gallery) return;
 
-            return;
-        }
+        const title = gallery.querySelector('.gv_overlay h4')?.textContent?.trim() || '';
+        const thumbnails = [...gallery.querySelectorAll('.gv_thumbnail img[src]')];
+        const panels = [...gallery.querySelectorAll('.gv_panel img[src]')];
+        const images = [...thumbnails, ...panels].reduce((items, image) => {
+            const src = this.safeImageUrl(image.getAttribute('src'));
+            if (!src || items.some((item) => item.src === src)) return items;
+            items.push({ src, thumbnailSrc: src, alt: image.alt?.trim() || title });
 
-        const nativeWidth = Number.parseFloat(galleryWrap.dataset.yoowiiGalleryNativeWidth || galleryWrap.style.width);
-        if (!Number.isFinite(nativeWidth) || nativeWidth <= 0) {
-            console.log('[Yoowii Gallery] Resize skipped: invalid native width', { width: galleryWrap.style.width });
+            return items;
+        }, []);
+        if (images.length === 0) return;
 
-            return;
-        }
+        const activeThumbnail = gallery.querySelector('.gv_thumbnail.current img[src]');
+        const activeSrc = this.safeImageUrl(activeThumbnail?.getAttribute('src'));
+        const activeIndex = Math.max(0, images.findIndex((image) => image.src === activeSrc));
+        const signature = JSON.stringify({ images, activeIndex });
+        if (signature === this.gallerySignature) return;
 
-        galleryWrap.dataset.yoowiiGalleryNativeWidth = String(nativeWidth);
-        const styles = window.getComputedStyle(gallerySlot);
-        const availableWidth = gallerySlot.clientWidth - Number.parseFloat(styles.paddingLeft) - Number.parseFloat(styles.paddingRight);
-        if (availableWidth <= 0) {
-            console.log('[Yoowii Gallery] Resize skipped: unavailable slot width', { availableWidth });
-
-            return;
-        }
-
-        const scale = availableWidth / nativeWidth;
-        this.resizeGalleryDimensions(galleryWrap, scale);
-        console.log('[Yoowii Gallery] Responsive dimensions applied', {
-            nativeWidth,
-            availableWidth,
-            scale,
-            width: galleryWrap.style.getPropertyValue('--yoowii-gallery-width'),
-            height: galleryWrap.style.getPropertyValue('--yoowii-gallery-height'),
-            panel: this.galleryDimensions(galleryWrap.querySelector('.gv_panel')),
-            panelImage: this.galleryDimensions(galleryWrap.querySelector('.gv_panel img')),
-        });
-        console.trace('[Yoowii Gallery] Resize call stack');
-        this.observeSupplierGallery(gallerySlot, galleryWrap);
-        if (!('ResizeObserver' in window) || this.galleryResizeObserver) return;
-
-        this.galleryResizeObserver = new ResizeObserver(() => this.resizeSupplierGallery(gallerySlot));
-        this.galleryResizeObserver.observe(gallerySlot);
-    }
-
-    observeSupplierGallery(gallerySlot, galleryWrap) {
-        if (!('MutationObserver' in window) || this.observedGalleryWrap === galleryWrap) return;
-
-        this.galleryStyleObserver?.disconnect();
-        this.observedGalleryWrap = galleryWrap;
-        this.galleryStyleObserver = new MutationObserver((records) => {
-            const galleryWasRebuilt = records.some((record) => record.type === 'childList');
-            if (!galleryWasRebuilt && !this.hasGalleryDimensionDrift(galleryWrap)) return;
-
-            console.log('[Yoowii Gallery] GalleryView overwrote dimensions; reapplying responsive dimensions');
-            this.resizeSupplierGallery(gallerySlot);
-        });
-        this.galleryStyleObserver.observe(galleryWrap, {
-            attributes: true,
-            attributeFilter: ['style'],
-            childList: true,
-            subtree: true,
-        });
-    }
-
-    hasGalleryDimensionDrift(galleryWrap) {
-        const properties = ['width', 'height', 'top', 'right', 'bottom', 'left'];
-
-        return [galleryWrap, ...galleryWrap.querySelectorAll('*')].some((element) => properties.some((property) => {
-            const expected = element.style.getPropertyValue(`--yoowii-gallery-${property}`);
-
-            return expected !== '' && (
-                element.style.getPropertyValue(property) !== expected
-                || element.style.getPropertyPriority(property) !== 'important'
-            );
+        this.gallerySignature = signature;
+        document.dispatchEvent(new CustomEvent('yoowii:prescript-gallery-update', {
+            detail: { context: this.summaryContextValue, images, activeIndex },
         }));
     }
 
-    resizeGalleryDimensions(galleryWrap, scale) {
-        const properties = [
-            'width', 'height', 'top', 'right', 'bottom', 'left',
-            'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-            'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
-        ];
-        const galleryElements = [
-            galleryWrap,
-            ...galleryWrap.querySelectorAll([
-                '.gv_gallery', '.gv_panelWrap', '.gv_panel', '.gv_panel img',
-                '.gv_panelNavNext', '.gv_panelNavPrev', '.gv_overlay', '.gv_showOverlay',
-                '.gv_filmstripWrap', '.gv_filmstrip', '.gv_frame', '.gv_thumbnail', '.gv_thumbnail img',
-                '.gv_navWrap', '.gv_navPrev', '.gv_navPlay', '.gv_navNext',
-            ].join(', ')),
-        ];
+    safeImageUrl(value) {
+        if (!value) return null;
+        try {
+            const url = new URL(value, window.location.href);
 
-        galleryElements.forEach((element) => {
-            properties.forEach((property) => {
-                const dataKey = `yoowiiGallery${property[0].toUpperCase()}${property.slice(1)}`;
-                const originalValue = element.dataset[dataKey] ?? element.style[property];
-                const originalDimension = Number.parseFloat(originalValue);
-
-                if (!originalValue.endsWith('px') || !Number.isFinite(originalDimension)) return;
-
-                element.dataset[dataKey] = originalValue;
-                const cssProperty = property.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
-                element.style.setProperty(`--yoowii-gallery-${cssProperty}`, `${originalDimension * scale}px`);
-                // GalleryView can write its original inline dimensions again
-                // after an image has loaded. Use an inline important rule so
-                // the dimensions fitted to the Yoowii container always win.
-                element.style.setProperty(property, `${originalDimension * scale}px`, 'important');
-            });
-        });
-    }
-
-    galleryDimensions(element) {
-        if (!element) return null;
-
-        return {
-            width: element.style.getPropertyValue('--yoowii-gallery-width'),
-            height: element.style.getPropertyValue('--yoowii-gallery-height'),
-        };
+            return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+        } catch {
+            return null;
+        }
     }
 
     onSupplierInput(event) {
