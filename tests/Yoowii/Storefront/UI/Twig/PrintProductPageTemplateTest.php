@@ -31,6 +31,14 @@ final class PrintProductPageTemplateTest extends TestCase
         self::assertStringContainsString("sylius_shop.product.show.content.product_listing", $template);
     }
 
+    public function testPrescriptConfiguratorOmitsAnAbsentSummaryProfileValue(): void
+    {
+        $template = $this->themeTemplate('shop/product/show/realisaprint_prescript_configurator.html.twig');
+
+        self::assertStringContainsString('{% if prescript_summary_profile is not null %}', $template);
+        self::assertStringContainsString('data-realisaprint-prescript-quote-summary-profile-value', $template);
+    }
+
     private function themeTemplate(string $path): string
     {
         $template = file_get_contents(dirname(__DIR__, 5) . '/themes/YoowiiTheme/templates/' . $path);

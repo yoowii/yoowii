@@ -4,7 +4,9 @@
     data-realisaprint-prescript-quote-quote-url-value="{{ path('yoowii_shop_realisaprint_prescript_quote', {productCode: product.code, _locale: app.request.locale}) }}"
     data-realisaprint-prescript-quote-csrf-token-value="{{ csrf_token('prescript_quote_' ~ product.code) }}"
     data-realisaprint-prescript-quote-summary-context-value="{{ configuration_context|default('print-' ~ product.code) }}"
-    data-realisaprint-prescript-quote-summary-profile-value="{{ prescript_summary_profile|default(null)|json_encode|e('html_attr') }}"
+    {% if prescript_summary_profile is not null %}
+        data-realisaprint-prescript-quote-summary-profile-value="{{ prescript_summary_profile|json_encode|e('html_attr') }}"
+    {% endif %}
 >
     <div class="card-body gap-6 p-4 sm:p-6 lg:p-8">
         <header class="max-w-2xl">

@@ -4,7 +4,7 @@ import { Controller } from '@hotwired/stimulus';
 // an event. The bridge observes it without changing supplier markup, fields or
 // handlers. It never uses that observation to calculate a price automatically.
 export default class extends Controller {
-    static values = { quoteUrl: String, csrfToken: String, summaryContext: String, summaryProfile: Object };
+    static values = { quoteUrl: String, csrfToken: String, summaryContext: String };
     static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
 
     connect() {
@@ -17,6 +17,10 @@ export default class extends Controller {
         this.timer = null;
         this.summaryTimer = null;
         this.galleryResizeObserver = null;
+        this.galleryStyleObserver = null;
+        this.observedGalleryWrap = null;
+        this.galleryAssemblyTimer = null;
+        this.galleryAssemblyRetries = 0;
         this.onEmbedInput = this.scheduleSummary.bind(this);
         this.onSupplierInput = this.onSupplierInput.bind(this);
         this.observeVisibility();
@@ -31,10 +35,12 @@ export default class extends Controller {
         this.stopPolling();
         this.quoteAbortController?.abort();
         window.clearTimeout(this.summaryTimer);
+        window.clearTimeout(this.galleryAssemblyTimer);
         this.intersectionObserver?.disconnect();
         this.mutationObserver?.disconnect();
         this.pricingObserver?.disconnect();
         this.galleryResizeObserver?.disconnect();
+        this.galleryStyleObserver?.disconnect();
         if (this.hasEmbedTarget) {
             this.embedTarget.removeEventListener('change', this.onEmbedInput, true);
             this.embedTarget.removeEventListener('input', this.onEmbedInput, true);
@@ -128,12 +134,30 @@ export default class extends Controller {
 
     assembleSupplierDocument() {
         const page = this.productPage();
-        const gallery = this.embedTarget.querySelector('.contenu_bloc_image_tableau');
         const gallerySlot = page?.querySelector('[data-prescript-gallery-slot]');
+        // GalleryView can create its markup after the supplier document has
+        // loaded. Look in the embed first, then in the product page in case its
+        // script has inserted the gallery outside the supplier wrapper.
+        const galleryCandidates = [
+            ...this.embedTarget.querySelectorAll('.contenu_bloc_image_tableau'),
+            ...(page ? page.querySelectorAll('.contenu_bloc_image_tableau') : []),
+        ];
+        const gallery = galleryCandidates.find((candidate) => candidate.querySelector('.gv_galleryWrap'));
+        console.log('[Yoowii Gallery] Assembly check', {
+            galleryFound: Boolean(gallery),
+            gallerySlotFound: Boolean(gallerySlot),
+            galleryCandidateCount: galleryCandidates.length,
+        });
+        if (!gallery && gallerySlot) {
+            this.retryGalleryAssembly();
+        }
         if (gallery && gallerySlot && gallery.parentElement !== gallerySlot) {
             gallery.classList.add('yoowii-prescript-gallery');
             gallerySlot.append(gallery);
             page.querySelector('[data-prescript-gallery-fallback]')?.classList.add('hidden');
+        }
+        if (gallery) {
+            this.galleryAssemblyRetries = 0;
         }
         this.resizeSupplierGallery(gallerySlot);
 
@@ -171,26 +195,145 @@ export default class extends Controller {
         this.scheduleSummary();
     }
 
-    // GalleryView gives every inner element a dimension derived from the
-    // wrapper. Scaling that one wrapper keeps its active panel, filmstrip and
-    // navigation in sync while allowing the Yoowii column to use its full width.
+    retryGalleryAssembly() {
+        if (this.galleryAssemblyTimer !== null || this.galleryAssemblyRetries >= 50) {
+            if (this.galleryAssemblyRetries === 50) {
+                console.log('[Yoowii Gallery] Assembly stopped: supplier gallery was not injected');
+                this.galleryAssemblyRetries += 1;
+            }
+
+            return;
+        }
+
+        this.galleryAssemblyRetries += 1;
+        console.log('[Yoowii Gallery] Waiting for supplier gallery', { attempt: this.galleryAssemblyRetries });
+        this.galleryAssemblyTimer = window.setTimeout(() => {
+            this.galleryAssemblyTimer = null;
+            this.assembleSupplierDocument();
+        }, 100);
+    }
+
+    // GalleryView writes its dimensions inline. Resize every dimension from its
+    // original value so the active panel, filmstrip, thumbnails and navigation
+    // keep the same proportions while filling the Yoowii gallery slot.
     resizeSupplierGallery(gallerySlot) {
         const galleryWrap = gallerySlot?.querySelector('.gv_galleryWrap');
-        if (!galleryWrap) return;
+        if (!galleryWrap) {
+            console.log('[Yoowii Gallery] Resize skipped: .gv_galleryWrap was not found');
 
-        const nativeWidth = Number.parseFloat(galleryWrap.dataset.yoowiiGalleryWidth || galleryWrap.style.width);
-        if (!Number.isFinite(nativeWidth) || nativeWidth <= 0) return;
+            return;
+        }
 
-        galleryWrap.dataset.yoowiiGalleryWidth = String(nativeWidth);
+        const nativeWidth = Number.parseFloat(galleryWrap.dataset.yoowiiGalleryNativeWidth || galleryWrap.style.width);
+        if (!Number.isFinite(nativeWidth) || nativeWidth <= 0) {
+            console.log('[Yoowii Gallery] Resize skipped: invalid native width', { width: galleryWrap.style.width });
+
+            return;
+        }
+
+        galleryWrap.dataset.yoowiiGalleryNativeWidth = String(nativeWidth);
         const styles = window.getComputedStyle(gallerySlot);
         const availableWidth = gallerySlot.clientWidth - Number.parseFloat(styles.paddingLeft) - Number.parseFloat(styles.paddingRight);
-        if (availableWidth <= 0) return;
+        if (availableWidth <= 0) {
+            console.log('[Yoowii Gallery] Resize skipped: unavailable slot width', { availableWidth });
 
-        galleryWrap.style.setProperty('--yoowii-gallery-scale', String(availableWidth / nativeWidth));
+            return;
+        }
+
+        const scale = availableWidth / nativeWidth;
+        this.resizeGalleryDimensions(galleryWrap, scale);
+        console.log('[Yoowii Gallery] Responsive dimensions applied', {
+            nativeWidth,
+            availableWidth,
+            scale,
+            width: galleryWrap.style.getPropertyValue('--yoowii-gallery-width'),
+            height: galleryWrap.style.getPropertyValue('--yoowii-gallery-height'),
+            panel: this.galleryDimensions(galleryWrap.querySelector('.gv_panel')),
+            panelImage: this.galleryDimensions(galleryWrap.querySelector('.gv_panel img')),
+        });
+        console.trace('[Yoowii Gallery] Resize call stack');
+        this.observeSupplierGallery(gallerySlot, galleryWrap);
         if (!('ResizeObserver' in window) || this.galleryResizeObserver) return;
 
         this.galleryResizeObserver = new ResizeObserver(() => this.resizeSupplierGallery(gallerySlot));
         this.galleryResizeObserver.observe(gallerySlot);
+    }
+
+    observeSupplierGallery(gallerySlot, galleryWrap) {
+        if (!('MutationObserver' in window) || this.observedGalleryWrap === galleryWrap) return;
+
+        this.galleryStyleObserver?.disconnect();
+        this.observedGalleryWrap = galleryWrap;
+        this.galleryStyleObserver = new MutationObserver((records) => {
+            const galleryWasRebuilt = records.some((record) => record.type === 'childList');
+            if (!galleryWasRebuilt && !this.hasGalleryDimensionDrift(galleryWrap)) return;
+
+            console.log('[Yoowii Gallery] GalleryView overwrote dimensions; reapplying responsive dimensions');
+            this.resizeSupplierGallery(gallerySlot);
+        });
+        this.galleryStyleObserver.observe(galleryWrap, {
+            attributes: true,
+            attributeFilter: ['style'],
+            childList: true,
+            subtree: true,
+        });
+    }
+
+    hasGalleryDimensionDrift(galleryWrap) {
+        const properties = ['width', 'height', 'top', 'right', 'bottom', 'left'];
+
+        return [galleryWrap, ...galleryWrap.querySelectorAll('*')].some((element) => properties.some((property) => {
+            const expected = element.style.getPropertyValue(`--yoowii-gallery-${property}`);
+
+            return expected !== '' && (
+                element.style.getPropertyValue(property) !== expected
+                || element.style.getPropertyPriority(property) !== 'important'
+            );
+        }));
+    }
+
+    resizeGalleryDimensions(galleryWrap, scale) {
+        const properties = [
+            'width', 'height', 'top', 'right', 'bottom', 'left',
+            'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+            'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+        ];
+        const galleryElements = [
+            galleryWrap,
+            ...galleryWrap.querySelectorAll([
+                '.gv_gallery', '.gv_panelWrap', '.gv_panel', '.gv_panel img',
+                '.gv_panelNavNext', '.gv_panelNavPrev', '.gv_overlay', '.gv_showOverlay',
+                '.gv_filmstripWrap', '.gv_filmstrip', '.gv_frame', '.gv_thumbnail', '.gv_thumbnail img',
+                '.gv_navWrap', '.gv_navPrev', '.gv_navPlay', '.gv_navNext',
+            ].join(', ')),
+        ];
+
+        galleryElements.forEach((element) => {
+            properties.forEach((property) => {
+                const dataKey = `yoowiiGallery${property[0].toUpperCase()}${property.slice(1)}`;
+                const originalValue = element.dataset[dataKey] ?? element.style[property];
+                const originalDimension = Number.parseFloat(originalValue);
+
+                if (!originalValue.endsWith('px') || !Number.isFinite(originalDimension)) return;
+
+                element.dataset[dataKey] = originalValue;
+                const cssProperty = property.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+                element.style.setProperty(`--yoowii-gallery-${cssProperty}`, `${originalDimension * scale}px`);
+                // GalleryView can write its original inline dimensions again
+                // after an image has loaded. Use an inline important rule so
+                // the dimensions fitted to the Yoowii container always win.
+                element.style.setProperty(property, `${originalDimension * scale}px`, 'important');
+            });
+        });
+    }
+
+    galleryDimensions(element) {
+        if (!element) return null;
+
+        return {
+            width: element.style.getPropertyValue('--yoowii-gallery-width'),
+            height: element.style.getPropertyValue('--yoowii-gallery-height'),
+        };
     }
 
     onSupplierInput(event) {
@@ -386,8 +529,18 @@ export default class extends Controller {
     }
 
     profileSteps() {
-        const fields = this.summaryProfileValue?.version === 'v1' && Array.isArray(this.summaryProfileValue.fields)
-            ? this.summaryProfileValue.fields
+        const serializedProfile = this.element.getAttribute('data-realisaprint-prescript-quote-summary-profile-value');
+        if (!serializedProfile || serializedProfile === 'null') return null;
+
+        let profile;
+        try {
+            profile = JSON.parse(serializedProfile);
+        } catch {
+            return null;
+        }
+
+        const fields = profile?.version === 'v1' && Array.isArray(profile.fields)
+            ? profile.fields
             : [];
         if (fields.length === 0) return null;
 

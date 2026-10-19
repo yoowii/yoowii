@@ -407,8 +407,7 @@
         margin: 0 !important;
     }
 
-    /* GalleryView keeps a set of interdependent inline dimensions. Preserve
-       them so its panel, filmstrip and controls remain synchronized. */
+    /* GalleryView dimensions are synchronized by the storefront controller. */
     .yoowii-prescript-gallery-slot {
         display: flex;
         width: 100%;
@@ -423,12 +422,27 @@
 
     .yoowii-prescript-gallery-slot .gv_galleryWrap {
         flex: 0 0 auto;
-        max-width: 100%;
         border-radius: calc(var(--radius-box) - 0.25rem);
         overflow: hidden;
-        transform-origin: top center;
-        zoom: var(--yoowii-gallery-scale, 1);
     }
+
+    /* GalleryView writes fixed inline sizes after it initializes. The custom
+       properties are calculated by the controller; !important keeps these
+       responsive dimensions authoritative when GalleryView writes again. */
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-width] { width: var(--yoowii-gallery-width) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-height] { height: var(--yoowii-gallery-height) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-top] { top: var(--yoowii-gallery-top) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-right] { right: var(--yoowii-gallery-right) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-bottom] { bottom: var(--yoowii-gallery-bottom) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-left] { left: var(--yoowii-gallery-left) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-padding-top] { padding-top: var(--yoowii-gallery-padding-top) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-padding-right] { padding-right: var(--yoowii-gallery-padding-right) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-padding-bottom] { padding-bottom: var(--yoowii-gallery-padding-bottom) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-padding-left] { padding-left: var(--yoowii-gallery-padding-left) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-margin-top] { margin-top: var(--yoowii-gallery-margin-top) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-margin-right] { margin-right: var(--yoowii-gallery-margin-right) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-margin-bottom] { margin-bottom: var(--yoowii-gallery-margin-bottom) !important; }
+    .yoowii-prescript-gallery-slot [data-yoowii-gallery-margin-left] { margin-left: var(--yoowii-gallery-margin-left) !important; }
 
     .yoowii-prescript-options .yoowii-prescript-option-block {
         margin-bottom: 1rem;
