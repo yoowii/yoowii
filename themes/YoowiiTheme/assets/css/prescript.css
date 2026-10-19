@@ -119,6 +119,77 @@
     .yoowii-prescript-options .web_ligne_variable_saisie:has(input[type="checkbox"]) { min-block-size: 4.75rem; }
 }
 
+
+/* Yoowii-owned option thumbnails: CSS-only decoration, no supplier DOM changes. */
+.yoowii-prescript-options .yoowii-prescript-option-card {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: 3.75rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    min-block-size: 6rem;
+    padding: 0.875rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 1rem;
+    background: var(--color-base-100);
+    transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+    cursor: pointer;
+}
+.yoowii-prescript-options .yoowii-prescript-option-card::before {
+    content: "";
+    display: block;
+    inline-size: 3.75rem;
+    block-size: 3.75rem;
+    border-radius: 0.75rem;
+    background: var(--color-base-200) var(--yoowii-option-thumb, none) center / cover no-repeat;
+    border: 1px solid var(--color-base-300);
+}
+.yoowii-prescript-option-card[data-prescript-option="vernis-selectif"] { --yoowii-option-thumb: url("../media/prescript-options/vernis-selectif.svg"); }
+.yoowii-prescript-option-card[data-prescript-option="vernis-selectif-3d"] { --yoowii-option-thumb: url("../media/prescript-options/vernis-selectif-3d.svg"); }
+.yoowii-prescript-option-card[data-prescript-option="zone-de-grattage"] { --yoowii-option-thumb: url("../media/prescript-options/zone-de-grattage.svg"); }
+.yoowii-prescript-option-card[data-prescript-option="dorure-a-chaud"] { --yoowii-option-thumb: url("../media/prescript-options/dorure-a-chaud.svg"); }
+.yoowii-prescript-option-card[data-prescript-option="dorure-a-chaud-3d"] { --yoowii-option-thumb: url("../media/prescript-options/dorure-a-chaud-3d.svg"); }
+.yoowii-prescript-option-card[data-prescript-option="gaufrage"] { --yoowii-option-thumb: url("../media/prescript-options/gaufrage.svg"); }
+.yoowii-prescript-option-card[data-prescript-option="code-barres-unitaire"] { --yoowii-option-thumb: url("../media/prescript-options/code-barres-unitaire.svg"); }
+.yoowii-prescript-option-card[data-prescript-option="personnalisation-unitaire"] { --yoowii-option-thumb: url("../media/prescript-options/personnalisation-unitaire.svg"); }
+.yoowii-prescript-option-card[data-prescript-option="nfc"] { --yoowii-option-thumb: url("../media/prescript-options/nfc.svg"); }
+.yoowii-prescript-options .yoowii-prescript-option-card .web_ligne_variable_saisie_intitule {
+    min-inline-size: 0;
+    font-weight: 700;
+    line-height: 1.35;
+}
+.yoowii-prescript-options .yoowii-prescript-option-card .web_ligne_variable_saisie_saisie {
+    display: flex;
+    align-items: center;
+    gap: .625rem;
+}
+.yoowii-prescript-options .yoowii-prescript-option-card:hover:not(.is-disabled) {
+    border-color: var(--color-yoowii-lavender);
+    box-shadow: 0 5px 18px rgb(30 27 58 / .06);
+}
+.yoowii-prescript-options .yoowii-prescript-option-card.is-selected {
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-base-100));
+    box-shadow: 0 0 0 1px var(--color-primary);
+}
+.yoowii-prescript-options .yoowii-prescript-option-card.is-disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+.yoowii-prescript-options .yoowii-prescript-option-card .yoowii-prescript-tooltip-content {
+    cursor: default;
+}
+@media (max-width: 639px) {
+    .yoowii-prescript-options .yoowii-prescript-option-card {
+        grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+        gap: .625rem;
+    }
+    .yoowii-prescript-options .yoowii-prescript-option-card::before {
+        inline-size: 3.25rem;
+        block-size: 3.25rem;
+    }
+}
+
 .yoowii-product-gallery {
     overflow: hidden;
     border: 1px solid var(--color-base-300);
