@@ -5,7 +5,7 @@ import { Controller } from '@hotwired/stimulus';
 // handlers. It never uses that observation to calculate a price automatically.
 export default class extends Controller {
     static values = { quoteUrl: String, csrfToken: String, summaryContext: String };
-    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'mobilePrices', 'purchaseSummary', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
+    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'purchaseSummary', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
 
     connect() {
         this.configurationCode = null;
@@ -20,8 +20,7 @@ export default class extends Controller {
         this.gallerySignature = null;
         this.priceNeedsRefresh = false;
         this.supplierPriceCalculated = false;
-        this.mobileQuantity = null;
-        this.mobilePricingSignature = null;
+        this.supplierCalculation = null;
         this.onEmbedInput = this.scheduleSummary.bind(this);
         this.onSupplierInput = this.onSupplierInput.bind(this);
         this.onOptionCardClick = this.onOptionCardClick.bind(this);
@@ -94,7 +93,11 @@ export default class extends Controller {
         this.embedTarget.addEventListener('change', this.onEmbedInput, true);
         this.embedTarget.addEventListener('input', this.onEmbedInput, true);
         if (this.hasPricingTarget) {
-            this.pricingObserver = new MutationObserver(() => this.refreshPurchaseAction());
+            this.pricingObserver = new MutationObserver(() => {
+                this.assembleSupplierDocument();
+                this.confirmSupplierCalculation();
+                this.refreshPurchaseAction();
+            });
             this.pricingObserver.observe(this.pricingTarget, { childList: true, subtree: true });
         }
     }
@@ -273,19 +276,28 @@ export default class extends Controller {
     // Urgence, Express and Standard consistently.
     decorateSupplierPriceTable(table) {
         const deliveriesByColumn = new Map();
-        let column = 0;
-        const headerRow = table.querySelector('thead tr, tr');
-        if (!headerRow) return;
-
-        [...headerRow.children].forEach((cell) => {
-            const delivery = this.deliveryKey(cell.textContent);
-            const colspan = Number.parseInt(cell.getAttribute('colspan') || '1', 10);
-            if (delivery) {
-                cell.dataset.yoowiiDelivery = delivery;
-                for (let offset = 0; offset < colspan; offset += 1) deliveriesByColumn.set(column + offset, delivery);
-            }
-            column += colspan;
-        });
+        const occupiedColumns = [];
+        const rows = [...table.querySelectorAll('tr')];
+        // Headers can be split over several rows and use both colspan and
+        // rowspan. Build their actual column positions before decorating price
+        // cells instead of assuming Urgence/Express/Standard are fixed.
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+            const row = rows[rowIndex];
+            if (row.querySelector('input[name="optionsRadios"]')) break;
+            let column = 0;
+            [...row.children].forEach((cell) => {
+                while (occupiedColumns[column] > rowIndex) column += 1;
+                const colspan = Number.parseInt(cell.getAttribute('colspan') || '1', 10);
+                const rowspan = Number.parseInt(cell.getAttribute('rowspan') || '1', 10);
+                const delivery = this.deliveryKey(cell.textContent);
+                if (delivery) {
+                    cell.dataset.yoowiiDelivery = delivery;
+                    for (let offset = 0; offset < colspan; offset += 1) deliveriesByColumn.set(column + offset, delivery);
+                }
+                for (let offset = 0; offset < colspan; offset += 1) occupiedColumns[column + offset] = rowIndex + rowspan;
+                column += colspan;
+            });
+        }
         if (deliveriesByColumn.size === 0) return;
 
         table.querySelectorAll('tr').forEach((row) => {
@@ -459,7 +471,6 @@ export default class extends Controller {
         this.syncOptionCardStates();
         if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement)) return;
         if (control.matches('input[name="optionsRadios"]')) {
-            this.mobileQuantity = this.priceQuantity(control) || this.mobileQuantity;
             this.refreshPurchaseAction();
             this.scheduleSummary();
             return;
@@ -472,7 +483,6 @@ export default class extends Controller {
 
         this.priceNeedsRefresh = true;
         this.supplierPriceCalculated = false;
-        this.mobilePricingSignature = null;
         this.configurationCode = null;
         const code = this.codeField();
         if (code) code.value = '';
@@ -527,17 +537,16 @@ export default class extends Controller {
 
             return;
         }
+        // A pre-existing matrix can be stale. Record it before invoking the
+        // supplier so that merely calling checkBeforeCalculate() never marks
+        // the old table as valid.
+        this.supplierCalculation = {
+            fingerprint: this.priceTableFingerprint(),
+            table: this.supplierPriceTable(),
+            deadline: Date.now() + 15000,
+        };
         window.checkBeforeCalculate();
-        this.mobilePricingSignature = null;
-        window.setTimeout(() => {
-            this.assembleSupplierDocument();
-            // Hide the manual action only when supplier price choices are present.
-            if (this.priceMatrix().size > 0) {
-                this.supplierPriceCalculated = true;
-                this.priceNeedsRefresh = false;
-            }
-            this.refreshPurchaseAction();
-        }, 0);
+        this.waitForSupplierCalculation();
     }
 
     async prepareCart(event) {
@@ -615,18 +624,15 @@ export default class extends Controller {
 
     quantity() {
         const scope = this.configurationScope();
+        const selectedPriceQuantity = this.priceQuantity(this.selectedPriceOption());
+        if (selectedPriceQuantity) return selectedPriceQuantity;
+
         const field = scope.querySelector('[name="quantity" i], [name="quantite" i], #quantity, #quantite');
         const value = field?.value?.trim();
         if (value && /^\d+$/.test(value) && Number(value) > 0) {
             return Number(value);
         }
-
-        // Prescript can render quantities as a price-table radio instead of a
-        // named input. Its generated ids end with the selected quantity.
-        const selectedPrice = scope.querySelector('input[name="optionsRadios"]:checked');
-        const match = selectedPrice?.id?.match(/_(\d+)$/);
-
-        return match && Number(match[1]) > 0 ? Number(match[1]) : null;
+        return null;
     }
 
     scheduleSummary() {
@@ -826,10 +832,13 @@ export default class extends Controller {
     priceQuantity(radio) {
         const row = radio.closest('tr');
         if (!row) return null;
-        const label = row.querySelector('th, td')?.textContent?.trim() || '';
-        const cleaned = label.replace(/[\s\u00a0]/g, '');
-        if (/^\d+$/.test(cleaned)) return Number(cleaned);
-        const match = radio.id?.match(/_(\d+)$/);
+        const quantityCell = [...row.children].find((cell) => {
+            const text = cell.textContent?.replace(/[\s\u00a0]/g, '') || '';
+            return /^\d+(?:exemplaires?)?$/i.test(text);
+        });
+        const text = quantityCell?.textContent || '';
+        const normalized = text.replace(/[\s\u00a0]/g, '');
+        const match = normalized.match(/^(\d+)(?:exemplaires?)?$/i);
         return match ? Number(match[1]) : null;
     }
 
@@ -837,6 +846,26 @@ export default class extends Controller {
         const cell = radio.closest('td, th');
         const classes = [cell?.className, cell?.parentElement?.className].join(' ');
         return cell?.dataset.yoowiiDelivery || this.deliveryKey(classes);
+    }
+
+    priceCells(radio, delivery) {
+        const row = radio.closest('tr');
+        if (!row) return [];
+        const cells = [...row.querySelectorAll(':scope > td, :scope > th')];
+        const deliveryCells = cells.filter((cell) => {
+            const classes = [cell.className, row.className].join(' ');
+            return (cell.dataset.yoowiiDelivery || this.deliveryKey(classes)) === delivery;
+        });
+
+        // A Prescript delivery choice is commonly rendered as three sibling
+        // cells: radio, price, then delay. Its headers may be rebuilt after a
+        // calculation, so retain this structural fallback while never reading
+        // values from a different delivery group.
+        if (deliveryCells.length > 0) return deliveryCells;
+        const radioCell = radio.closest('td, th');
+        const index = cells.indexOf(radioCell);
+
+        return index === -1 ? [] : cells.slice(index, index + 3);
     }
 
     priceMatrix() {
@@ -848,103 +877,39 @@ export default class extends Controller {
             const cell = radio.closest('td');
             if (!quantity || !delivery || !cell || radio.disabled) return;
             if (!result.has(quantity)) result.set(quantity, new Map());
-            const raw = cell.textContent.replace(/\s+/g, ' ').trim();
-            const euro = raw.match(/(?:\d[\d\s.,]*)\s*€/);
-            const numeric = euro?.[0]?.replace(/\s*€/, '').trim();
-            const price = numeric ? `${numeric} € HT` : '';
-            const delay = raw.match(/J\s*\+\s*\d+/i)?.[0]?.replace(/\s+/g, '') || '';
-            result.get(quantity).set(delivery, { radio, price, delay });
+            const cells = this.priceCells(radio, delivery);
+            const raw = cells.map((priceCell) => priceCell.textContent.replace(/\s+/g, ' ').trim()).join(' ');
+            const details = this.priceDetails(cells);
+            const priceSource = `${this.priceCell(cells)?.textContent?.replace(/\s+/g, ' ').trim() || ''} ${details.text}`;
+            const euro = priceSource.match(/(?:\d[\d\s.,]*)\s*€(?:\s*HT)?/i);
+            // Preserve the supplier's French monetary representation. The
+            // summary is a view of the selected table cell, never a quote.
+            const price = euro?.[0]?.trim() || '';
+            const delay = priceSource.match(/J\s*\+\s*\d+/i)?.[0]?.replace(/\s+/g, '') || '';
+            result.get(quantity).set(delivery, { radio, price, delay, ...details });
         });
         return result;
     }
 
-    chooseMobileQuantity(event) {
-        const value = Number(event.target.value);
-        if (!Number.isInteger(value)) return;
-        this.mobileQuantity = value;
-        this.renderMobilePrices();
+    // Prescript keeps delivery facts in its popover attribute. Read that
+    // supplier-provided text directly; nothing in the summary is calculated
+    // or guessed by Yoowii.
+    priceCell(cells) {
+        return cells.find((cell) => cell.classList.contains('cell-price')) || null;
     }
 
-    chooseMobilePrice(event) {
-        const key = event.currentTarget.dataset.delivery;
-        const option = this.priceMatrix().get(this.mobileQuantity)?.get(key);
-        if (!option || this.priceNeedsRefresh) return;
-        option.radio.click(); // original supplier input is the single source of truth
-        if (!option.radio.checked) {
-            option.radio.checked = true;
-            option.radio.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        this.refreshPurchaseAction();
-    }
+    priceDetails(cells) {
+        const priceCell = this.priceCell(cells);
+        const trigger = (priceCell || cells[0])?.querySelector('.infobulle_particuliere[data-content]')
+            || cells.flatMap((cell) => [...cell.querySelectorAll('.infobulle_particuliere[data-content]')])[0];
+        const source = trigger?.getAttribute('data-content') || '';
+        const documentFragment = new DOMParser().parseFromString(source, 'text/html');
+        const text = this.visibleText(documentFragment.body);
+        const deliveryDate = text.match(/Livraison\s+pr[ée]vue\s*(?:le)?\s*:?\s*([^\n]+?)(?=\s*(?:Poids|Prix|Livraison|$))/i)?.[1]?.trim() || '';
+        const weight = text.match(/Poids\s*:\s*([\d.,]+\s*kg)/i)?.[1]?.trim() || '';
+        const shippingIncluded = text.match(/Livraison\s+comprise\s+dans\s+le\s+prix/i)?.[0] || '';
 
-    renderMobilePrices() {
-        if (!this.hasMobilePricesTarget) return;
-        const matrix = this.priceMatrix();
-        const quantities = [...matrix.keys()].sort((a, b) => a - b);
-        if (!quantities.length) {
-            this.mobilePricesTarget.replaceChildren();
-            this.mobilePricesTarget.hidden = true;
-            return;
-        }
-        this.mobilePricesTarget.hidden = false;
-        const selected = this.selectedPriceOption();
-        const selectedQuantity = selected && this.priceQuantity(selected);
-        if (!quantities.includes(this.mobileQuantity)) {
-            this.mobileQuantity = quantities.includes(selectedQuantity) ? selectedQuantity : quantities[0];
-        }
-        const signature = JSON.stringify({
-            quantities,
-            quantity: this.mobileQuantity,
-            stale: this.priceNeedsRefresh,
-            selected: selected?.id,
-            prices: [...matrix.get(this.mobileQuantity).entries()].map(([key, value]) => [key, value.price, value.delay]),
-        });
-        if (signature === this.mobilePricingSignature) return;
-        this.mobilePricingSignature = signature;
-        const root = document.createElement('div');
-        root.className = 'yoowii-prescript-mobile-inner';
-        const label = document.createElement('label');
-        label.className = 'yoowii-mobile-quantity-label';
-        label.textContent = 'Quantité';
-        const select = document.createElement('select');
-        select.className = 'select select-bordered w-full';
-        select.setAttribute('aria-label', 'Quantité souhaitée');
-        quantities.forEach((quantity) => {
-            const option = document.createElement('option');
-            option.value = String(quantity);
-            option.textContent = `${quantity.toLocaleString('fr-FR')} exemplaires`;
-            option.selected = quantity === this.mobileQuantity;
-            select.append(option);
-        });
-        select.addEventListener('change', (event) => this.chooseMobileQuantity(event));
-        label.append(select);
-        root.append(label);
-        const cards = document.createElement('div');
-        cards.className = 'yoowii-mobile-delivery-grid';
-        const labels = { urgence: 'Urgence', express: 'Express', standard: 'Standard' };
-        for (const key of ['urgence', 'express', 'standard']) {
-            const option = matrix.get(this.mobileQuantity).get(key);
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'yoowii-mobile-delivery-card';
-            button.dataset.delivery = key;
-            button.disabled = !option || this.priceNeedsRefresh;
-            const active = option && option.radio === selected && !this.priceNeedsRefresh;
-            button.classList.toggle('is-selected', Boolean(active));
-            button.setAttribute('aria-pressed', active ? 'true' : 'false');
-            const title = document.createElement('strong');
-            title.textContent = labels[key];
-            const amount = document.createElement('span');
-            amount.className = 'yoowii-mobile-delivery-price';
-            amount.textContent = option?.price || 'Indisponible';
-            const delay = document.createElement('span');
-            delay.textContent = option?.delay || '';
-            button.append(title, amount, delay);
-            button.addEventListener('click', (event) => this.chooseMobilePrice(event));
-            cards.append(button);
-        }
-        root.append(cards);
-        this.mobilePricesTarget.replaceChildren(root);
+        return { text, deliveryDate, weight, shippingIncluded };
     }
 
     refreshPurchaseAction() {
@@ -971,11 +936,60 @@ export default class extends Controller {
                 this.purchaseSummaryTarget.hidden = false;
                 this.purchaseSummaryTarget.querySelector('[data-purchase-quantity]').textContent = quantity.toLocaleString('fr-FR');
                 this.purchaseSummaryTarget.querySelector('[data-purchase-delivery]').textContent = ({ urgence: 'Urgence', express: 'Express', standard: 'Standard' })[delivery] || delivery;
-                this.purchaseSummaryTarget.querySelector('[data-purchase-delay]').textContent = info.delay || 'À confirmer';
-                this.purchaseSummaryTarget.querySelector('[data-purchase-price]').textContent = info.price || 'Voir tableau';
+                this.setPurchaseDetail('delay', info.delay);
+                this.setPurchaseDetail('delivery-date', info.deliveryDate);
+                this.setPurchaseDetail('weight', info.weight);
+                const shipping = this.purchaseSummaryTarget.querySelector('[data-purchase-shipping-included]');
+                shipping.textContent = info.shippingIncluded;
+                shipping.hidden = !info.shippingIncluded;
+                this.purchaseSummaryTarget.querySelector('[data-purchase-price]').textContent = info.price || '—';
             }
         }
-        this.renderMobilePrices();
+    }
+
+    setPurchaseDetail(name, value) {
+        const field = this.purchaseSummaryTarget.querySelector(`[data-purchase-${name}]`);
+        const label = this.purchaseSummaryTarget.querySelector(`[data-purchase-${name}-label]`);
+        if (!field) return;
+        field.textContent = value || '—';
+        field.hidden = !value;
+        if (label) label.hidden = !value;
+    }
+
+    priceTableFingerprint() {
+        if (!this.hasPricingTarget) return '';
+        return [...this.pricingTarget.querySelectorAll('input[name="optionsRadios"]')]
+            .map((radio) => `${radio.id}|${radio.value}|${radio.closest('td')?.textContent?.replace(/\s+/g, ' ').trim() || ''}`)
+            .join('\n');
+    }
+
+    supplierPriceTable() {
+        return this.hasPricingTarget ? this.pricingTarget.querySelector('.tableau-prix') : null;
+    }
+
+    waitForSupplierCalculation() {
+        window.setTimeout(() => this.confirmSupplierCalculation(), 100);
+    }
+
+    confirmSupplierCalculation() {
+        if (!this.supplierCalculation) return;
+        this.assembleSupplierDocument();
+        const fingerprint = this.priceTableFingerprint();
+        if (this.priceMatrix().size > 0 && (fingerprint !== this.supplierCalculation.fingerprint || this.supplierPriceTable() !== this.supplierCalculation.table)) {
+            this.supplierPriceCalculated = true;
+            this.priceNeedsRefresh = false;
+            this.supplierCalculation = null;
+            this.clearError();
+            this.refreshPurchaseAction();
+            return;
+        }
+        if (Date.now() < this.supplierCalculation.deadline) {
+            window.setTimeout(() => this.confirmSupplierCalculation(), 150);
+            return;
+        }
+        this.supplierCalculation = null;
+        this.showError('Le tableau de prix n’a pas pu être actualisé. Veuillez vérifier votre configuration puis réessayer.');
+        this.refreshPurchaseAction();
     }
 
     waitForConfigurationCode() {

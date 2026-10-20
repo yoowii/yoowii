@@ -32,18 +32,20 @@
         </button>
 
         <div class="yoowii-prescript-pricing" data-realisaprint-prescript-quote-target="pricing"></div>
-        <div class="yoowii-prescript-mobile-prices" data-realisaprint-prescript-quote-target="mobilePrices" aria-label="Choisissez la quantité et le délai" hidden></div>
         <div class="yoowii-prescript-purchase-summary rounded-box border border-base-300 bg-base-200 p-4" data-realisaprint-prescript-quote-target="purchaseSummary" aria-live="polite" hidden>
             <h3 class="mb-3 font-semibold text-base-content">Votre sélection</h3>
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <span>Quantité</span><strong class="text-right"><span data-purchase-quantity></span> exemplaires</strong>
-                <span>Fabrication</span><strong class="text-right"><span data-purchase-delivery></span> · <span data-purchase-delay></span></strong>
+                <span>Fabrication</span><strong class="text-right" data-purchase-delivery></strong>
+                <span data-purchase-delay-label>Délai</span><strong class="text-right" data-purchase-delay></strong>
+                <span data-purchase-delivery-date-label hidden>Livraison prévue</span><strong class="text-right" data-purchase-delivery-date hidden></strong>
+                <span data-purchase-weight-label hidden>Poids</span><strong class="text-right" data-purchase-weight hidden></strong>
+                <span class="col-span-2 text-success" data-purchase-shipping-included hidden></span>
             </div>
             <div class="mt-3 flex items-center justify-between border-t border-base-300 pt-3">
                 <span class="font-medium">Prix de la configuration</span>
                 <strong class="text-xl text-primary" data-purchase-price></strong>
             </div>
-            <p class="mt-2 text-xs text-base-content/65">Prix HT issu du tableau fournisseur. TVA et livraison à confirmer dans le panier.</p>
         </div>
 
         <button class="btn btn-success btn-lg hidden w-full sm:w-auto" type="button" data-action="realisaprint-prescript-quote#prepareCart" data-realisaprint-prescript-quote-target="addToCart">
