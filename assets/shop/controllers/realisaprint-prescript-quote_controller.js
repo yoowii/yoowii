@@ -586,6 +586,11 @@ export default class extends Controller {
 
     async requestQuote(code, quantity, addToCart = false) {
         if (this.pending) return;
+        const delivery = this.priceDelivery(this.selectedPriceOption());
+        if (!['standard', 'urgence', 'express'].includes(delivery)) {
+            this.showError('Sélectionnez un tarif et un délai valides dans le tableau.');
+            return;
+        }
         const abortController = new AbortController();
         this.quoteAbortController = abortController;
         const sequence = ++this.quoteSequence;
@@ -595,7 +600,7 @@ export default class extends Controller {
             const response = await fetch(this.quoteUrlValue, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify({ code, quantity, _token: this.csrfTokenValue }),
+                body: JSON.stringify({ code, quantity, delivery, _token: this.csrfTokenValue }),
                 signal: abortController.signal,
             });
             const payload = await response.json();
