@@ -566,10 +566,14 @@ export default class extends Controller {
         }
         const variables = {};
         this.configurationScope().querySelectorAll('input[name^="VARTICLE_"], select[name^="VARTICLE_"], textarea[name^="VARTICLE_"]').forEach((field) => {
-            // Prescript creates separate checkbox controls and internal helper fields.
-            if (!/^VARTICLE_\d+_$/.test(field.name) || field.disabled) return;
+            // Supplier templates use VARTICLE_NUMERO_EN_COURS_123_ or VARTICLE_1_123_
+            // before saveConfiguration() flattens these keys to VARTICLE_123_.
+            // Ignore decorative checkbox helpers and transmit the underlying field.
+            if (field.disabled || field.name.endsWith('_checkbox')) return;
             if ((field.type === 'checkbox' || field.type === 'radio') && !field.checked) return;
-            variables[field.name] = field.value;
+            const match = field.name.match(/^VARTICLE_(?:(?:NUMERO_EN_COURS|\d+)_)?(\d+)_$/);
+            if (!match) return;
+            variables[`VARTICLE_${match[1]}_`] = field.value;
         });
         if (Object.keys(variables).length === 0) {
             this.showError('Les variables fournisseur sont introuvables.');
