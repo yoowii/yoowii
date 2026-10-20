@@ -567,16 +567,27 @@ export default class extends Controller {
             return;
         }
         const variables = {};
-        this.configurationScope().querySelectorAll('input[name^="VARTICLE_"], select[name^="VARTICLE_"], textarea[name^="VARTICLE_"]').forEach((field) => {
-            // Supplier templates use VARTICLE_NUMERO_EN_COURS_123_ or VARTICLE_1_123_
-            // before saveConfiguration() flattens these keys to VARTICLE_123_.
-            // Ignore decorative checkbox helpers and transmit the underlying field.
-            if (field.disabled || field.name.endsWith('_checkbox')) return;
-            if ((field.type === 'checkbox' || field.type === 'radio') && !field.checked) return;
-            const match = field.name.match(/^VARTICLE_(?:(?:NUMERO_EN_COURS|\d+)_)?(\d+)_$/);
-            if (!match) return;
-            variables[`VARTICLE_${match[1]}_`] = field.value;
+        // Collect visible configuration controls rather than Prescript's entire
+        // document, which also contains calculated/internal VARTICLE fields.
+        this.configurationScope().querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
+            if (row.classList.contains('css_zone_grisee')) return;
+            row.querySelectorAll('input, select, textarea').forEach((field) => {
+                if (field.disabled || field.name?.endsWith('_checkbox')) return;
+                if ((field.type === 'checkbox' || field.type === 'radio') && !field.checked) return;
+                const match = field.name?.match(/^VARTICLE_(?:(?:NUMERO_EN_COURS|\\d+)_)?(\\d+)_$/);
+                if (!match) return;
+                if (field.type === 'hidden' && !field.classList.contains('class_saisie_varcalc_au_general')) return;
+                if (field.value !== '') variables[`VARTICLE_${match[1]}_`] = field.value;
+            });
         });
+        // Production quantity and delivery are selected in the tariff matrix,
+        // not always in visible Prescript options. The supplier identifier is
+        // product-specific; for this audited product they are known.
+        const supplierProduct = this.embedTarget?.dataset.prescriptProductCode;
+        if (supplierProduct === 'PRINT_CARTE_DE_VISITE_CALENDRIER') {
+            variables.VARTICLE_23002_ = String(quantity);
+            variables.VARTICLE_23025_ = String({ standard: 0, urgence: 1, express: 2 }[delivery]);
+        }
         if (Object.keys(variables).length === 0) {
             this.showError('Les variables fournisseur sont introuvables.');
             return;
