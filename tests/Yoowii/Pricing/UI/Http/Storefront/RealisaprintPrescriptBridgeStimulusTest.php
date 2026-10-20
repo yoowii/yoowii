@@ -72,6 +72,9 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString("jquery(control).popover('destroy')", $controller);
         self::assertStringContainsString('decorateSupplierPriceTable(table)', $controller);
         self::assertStringContainsString('deliveryKey(value)', $controller);
+        self::assertStringContainsString('decorateSupplierPricePopovers(table)', $controller);
+        self::assertStringContainsString("popover.classList.add('yoowii-prescript-price-popover')", $controller);
+        self::assertStringContainsString('onSupplierPricePopoverHover(event)', $controller);
         self::assertStringContainsString("'vernis-selectif': 'vernis_selectif.png'", $controller);
         self::assertStringContainsString('themes/yoowii-theme/media/prescript-options/', $controller);
         self::assertStringNotContainsString('replaceWith(', $controller);

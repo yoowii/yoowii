@@ -22,6 +22,7 @@ export default class extends Controller {
         this.onSupplierInput = this.onSupplierInput.bind(this);
         this.onOptionCardClick = this.onOptionCardClick.bind(this);
         this.onSupplierControlHover = this.onSupplierControlHover.bind(this);
+        this.onSupplierPricePopoverHover = this.onSupplierPricePopoverHover.bind(this);
         this.observeVisibility();
         if (this.hasEmbedTarget) {
             this.observeEmbed();
@@ -30,6 +31,7 @@ export default class extends Controller {
         this.configurationScope().addEventListener('change', this.onSupplierInput, true);
         this.configurationScope().addEventListener('click', this.onOptionCardClick);
         this.configurationScope().addEventListener('mouseover', this.onSupplierControlHover, true);
+        this.configurationScope().addEventListener('mouseover', this.onSupplierPricePopoverHover, true);
     }
 
     disconnect() {
@@ -47,6 +49,7 @@ export default class extends Controller {
         this.configurationScope().removeEventListener('change', this.onSupplierInput, true);
         this.configurationScope().removeEventListener('click', this.onOptionCardClick);
         this.configurationScope().removeEventListener('mouseover', this.onSupplierControlHover, true);
+        this.configurationScope().removeEventListener('mouseover', this.onSupplierPricePopoverHover, true);
     }
 
     observeVisibility() {
@@ -290,6 +293,45 @@ export default class extends Controller {
                 cellColumn += colspan;
             });
         });
+        this.decorateSupplierPricePopovers(table);
+    }
+
+    decorateSupplierPricePopovers(table) {
+        table.querySelectorAll('.infobulle_particuliere[data-content]').forEach((trigger) => {
+            if (trigger.dataset.yoowiiPricePopoverBound === 'true') return;
+            trigger.dataset.yoowiiPricePopoverBound = 'true';
+            const position = () => window.setTimeout(() => this.positionSupplierPricePopover(trigger), 0);
+            trigger.addEventListener('mouseenter', position);
+            trigger.addEventListener('focus', position);
+        });
+    }
+
+    positionSupplierPricePopover(trigger) {
+        const describedBy = trigger.getAttribute('aria-describedby');
+        const popovers = [...document.querySelectorAll('.popover')];
+        const popover = describedBy ? document.getElementById(describedBy) : popovers.at(-1);
+        if (!popover) return;
+
+        popover.classList.add('yoowii-prescript-price-popover');
+        const triggerBox = trigger.getBoundingClientRect();
+        const popoverBox = popover.getBoundingClientRect();
+        const horizontal = Math.min(Math.max(12, triggerBox.right - popoverBox.width), window.innerWidth - popoverBox.width - 12);
+        const above = triggerBox.top - popoverBox.height - 10;
+        const vertical = above >= 12 ? above : Math.min(triggerBox.bottom + 10, window.innerHeight - popoverBox.height - 12);
+        popover.style.setProperty('position', 'fixed', 'important');
+        popover.style.setProperty('inset', 'auto', 'important');
+        popover.style.setProperty('left', `${horizontal}px`, 'important');
+        popover.style.setProperty('top', `${vertical}px`, 'important');
+        popover.style.setProperty('z-index', '60', 'important');
+    }
+
+    onSupplierPricePopoverHover(event) {
+        const trigger = event.target.closest?.('.infobulle_particuliere[data-content]');
+        if (!trigger || !this.configurationScope().contains(trigger)) return;
+
+        // Prescript can rebuild the table after the initial decorators ran.
+        // Delay until its Bootstrap handler has inserted the popover in <body>.
+        window.setTimeout(() => this.positionSupplierPricePopover(trigger), 20);
     }
 
     deliveryKey(value) {
