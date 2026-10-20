@@ -38,6 +38,13 @@ final readonly class RealisaprintPrescriptQuoteCreator
                 $options += $this->cents($option['price']);
             }
         }
+        $deliveryLabel = $response['delai'] ?? null;
+        $delivery = is_string($deliveryLabel) ? mb_strtolower(trim($deliveryLabel)) : '';
+        if (!in_array($delivery, ['standard', 'urgence', 'express'], true)) {
+            throw new \DomainException('Le délai de fabrication retourné par Realisaprint est invalide.');
+        }
+        $manufacturingDays = $this->days($response['delai_fab'] ?? null);
+        $shippingDays = $this->days($response['delai_liv'] ?? null);
         $supplierCost = $base + $options;
         $margin = $pricingPolicy->calculateMargin($supplierCost);
         $total = $supplierCost + $margin + $pricingPolicy->handlingFee();
@@ -56,6 +63,10 @@ final readonly class RealisaprintPrescriptQuoteCreator
                     'configurator' => 'prescript',
                     'provider_configuration_code' => $configurationCode,
                     'provider_quantity' => $quantity,
+                    'provider_delivery_service' => $delivery,
+                    'provider_delivery_label' => trim((string) $deliveryLabel),
+                    'provider_manufacturing_days' => $manufacturingDays,
+                    'provider_shipping_days' => $shippingDays,
                     'provider_price' => $base,
                     'provider_options_cost' => $options,
                     'provider_details' => is_scalar($response['details'] ?? null) ? (string) $response['details'] : '',
@@ -67,6 +78,17 @@ final readonly class RealisaprintPrescriptQuoteCreator
             $at,
             new QuoteTrace(QuoteSource::RealisaprintApi, 'realisaprint', $mapping->supplierProduct()->code(), $mapping->version(), $configurationCode, $correlationId, $at),
         );
+    }
+
+    private function days(mixed $value): ?int
+    {
+        if (null === $value || '' === $value) {
+            return null;
+        }
+        if (!is_scalar($value) || !ctype_digit((string) $value)) {
+            throw new \DomainException('Realisaprint a retourné un délai invalide.');
+        }
+        return (int) $value;
     }
 
     private function cents(mixed $value): int
