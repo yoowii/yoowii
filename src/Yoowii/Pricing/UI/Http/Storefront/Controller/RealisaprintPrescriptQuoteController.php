@@ -42,6 +42,10 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         if (!is_scalar($code) || !is_scalar($quantity) || !ctype_digit((string) $quantity) || (int) $quantity < 1) {
             return new JsonResponse(['message' => 'La quantité sélectionnée est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
+        $delivery = $payload['delivery'] ?? null;
+        if (!is_string($delivery) || !in_array($delivery, ['standard', 'urgence', 'express'], true)) {
+            return new JsonResponse(['message' => 'Le délai sélectionné est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
+        }
         $mapping = $this->mapping($productCode, $entityManager);
         if (!$mapping instanceof SupplierProductMappingVersion) {
             return new JsonResponse(['message' => 'La configuration Préscript est indisponible.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
@@ -52,7 +56,7 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         }
         try {
             $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-            $snapshot = $creator->create($productCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now);
+            $snapshot = $creator->create($productCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now, $delivery);
             $token = $quoteStore->issue($variant->getCode(), $productCode, $snapshot, $now);
         } catch (\Throwable) {
             return new JsonResponse(['message' => 'Le prix Préscript ne peut pas être calculé pour le moment.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
