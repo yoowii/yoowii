@@ -52,6 +52,21 @@ final class RealisaprintPrescriptConfigurationController extends AbstractControl
                 'variables' => $sanitized,
             ]);
 
+            // A supplier HTTP 200 does not necessarily mean configuration saved.
+            // Keep the response contract for the embedded Prescript script, but
+            // stop immediately on a business error or a missing configuration code.
+            $status = $response['_http_status'] ?? Response::HTTP_OK;
+            $code = $response['code'] ?? null;
+            if (!is_int($status) || $status < 200 || $status >= 300
+                || (isset($response['error']) && false !== $response['error'] && null !== $response['error'] && '' !== $response['error'])
+                || !is_scalar($code) || !preg_match('/^[0-9]+$/D', trim((string) $code))) {
+                return new JsonResponse(
+                    ['error' => 'Realisaprint a refusé la configuration. Veuillez vérifier vos choix et réessayer.'],
+                    Response::HTTP_BAD_GATEWAY,
+                    ['Cache-Control' => 'no-store'],
+                );
+            }
+
             return new JsonResponse($response, Response::HTTP_OK, ['Cache-Control' => 'no-store']);
         } catch (\Throwable) {
             return new JsonResponse(['error' => 'La configuration Realisaprint ne peut pas être enregistrée pour le moment.'], Response::HTTP_BAD_GATEWAY, ['Cache-Control' => 'no-store']);
