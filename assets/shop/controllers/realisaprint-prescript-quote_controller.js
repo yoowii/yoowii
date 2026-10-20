@@ -19,6 +19,7 @@ export default class extends Controller {
         this.galleryTimer = null;
         this.gallerySignature = null;
         this.priceNeedsRefresh = false;
+        this.supplierPriceCalculated = false;
         this.mobileQuantity = null;
         this.mobilePricingSignature = null;
         this.onEmbedInput = this.scheduleSummary.bind(this);
@@ -458,7 +459,6 @@ export default class extends Controller {
         this.syncOptionCardStates();
         if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement)) return;
         if (control.matches('input[name="optionsRadios"]')) {
-            this.priceNeedsRefresh = false;
             this.mobileQuantity = this.priceQuantity(control) || this.mobileQuantity;
             this.refreshPurchaseAction();
             this.scheduleSummary();
@@ -471,6 +471,7 @@ export default class extends Controller {
         }
 
         this.priceNeedsRefresh = true;
+        this.supplierPriceCalculated = false;
         this.mobilePricingSignature = null;
         this.configurationCode = null;
         const code = this.codeField();
@@ -527,10 +528,14 @@ export default class extends Controller {
             return;
         }
         window.checkBeforeCalculate();
-        this.priceNeedsRefresh = false;
         this.mobilePricingSignature = null;
         window.setTimeout(() => {
             this.assembleSupplierDocument();
+            // Hide the manual action only when supplier price choices are present.
+            if (this.priceMatrix().size > 0) {
+                this.supplierPriceCalculated = true;
+                this.priceNeedsRefresh = false;
+            }
             this.refreshPurchaseAction();
         }, 0);
     }
@@ -822,9 +827,9 @@ export default class extends Controller {
         const row = radio.closest('tr');
         if (!row) return null;
         const label = row.querySelector('th, td')?.textContent?.trim() || '';
-        const cleaned = label.replace(/[\\s\\u00a0]/g, '');
-        if (/^\\d+$/.test(cleaned)) return Number(cleaned);
-        const match = radio.id?.match(/_(\\d+)$/);
+        const cleaned = label.replace(/[\s\u00a0]/g, '');
+        if (/^\d+$/.test(cleaned)) return Number(cleaned);
+        const match = radio.id?.match(/_(\d+)$/);
         return match ? Number(match[1]) : null;
     }
 
@@ -843,11 +848,11 @@ export default class extends Controller {
             const cell = radio.closest('td');
             if (!quantity || !delivery || !cell || radio.disabled) return;
             if (!result.has(quantity)) result.set(quantity, new Map());
-            const raw = cell.textContent.replace(/\\s+/g, ' ').trim();
-            const euro = raw.match(/(?:\\d[\\d\\s.,]*)\\s*€/);
-            const numeric = euro?.[0]?.replace(/\\s*€/, '').trim();
+            const raw = cell.textContent.replace(/\s+/g, ' ').trim();
+            const euro = raw.match(/(?:\d[\d\s.,]*)\s*€/);
+            const numeric = euro?.[0]?.replace(/\s*€/, '').trim();
             const price = numeric ? `${numeric} € HT` : '';
-            const delay = raw.match(/J\\s*\\+\\s*\\d+/i)?.[0]?.replace(/\\s+/g, '') || '';
+            const delay = raw.match(/J\s*\+\s*\d+/i)?.[0]?.replace(/\s+/g, '') || '';
             result.get(quantity).set(delivery, { radio, price, delay });
         });
         return result;
@@ -946,6 +951,9 @@ export default class extends Controller {
         const matrix = this.priceMatrix();
         const selected = this.selectedPriceOption();
         const valid = Boolean(selected && !this.priceNeedsRefresh);
+        if (this.hasSupplierCalculateTarget) {
+            this.supplierCalculateTarget.classList.toggle('hidden', this.supplierPriceCalculated && !this.priceNeedsRefresh);
+        }
         if (this.hasAddToCartTarget) {
             this.addToCartTarget.classList.toggle('hidden', !selected);
             this.addToCartTarget.disabled = !valid || this.pending;
