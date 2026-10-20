@@ -5,7 +5,7 @@ import { Controller } from '@hotwired/stimulus';
 // handlers. It never uses that observation to calculate a price automatically.
 export default class extends Controller {
     static values = { quoteUrl: String, csrfToken: String, summaryContext: String };
-    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
+    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'mobilePrices', 'purchaseSummary', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
 
     connect() {
         this.configurationCode = null;
@@ -18,6 +18,9 @@ export default class extends Controller {
         this.summaryTimer = null;
         this.galleryTimer = null;
         this.gallerySignature = null;
+        this.priceNeedsRefresh = false;
+        this.mobileQuantity = null;
+        this.mobilePricingSignature = null;
         this.onEmbedInput = this.scheduleSummary.bind(this);
         this.onSupplierInput = this.onSupplierInput.bind(this);
         this.onOptionCardClick = this.onOptionCardClick.bind(this);
@@ -454,18 +457,27 @@ export default class extends Controller {
         const control = event.target;
         this.syncOptionCardStates();
         if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement)) return;
-        if (control.matches('[id^="VAR_"], #code_liaison, input[name="optionsRadios"]')) {
+        if (control.matches('input[name="optionsRadios"]')) {
+            this.priceNeedsRefresh = false;
+            this.mobileQuantity = this.priceQuantity(control) || this.mobileQuantity;
+            this.refreshPurchaseAction();
+            this.scheduleSummary();
+            return;
+        }
+        if (control.matches('[id^="VAR_"], #code_liaison')) {
             this.scheduleSummary();
             this.refreshPurchaseAction();
-
             return;
         }
 
+        this.priceNeedsRefresh = true;
+        this.mobilePricingSignature = null;
         this.configurationCode = null;
         const code = this.codeField();
         if (code) code.value = '';
         this.markQuoteStale();
         this.clearQuote();
+        this.refreshPurchaseAction();
         this.scheduleSummary();
     }
 
@@ -515,6 +527,8 @@ export default class extends Controller {
             return;
         }
         window.checkBeforeCalculate();
+        this.priceNeedsRefresh = false;
+        this.mobilePricingSignature = null;
         window.setTimeout(() => {
             this.assembleSupplierDocument();
             this.refreshPurchaseAction();
@@ -524,6 +538,10 @@ export default class extends Controller {
     async prepareCart(event) {
         event?.preventDefault();
         const quantity = this.quantity();
+        if (this.priceNeedsRefresh) {
+            this.showError('Votre configuration a changé. Calculez les prix avant de continuer.');
+            return;
+        }
         if (!quantity || !this.selectedPriceOption()) {
             this.showError('Choisissez une quantité et un délai dans le tableau des prix.');
 
@@ -798,10 +816,158 @@ export default class extends Controller {
         return this.configurationScope().querySelector('input[name="optionsRadios"]:checked');
     }
 
-    refreshPurchaseAction() {
-        if (!this.hasAddToCartTarget) return;
+    // Display-only adapters read Prescript's live radio table; no price is
+    // invented or independently submitted by Yoowii.
+    priceQuantity(radio) {
+        const row = radio.closest('tr');
+        if (!row) return null;
+        const label = row.querySelector('th, td')?.textContent?.trim() || '';
+        const cleaned = label.replace(/[\\s\\u00a0]/g, '');
+        if (/^\\d+$/.test(cleaned)) return Number(cleaned);
+        const match = radio.id?.match(/_(\\d+)$/);
+        return match ? Number(match[1]) : null;
+    }
+
+    priceDelivery(radio) {
+        const cell = radio.closest('td, th');
+        const classes = [cell?.className, cell?.parentElement?.className].join(' ');
+        return cell?.dataset.yoowiiDelivery || this.deliveryKey(classes);
+    }
+
+    priceMatrix() {
+        if (!this.hasPricingTarget) return new Map();
+        const result = new Map();
+        this.pricingTarget.querySelectorAll('input[name="optionsRadios"]').forEach((radio) => {
+            const quantity = this.priceQuantity(radio);
+            const delivery = this.priceDelivery(radio);
+            const cell = radio.closest('td');
+            if (!quantity || !delivery || !cell || radio.disabled) return;
+            if (!result.has(quantity)) result.set(quantity, new Map());
+            const raw = cell.textContent.replace(/\\s+/g, ' ').trim();
+            const euro = raw.match(/(?:\\d[\\d\\s.,]*)\\s*€/);
+            const numeric = euro?.[0]?.replace(/\\s*€/, '').trim();
+            const price = numeric ? `${numeric} € HT` : '';
+            const delay = raw.match(/J\\s*\\+\\s*\\d+/i)?.[0]?.replace(/\\s+/g, '') || '';
+            result.get(quantity).set(delivery, { radio, price, delay });
+        });
+        return result;
+    }
+
+    chooseMobileQuantity(event) {
+        const value = Number(event.target.value);
+        if (!Number.isInteger(value)) return;
+        this.mobileQuantity = value;
+        this.renderMobilePrices();
+    }
+
+    chooseMobilePrice(event) {
+        const key = event.currentTarget.dataset.delivery;
+        const option = this.priceMatrix().get(this.mobileQuantity)?.get(key);
+        if (!option || this.priceNeedsRefresh) return;
+        option.radio.click(); // original supplier input is the single source of truth
+        if (!option.radio.checked) {
+            option.radio.checked = true;
+            option.radio.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        this.refreshPurchaseAction();
+    }
+
+    renderMobilePrices() {
+        if (!this.hasMobilePricesTarget) return;
+        const matrix = this.priceMatrix();
+        const quantities = [...matrix.keys()].sort((a, b) => a - b);
+        if (!quantities.length) {
+            this.mobilePricesTarget.replaceChildren();
+            this.mobilePricesTarget.hidden = true;
+            return;
+        }
+        this.mobilePricesTarget.hidden = false;
         const selected = this.selectedPriceOption();
-        this.addToCartTarget.classList.toggle('hidden', !selected);
+        const selectedQuantity = selected && this.priceQuantity(selected);
+        if (!quantities.includes(this.mobileQuantity)) {
+            this.mobileQuantity = quantities.includes(selectedQuantity) ? selectedQuantity : quantities[0];
+        }
+        const signature = JSON.stringify({
+            quantities,
+            quantity: this.mobileQuantity,
+            stale: this.priceNeedsRefresh,
+            selected: selected?.id,
+            prices: [...matrix.get(this.mobileQuantity).entries()].map(([key, value]) => [key, value.price, value.delay]),
+        });
+        if (signature === this.mobilePricingSignature) return;
+        this.mobilePricingSignature = signature;
+        const root = document.createElement('div');
+        root.className = 'yoowii-prescript-mobile-inner';
+        const label = document.createElement('label');
+        label.className = 'yoowii-mobile-quantity-label';
+        label.textContent = 'Quantité';
+        const select = document.createElement('select');
+        select.className = 'select select-bordered w-full';
+        select.setAttribute('aria-label', 'Quantité souhaitée');
+        quantities.forEach((quantity) => {
+            const option = document.createElement('option');
+            option.value = String(quantity);
+            option.textContent = `${quantity.toLocaleString('fr-FR')} exemplaires`;
+            option.selected = quantity === this.mobileQuantity;
+            select.append(option);
+        });
+        select.addEventListener('change', (event) => this.chooseMobileQuantity(event));
+        label.append(select);
+        root.append(label);
+        const cards = document.createElement('div');
+        cards.className = 'yoowii-mobile-delivery-grid';
+        const labels = { urgence: 'Urgence', express: 'Express', standard: 'Standard' };
+        for (const key of ['urgence', 'express', 'standard']) {
+            const option = matrix.get(this.mobileQuantity).get(key);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'yoowii-mobile-delivery-card';
+            button.dataset.delivery = key;
+            button.disabled = !option || this.priceNeedsRefresh;
+            const active = option && option.radio === selected && !this.priceNeedsRefresh;
+            button.classList.toggle('is-selected', Boolean(active));
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            const title = document.createElement('strong');
+            title.textContent = labels[key];
+            const amount = document.createElement('span');
+            amount.className = 'yoowii-mobile-delivery-price';
+            amount.textContent = option?.price || 'Indisponible';
+            const delay = document.createElement('span');
+            delay.textContent = option?.delay || '';
+            button.append(title, amount, delay);
+            button.addEventListener('click', (event) => this.chooseMobilePrice(event));
+            cards.append(button);
+        }
+        root.append(cards);
+        this.mobilePricesTarget.replaceChildren(root);
+    }
+
+    refreshPurchaseAction() {
+        const matrix = this.priceMatrix();
+        const selected = this.selectedPriceOption();
+        const valid = Boolean(selected && !this.priceNeedsRefresh);
+        if (this.hasAddToCartTarget) {
+            this.addToCartTarget.classList.toggle('hidden', !selected);
+            this.addToCartTarget.disabled = !valid || this.pending;
+        }
+        if (this.hasQuoteStaleTarget) {
+            this.quoteStaleTarget.classList.toggle('hidden', !this.priceNeedsRefresh);
+        }
+        if (this.hasPurchaseSummaryTarget) {
+            const quantity = valid ? this.priceQuantity(selected) : null;
+            const delivery = valid ? this.priceDelivery(selected) : null;
+            const info = quantity && delivery ? matrix.get(quantity)?.get(delivery) : null;
+            if (!valid || !info) {
+                this.purchaseSummaryTarget.hidden = true;
+            } else {
+                this.purchaseSummaryTarget.hidden = false;
+                this.purchaseSummaryTarget.querySelector('[data-purchase-quantity]').textContent = quantity.toLocaleString('fr-FR');
+                this.purchaseSummaryTarget.querySelector('[data-purchase-delivery]').textContent = ({ urgence: 'Urgence', express: 'Express', standard: 'Standard' })[delivery] || delivery;
+                this.purchaseSummaryTarget.querySelector('[data-purchase-delay]').textContent = info.delay || 'À confirmer';
+                this.purchaseSummaryTarget.querySelector('[data-purchase-price]').textContent = info.price || 'Voir tableau';
+            }
+        }
+        this.renderMobilePrices();
     }
 
     waitForConfigurationCode() {
