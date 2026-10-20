@@ -18,7 +18,7 @@ final readonly class RealisaprintPrescriptQuoteCreator
     {
     }
 
-    public function create(string $productCode, SupplierProductMappingVersion $mapping, string $configurationCode, int $quantity, PrintPricingPolicy $pricingPolicy, \DateTimeImmutable $at): PricingSnapshot
+    public function create(string $productCode, SupplierProductMappingVersion $mapping, string $configurationCode, int $quantity, PrintPricingPolicy $pricingPolicy, \DateTimeImmutable $at, ?string $expectedDelivery = null): PricingSnapshot
     {
         if ($quantity < 1 || '' === trim($configurationCode)) {
             throw new \InvalidArgumentException('La quantité ou le code de configuration Préscript est invalide.');
@@ -42,6 +42,9 @@ final readonly class RealisaprintPrescriptQuoteCreator
         $delivery = is_string($deliveryLabel) ? mb_strtolower(trim($deliveryLabel)) : '';
         if (!in_array($delivery, ['standard', 'urgence', 'express'], true)) {
             throw new \DomainException('Le délai de fabrication retourné par Realisaprint est invalide.');
+        }
+        if (null !== $expectedDelivery && $delivery !== $expectedDelivery) {
+            throw new \DomainException('Le délai fournisseur ne correspond pas au tarif sélectionné.');
         }
         $manufacturingDays = $this->days($response['delai_fab'] ?? null);
         $shippingDays = $this->days($response['delai_liv'] ?? null);
