@@ -9,6 +9,7 @@ export default class extends Controller {
 
     connect() {
         this.configurationCode = null;
+        this.cartRequestKey = null;
         this.pending = false;
         this.quoteAbortController = null;
         this.quoteSequence = 0;
@@ -482,6 +483,7 @@ export default class extends Controller {
         }
 
         this.priceNeedsRefresh = true;
+        this.cartRequestKey = null;
         this.supplierPriceCalculated = false;
         this.configurationCode = null;
         const code = this.codeField();
@@ -589,7 +591,7 @@ export default class extends Controller {
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     quantity, delivery, variables,
-                    idempotency_key: crypto.randomUUID(),
+                    idempotency_key: (this.cartRequestKey ||= crypto.randomUUID()),
                     _token: this.csrfTokenValue,
                 }),
             });
