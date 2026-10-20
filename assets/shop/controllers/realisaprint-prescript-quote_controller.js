@@ -4,7 +4,7 @@ import { Controller } from '@hotwired/stimulus';
 // an event. The bridge observes it without changing supplier markup, fields or
 // handlers. It never uses that observation to calculate a price automatically.
 export default class extends Controller {
-    static values = { quoteUrl: String, csrfToken: String, summaryContext: String };
+    static values = { quoteUrl: String, cartUrl: String, csrfToken: String, summaryContext: String };
     static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'purchaseSummary', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
 
     connect() {
@@ -549,38 +549,56 @@ export default class extends Controller {
         this.waitForSupplierCalculation();
     }
 
+    // Single storefront request: the backend saves, validates the quote and inserts the cart item.
     async prepareCart(event) {
         event?.preventDefault();
-        const quantity = this.quantity();
+        if (this.pending) return;
         if (this.priceNeedsRefresh) {
             this.showError('Votre configuration a changé. Calculez les prix avant de continuer.');
             return;
         }
-        if (!quantity || !this.selectedPriceOption()) {
-            this.showError('Choisissez une quantité et un délai dans le tableau des prix.');
-
+        const radio = this.selectedPriceOption();
+        const quantity = this.priceQuantity(radio);
+        const delivery = radio ? this.priceDelivery(radio) : null;
+        if (!quantity || !['standard', 'urgence', 'express'].includes(delivery)) {
+            this.showError('Choisissez une quantité et un délai valides dans le tableau.');
             return;
         }
-        if (typeof window.saveConfiguration !== 'function') {
-            this.showError('L’enregistrement de la configuration Préscript est indisponible.');
-
+        const variables = {};
+        this.configurationScope().querySelectorAll('input[name^="VARTICLE_"], select[name^="VARTICLE_"], textarea[name^="VARTICLE_"]').forEach((field) => {
+            // Prescript creates separate checkbox controls and internal helper fields.
+            if (!/^VARTICLE_\d+_$/.test(field.name) || field.disabled) return;
+            if ((field.type === 'checkbox' || field.type === 'radio') && !field.checked) return;
+            variables[field.name] = field.value;
+        });
+        if (Object.keys(variables).length === 0) {
+            this.showError('Les variables fournisseur sont introuvables.');
             return;
         }
-
+        this.pending = true;
         this.clearError();
         this.setLoading(true);
-        const code = this.codeField();
-        if (code) code.value = '';
-        this.configurationCode = null;
         try {
-            window.saveConfiguration();
-            const configurationCode = await this.waitForConfigurationCode();
-            this.configurationCode = configurationCode;
-            await this.requestQuote(configurationCode, quantity, true);
+            const response = await fetch(this.cartUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    quantity, delivery, variables,
+                    idempotency_key: crypto.randomUUID(),
+                    _token: this.csrfTokenValue,
+                }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || 'Impossible d’ajouter le produit au panier.');
+            }
+            window.location.assign(payload.redirect_url);
         } catch (error) {
-            this.showError(error.message || 'La configuration ne peut pas être enregistrée pour le moment.');
+            this.showError(error.message || 'Impossible d’ajouter le produit au panier.');
         } finally {
-            if (!this.pending) this.setLoading(false);
+            this.pending = false;
+            this.setLoading(false);
         }
     }
 
