@@ -1,0 +1,69 @@
+{# Print-only configuration, rendered from the immutable OrderItem pricing snapshot. #}
+{% set configuration = pricing_snapshot.configuration %}
+{% set sourcing = configuration.sourcing|default({}) %}
+{% set ordered_quantity = sourcing.provider_quantity|default(configuration.quantity|default(null)) %}
+{% set provider_details = sourcing.provider_details|default('') %}
+{% set delivery_label = sourcing.provider_delivery_label|default(sourcing.provider_delivery_service|default(null)) %}
+{% set manufacturing_days = sourcing.provider_manufacturing_days|default(null) %}
+{% set shipping_days = sourcing.provider_shipping_days|default(null) %}
+{% set delivery_date = sourcing.provider_delivery_date|default(null) %}
+{% set detail_lines = provider_details is iterable ? [] : provider_details|replace({'\r\n': '\n', '\r': '\n'})|split('\n') %}
+{% set options = configuration.options|default({}) %}
+
+<div class="mt-3" data-test-print-configuration>
+    {% if ordered_quantity is not null %}
+        <p class="text-sm text-base-content/80">Quantité commandée : <strong class="font-semibold text-base-content">{{ ordered_quantity|number_format(0, ',', ' ') }} exemplaires</strong></p>
+    {% endif %}
+    <details class="group mt-3 rounded-lg border border-base-300 bg-base-100">
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-base-content marker:hidden">
+            <span>Voir la configuration et la livraison</span>
+            <span aria-hidden="true" class="text-base-content/60 transition-transform group-open:rotate-180">⌄</span>
+        </summary>
+        <div class="grid grid-cols-1 gap-3 border-t border-base-300 p-3 md:grid-cols-2">
+            <section class="min-w-0 rounded-lg bg-base-200/60 p-3" aria-label="Configuration du produit">
+                <h4 class="mb-3 font-semibold">Configuration</h4>
+                <dl class="space-y-2 text-sm">
+                    {% set has_details = false %}
+                    {% for line in detail_lines %}
+                        {% set parts = line|split(':', 2) %}
+                        {% if parts|length == 2 and parts[0]|trim is not empty and parts[1]|trim is not empty %}
+                            {% set has_details = true %}
+                            <div class="flex items-start justify-between gap-3"><dt class="min-w-0 text-base-content/70">{{ parts[0]|trim }}</dt><dd class="min-w-0 text-right font-medium break-words">{{ parts[1]|trim }}</dd></div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not has_details %}
+                        {% for label, value in options %}
+                            {% if value is not iterable and value is not null and value is not same as('') %}
+                                {% set has_details = true %}
+                                <div class="flex items-start justify-between gap-3"><dt class="min-w-0 text-base-content/70">{{ label|replace({'_': ' '})|capitalize }}</dt><dd class="min-w-0 text-right font-medium break-words">{{ value }}</dd></div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    {% if ordered_quantity is not null and not has_details %}
+                        <div class="flex items-start justify-between gap-3"><dt class="text-base-content/70">Quantité</dt><dd class="font-medium">{{ ordered_quantity|number_format(0, ',', ' ') }} exemplaires</dd></div>
+                    {% endif %}
+                </dl>
+            </section>
+            <section class="min-w-0 rounded-lg bg-base-200/60 p-3" aria-label="Fabrication et livraison">
+                <h4 class="mb-3 font-semibold">Fabrication &amp; livraison</h4>
+                <dl class="space-y-2 text-sm">
+                    {% if delivery_label %}
+                        <div class="flex items-start justify-between gap-3"><dt class="text-base-content/70">Service</dt><dd class="text-right font-medium">{{ delivery_label|capitalize }}</dd></div>
+                    {% endif %}
+                    {% if manufacturing_days is not null %}
+                        <div class="flex items-start justify-between gap-3"><dt class="text-base-content/70">Fabrication</dt><dd class="text-right font-medium">{{ manufacturing_days }} jours</dd></div>
+                    {% endif %}
+                    {% if shipping_days is not null %}
+                        <div class="flex items-start justify-between gap-3"><dt class="text-base-content/70">Transport</dt><dd class="text-right font-medium">{{ shipping_days }} jours</dd></div>
+                    {% endif %}
+                    {% if delivery_date %}
+                        <div class="flex items-start justify-between gap-3"><dt class="text-base-content/70">Livraison prévue</dt><dd class="text-right font-medium">{{ delivery_date }}</dd></div>
+                    {% endif %}
+                    {% if not delivery_label and manufacturing_days is null and shipping_days is null and not delivery_date %}
+                        <p class="text-base-content/60">Informations de livraison non disponibles.</p>
+                    {% endif %}
+                </dl>
+            </section>
+        </div>
+    </details>
+</div>
