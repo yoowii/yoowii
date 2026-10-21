@@ -11,9 +11,6 @@
 {% set options = configuration.options|default({}) %}
 
 <div class="mt-3" data-test-print-configuration>
-    {% if ordered_quantity is not null %}
-        <p class="text-sm text-base-content/80">Quantité commandée : <strong class="font-semibold text-base-content">{{ ordered_quantity|number_format(0, ',', ' ') }} exemplaires</strong></p>
-    {% endif %}
     <details class="group mt-3 rounded-lg border border-base-300 bg-base-100">
         <summary class="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-base-content marker:hidden">
             <span>Voir la configuration et la livraison</span>
