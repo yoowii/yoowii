@@ -1,5 +1,11 @@
 {% set item = hookable_metadata.context.item %}
+{% set product = item.variant.product %}
+{% set is_print = product.fulfillmentType.value|default('') == 'print' %}
+{% set pricing_snapshot = item.pricingSnapshot %}
 
 <td {{ sylius_test_html_attribute('cart-item-product') }}>
     {{ component('sylius_shop:order_item:product_info', { item: item }) }}
+    {% if is_print and pricing_snapshot %}
+        {% include 'shop/cart/index/content/form/sections/general/items/body/_print_details.html.twig' with { pricing_snapshot: pricing_snapshot } only %}
+    {% endif %}
 </td>
