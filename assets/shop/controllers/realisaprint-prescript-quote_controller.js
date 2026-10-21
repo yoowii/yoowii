@@ -593,6 +593,15 @@ export default class extends Controller {
                 variables[name] = field.value;
             }
         });
+        // Some Prescript price tables hold the selected delay outside the
+        // serialized configuration controls. For the audited product only,
+        // recover its known variable from the selected supplier tariff radio.
+        // Do not generalize these Realisaprint-specific codes to other products.
+        if (!Object.hasOwn(variables, delayVariable)
+            && this.embedTarget?.dataset.prescriptProductCode === 'PRINT_CARTE_DE_VISITE_CALENDRIER'
+            && delayVariable === 'VARTICLE_23025_') {
+            variables[delayVariable] = String({ standard: 0, urgence: 1, express: 2 }[delivery]);
+        }
         if (Object.keys(variables).length === 0 || !Object.hasOwn(variables, delayVariable)) {
             this.showError('Impossible de récupérer les paramètres Prescript pour cette sélection.');
             return;
