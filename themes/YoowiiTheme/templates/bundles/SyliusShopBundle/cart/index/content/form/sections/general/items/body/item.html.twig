@@ -5,7 +5,4 @@
 
 <td {{ sylius_test_html_attribute('cart-item-product') }}>
     {{ component('sylius_shop:order_item:product_info', { item: item }) }}
-    {% if is_print and pricing_snapshot %}
-        {% include 'shop/cart/index/content/form/sections/general/items/body/_print_details.html.twig' with { pricing_snapshot: pricing_snapshot } only %}
-    {% endif %}
 </td>
