@@ -566,30 +566,35 @@ export default class extends Controller {
             this.showError('Choisissez une quantité et un délai valides dans le tableau.');
             return;
         }
-        const variables = {};
-        // Collect visible configuration controls rather than Prescript's entire
-        // document, which also contains calculated/internal VARTICLE fields.
-        this.configurationScope().querySelectorAll('.web_ligne_variable_saisie').forEach((row) => {
-            if (row.classList.contains('css_zone_grisee')) return;
-            row.querySelectorAll('input, select, textarea').forEach((field) => {
-                if (field.disabled || field.name?.endsWith('_checkbox')) return;
-                if ((field.type === 'checkbox' || field.type === 'radio') && !field.checked) return;
-                const match = field.name?.match(/^VARTICLE_(?:(?:NUMERO_EN_COURS|\\d+)_)?(\\d+)_$/);
-                if (!match) return;
-                if (field.type === 'hidden' && !field.classList.contains('class_saisie_varcalc_au_general')) return;
-                if (field.value !== '') variables[`VARTICLE_${match[1]}_`] = field.value;
-            });
-        });
-        // Production quantity and delivery are selected in the tariff matrix,
-        // not always in visible Prescript options. The supplier identifier is
-        // product-specific; for this audited product they are known.
-        const supplierProduct = this.embedTarget?.dataset.prescriptProductCode;
-        if (supplierProduct === 'PRINT_CARTE_DE_VISITE_CALENDRIER') {
-            variables.VARTICLE_23002_ = String(quantity);
-            variables.VARTICLE_23025_ = String({ standard: 0, urgence: 1, express: 2 }[delivery]);
+        // Match Prescript's own saveConfiguration() collection contract.
+        // Calculations must update the supplier's hidden values before reading them.
+        if (typeof window.calculer !== 'function' || window.calculer('sans_graphisme') !== 0) {
+            this.showError('La configuration fournisseur est invalide. Vérifiez les options sélectionnées.');
+            return;
         }
-        if (Object.keys(variables).length === 0) {
-            this.showError('Les variables fournisseur sont introuvables.');
+        const shown = window.shown_vars;
+        const quantityVariableNumber = window.qty_var_num;
+        const delayVariableNumber = window.delay_var_num;
+        if (!shown || typeof shown !== 'object' || quantityVariableNumber == null || delayVariableNumber == null) {
+            this.showError('Les variables du formulaire Prescript ne sont pas disponibles.');
+            return;
+        }
+        const shownNames = new Set(Object.keys(shown));
+        const quantityVariable = `VARTICLE_${quantityVariableNumber}_`;
+        const delayVariable = `VARTICLE_${delayVariableNumber}_`;
+        const variables = {};
+        // The supplier template uses a per-document prefix before the variable id.
+        const supplierFields = this.configurationScope().querySelectorAll('input[name^="VARTICLE_"], select[name^="VARTICLE_"], textarea[name^="VARTICLE_"]');
+        supplierFields.forEach((field) => {
+            const match = field.name?.match(/^VARTICLE_(?:NUMERO_EN_COURS|\\d+)_(\\d+_)$/);
+            if (!match || field.value === '') return;
+            const name = `VARTICLE_${match[1]}`;
+            if ((name !== quantityVariable && shownNames.has(name)) || name === delayVariable) {
+                variables[name] = field.value;
+            }
+        });
+        if (Object.keys(variables).length === 0 || !Object.hasOwn(variables, delayVariable)) {
+            this.showError('Impossible de récupérer les paramètres Prescript pour cette sélection.');
             return;
         }
         this.pending = true;
