@@ -586,22 +586,13 @@ export default class extends Controller {
         // The supplier template uses a per-document prefix before the variable id.
         const supplierFields = this.configurationScope().querySelectorAll('input[name^="VARTICLE_"], select[name^="VARTICLE_"], textarea[name^="VARTICLE_"]');
         supplierFields.forEach((field) => {
-            const match = field.name?.match(/^VARTICLE_(?:NUMERO_EN_COURS|\\d+)_(\\d+_)$/);
+            const match = field.name?.match(/^VARTICLE_(?:NUMERO_EN_COURS|\d+)_(\d+_)$/);
             if (!match || field.value === '') return;
             const name = `VARTICLE_${match[1]}`;
             if ((name !== quantityVariable && shownNames.has(name)) || name === delayVariable) {
                 variables[name] = field.value;
             }
         });
-        // Some Prescript price tables hold the selected delay outside the
-        // serialized configuration controls. For the audited product only,
-        // recover its known variable from the selected supplier tariff radio.
-        // Do not generalize these Realisaprint-specific codes to other products.
-        if (!Object.hasOwn(variables, delayVariable)
-            && this.embedTarget?.dataset.prescriptProductCode === 'PRINT_CARTE_DE_VISITE_CALENDRIER'
-            && delayVariable === 'VARTICLE_23025_') {
-            variables[delayVariable] = String({ standard: 0, urgence: 1, express: 2 }[delivery]);
-        }
         if (Object.keys(variables).length === 0 || !Object.hasOwn(variables, delayVariable)) {
             this.showError('Impossible de récupérer les paramètres Prescript pour cette sélection.');
             return;
