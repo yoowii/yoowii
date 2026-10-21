@@ -3,7 +3,11 @@
 {% set is_print = item.variant.product.fulfillmentType.value|default('') == 'print' %}
 <td class="min-w-24">
     {% if is_print %}
-        <span class="text-sm text-base-content/60">—</span>
+        {% set snapshot = item.pricingSnapshot %}
+        {% set configuration = snapshot ? snapshot.configuration : {} %}
+        {% set sourcing = configuration.sourcing|default({}) %}
+        {% set quantity = sourcing.provider_quantity|default(configuration.quantity|default(null)) %}
+        <span class="block text-sm text-base-content/80">Quantité commandée : <strong class="font-semibold text-base-content whitespace-nowrap">{{ quantity is not null ? quantity|number_format(0, ',', ' ') ~ ' exemplaires' : 'non précisée' }}</strong></span>
         <div class="hidden">{{ form_widget(form.quantity) }}</div>
     {% else %}
         {{ form_row(form.quantity, sylius_test_form_attribute('cart-item-quantity')|sylius_merge_recursive({label: false, attr: {class: 'input input-bordered w-full'}})) }}
