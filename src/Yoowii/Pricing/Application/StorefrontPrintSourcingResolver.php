@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Pricing\Application;
 
+use App\Yoowii\Pricing\Application\Configurator\PrintConfiguratorDriverRegistry;
 use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\Sourcing\Domain\FixedSupplierRouter;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
@@ -19,6 +20,7 @@ final readonly class StorefrontPrintSourcingResolver
         private SupplierRouteRepository $routes,
         private FixedSupplierRouter $router,
         private EntityManagerInterface $entityManager,
+        private PrintConfiguratorDriverRegistry $driverRegistry,
     ) {
     }
 
@@ -29,7 +31,7 @@ final readonly class StorefrontPrintSourcingResolver
         foreach ($routes as $route) {
             $mode = $route->supplierProduct()->supplier()->integrationMode();
             if (in_array($mode, [SupplierIntegrationMode::Matrix, SupplierIntegrationMode::Manual], true)) {
-                return new ResolvedPrintSourcing($route, ConfiguratorKind::Matrix);
+                return new ResolvedPrintSourcing($route, ConfiguratorKind::Matrix, 'matrix');
             }
 
             $mapping = $this->publishedMapping($productCode, $route, $at);
@@ -39,9 +41,20 @@ final readonly class StorefrontPrintSourcingResolver
                 continue;
             }
 
+            $kind = ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping());
+            try {
+                $driverCode = $this->driverCode($mapping, $kind);
+                $this->driverRegistry->get($driverCode);
+            } catch (\DomainException) {
+                // A mapping that references a driver which is not installed is
+                // not a safe storefront source; evaluate its fallback route.
+                continue;
+            }
+
             return new ResolvedPrintSourcing(
                 $route,
-                ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping()),
+                $kind,
+                $driverCode,
                 $mapping,
             );
         }
@@ -62,5 +75,19 @@ final readonly class StorefrontPrintSourcingResolver
         }
 
         return null;
+    }
+
+    private function driverCode(SupplierProductMappingVersion $mapping, ConfiguratorKind $kind): string
+    {
+        $declared = $mapping->configurationMapping()['yoowii']['configurator_driver'] ?? null;
+        if (is_string($declared) && preg_match('/^[a-z][a-z0-9_]*$/D', $declared)) {
+            return $declared;
+        }
+
+        return match ($kind) {
+            ConfiguratorKind::SupplierApi => 'realisaprint_classic',
+            ConfiguratorKind::Prescript => 'realisaprint_prescript',
+            ConfiguratorKind::Matrix => 'matrix',
+        };
     }
 }

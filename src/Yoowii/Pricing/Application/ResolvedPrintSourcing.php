@@ -19,6 +19,7 @@ final readonly class ResolvedPrintSourcing
     public function __construct(
         private SupplierRoute $route,
         private ConfiguratorKind $configuratorKind,
+        private string $configuratorDriver,
         private ?SupplierProductMappingVersion $mapping = null,
     ) {
     }
@@ -31,6 +32,11 @@ final readonly class ResolvedPrintSourcing
     public function configuratorKind(): ConfiguratorKind
     {
         return $this->configuratorKind;
+    }
+
+    public function configuratorDriver(): string
+    {
+        return $this->configuratorDriver;
     }
 
     public function mapping(): ?SupplierProductMappingVersion

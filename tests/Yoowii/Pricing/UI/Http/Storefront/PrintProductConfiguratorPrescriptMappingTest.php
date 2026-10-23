@@ -14,7 +14,9 @@ final class PrintProductConfiguratorPrescriptMappingTest extends TestCase
 
         self::assertIsString($controller);
         self::assertStringContainsString('$sourcing = $sourcingResolver->resolve($productCode, $now);', $controller);
-        self::assertStringContainsString('ConfiguratorKind::Prescript === $sourcing->configuratorKind()', $controller);
+        self::assertStringContainsString('PrintConfiguratorDriverRegistry $driverRegistry', $controller);
+        self::assertStringContainsString('$driver = $driverRegistry->get($sourcing->configuratorDriver());', $controller);
+        self::assertStringContainsString('$driver->usesSupplierDocument()', $controller);
         self::assertStringContainsString('? $sourcing->mapping()', $controller);
         self::assertStringNotContainsString('prescriptMapping($definitionCode', $controller);
     }

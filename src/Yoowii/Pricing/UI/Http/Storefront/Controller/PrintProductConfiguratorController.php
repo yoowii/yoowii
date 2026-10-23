@@ -8,6 +8,7 @@ use App\Entity\Product\Product;
 use App\Entity\Product\ProductVariant;
 use App\Yoowii\Commerce\Domain\FulfillmentType;
 use App\Yoowii\Pricing\Application\BuiltInPrintProductDefinitionRegistry;
+use App\Yoowii\Pricing\Application\Configurator\PrintConfiguratorDriverRegistry;
 use App\Yoowii\Pricing\Application\PrintConfigurationCatalog;
 use App\Yoowii\Pricing\Application\PrintQuoteService;
 use App\Yoowii\Pricing\Application\PublishedConfiguratorValues;
@@ -209,6 +210,7 @@ final class PrintProductConfiguratorController extends AbstractController
         RealisaprintPrescriptTemplateProvider $prescriptTemplates,
         UriSigner $uriSigner,
         StorefrontPrintSourcingResolver $sourcingResolver,
+        PrintConfiguratorDriverRegistry $driverRegistry,
         bool $embeddedProductPage = false,
         ?string $configurationContext = null,
     ): Response {
@@ -216,7 +218,8 @@ final class PrintProductConfiguratorController extends AbstractController
         $definitionCode = $this->definitionCode($product);
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $sourcing = $sourcingResolver->resolve($productCode, $now);
-        $prescriptMapping = ConfiguratorKind::Prescript === $sourcing->configuratorKind()
+        $driver = $driverRegistry->get($sourcing->configuratorDriver());
+        $prescriptMapping = $driver->usesSupplierDocument()
             ? $sourcing->mapping()
             : null;
         if ($prescriptMapping instanceof SupplierProductMappingVersion) {
@@ -254,10 +257,9 @@ final class PrintProductConfiguratorController extends AbstractController
             $now,
             $sourcing->route(),
         );
-        $isRealisaprintClassic = ConfiguratorKind::SupplierApi === $sourcing->configuratorKind();
-        $matrixCombinations = $isRealisaprintClassic
-            ? []
-            : $configurationCatalog->matrixCombinations($definition, $currencyContext->getCurrencyCode(), $now, $sourcing->route());
+        $matrixCombinations = $driver->usesMatrixCombinations()
+            ? $configurationCatalog->matrixCombinations($definition, $currencyContext->getCurrencyCode(), $now, $sourcing->route())
+            : [];
         $storedQuote = $this->matchingQuote($quoteToken, $product, $definitionCode, $quoteStore, $now);
         $fixed = $fixedOptions->forMapping($sourcing->mapping());
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
@@ -284,7 +286,7 @@ final class PrintProductConfiguratorController extends AbstractController
             'configuration' => is_array($configuration) ? $configuration : [],
             // Matrix pricing resolves compatibility locally from its published
             // rows. Only the Realisaprint controller may call show_variables.
-            'refresh_url' => $isRealisaprintClassic
+            'refresh_url' => $driver->usesSupplierRefresh()
                 ? $this->generateUrl('yoowii_shop_print_product_configuration_refresh', ['productCode' => $productCode, '_locale' => $request->getLocale()])
                 : '',
             'matrix_combinations' => $matrixCombinations,
@@ -292,8 +294,8 @@ final class PrintProductConfiguratorController extends AbstractController
             'pricing_axes' => $definition->pricingAxes(),
             'initial_provider_state' => $initialState,
             'initial_provider_state_stale' => $initialSnapshot['stale'],
-            'manual_quote' => $isRealisaprintClassic,
-            'configurator_mode' => $isRealisaprintClassic ? 'realisaprint-classic' : 'matrix-print',
+            'manual_quote' => $driver->usesSupplierRefresh(),
+            'configurator_mode' => $driver->presentationMode(),
             'resolved_sourcing' => $sourcing,
             'embedded_product_page' => $embeddedProductPage,
             'configuration_context' => $configurationContext ?? 'print-' . $productCode,
