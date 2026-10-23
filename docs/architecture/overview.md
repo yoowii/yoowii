@@ -122,4 +122,6 @@ Les fichiers d'impression, briefs et contenus ne doivent pas être placés dans 
 
 ## Évolution
 
+Le fonctionnement des drivers de configurateur print et le mode d'intégration d'un nouveau fournisseur API sont documentés dans [print-configurator-drivers.md](print-configurator-drivers.md).
+
 Redis, un frontend headless, un service de préflight PDF ou des services séparés ne seront ajoutés qu'à partir d'une contrainte mesurée. Les frontières des modules permettent cette extraction sans introduire cette complexité dès le MVP.
