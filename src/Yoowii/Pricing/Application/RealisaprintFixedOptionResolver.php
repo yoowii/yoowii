@@ -27,25 +27,39 @@ final readonly class RealisaprintFixedOptionResolver
                 if (!$mapping instanceof SupplierProductMappingVersion || $mapping->supplierProduct() !== $route->supplierProduct() || !$mapping->isEffectiveAt($at)) {
                     continue;
                 }
-                $rules = $mapping->configurationMapping()['realisaprint']['variables'] ?? [];
-                if (!is_array($rules)) {
-                    continue;
-                }
-                foreach ($rules as $rule) {
-                    if (!is_array($rule) || !is_string($rule['option'] ?? null) || !is_scalar($rule['fixed_value'] ?? null)) {
-                        continue;
+                foreach ($this->forMapping($mapping) as $option => $candidate) {
+                    if (isset($fixed[$option]) && $fixed[$option]['value'] !== $candidate['value']) {
+                        throw new \DomainException(sprintf('Les routes Realisaprint actives imposent des valeurs incompatibles pour « %s ».', $option));
                     }
-                    $canonical = $this->canonicalValue($rule['fixed_value'], $rule['values'] ?? []);
-                    if (null === $canonical) {
-                        throw new \DomainException(sprintf('La valeur fixe Realisaprint de « %s » ne correspond pas au mapping publié.', $rule['option']));
-                    }
-                    $candidate = ['value' => $canonical, 'label' => (string) $rule['fixed_value']];
-                    if (isset($fixed[$rule['option']]) && $fixed[$rule['option']]['value'] !== $candidate['value']) {
-                        throw new \DomainException(sprintf('Les routes Realisaprint actives imposent des valeurs incompatibles pour « %s ».', $rule['option']));
-                    }
-                    $fixed[$rule['option']] = $candidate;
+                    $fixed[$option] = $candidate;
                 }
             }
+        }
+
+        return $fixed;
+    }
+
+    /** @return array<string, array{value: string|int|float, label: string}> */
+    public function forMapping(?SupplierProductMappingVersion $mapping): array
+    {
+        if (!$mapping instanceof SupplierProductMappingVersion) {
+            return [];
+        }
+
+        $fixed = [];
+        $rules = $mapping->configurationMapping()['realisaprint']['variables'] ?? [];
+        if (!is_array($rules)) {
+            return [];
+        }
+        foreach ($rules as $rule) {
+            if (!is_array($rule) || !is_string($rule['option'] ?? null) || !is_scalar($rule['fixed_value'] ?? null)) {
+                continue;
+            }
+            $canonical = $this->canonicalValue($rule['fixed_value'], $rule['values'] ?? []);
+            if (null === $canonical) {
+                throw new \DomainException(sprintf('La valeur fixe Realisaprint de « %s » ne correspond pas au mapping publié.', $rule['option']));
+            }
+            $fixed[$rule['option']] = ['value' => $canonical, 'label' => (string) $rule['fixed_value']];
         }
 
         return $fixed;

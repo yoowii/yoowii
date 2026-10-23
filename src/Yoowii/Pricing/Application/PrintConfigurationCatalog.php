@@ -25,8 +25,11 @@ final readonly class PrintConfigurationCatalog
         PrintProductDefinition $definition,
         string $currencyCode,
         \DateTimeImmutable $at,
+        ?SupplierRoute $resolvedRoute = null,
     ): array {
-        $routes = $this->routeRepository->findCandidates($definition->productCode(), $at);
+        $routes = null === $resolvedRoute
+            ? $this->routeRepository->findCandidates($definition->productCode(), $at)
+            : [$resolvedRoute];
         $supplierProducts = array_map(
             static fn (SupplierRoute $route) => $route->supplierProduct(),
             $routes,
@@ -120,8 +123,11 @@ final readonly class PrintConfigurationCatalog
         PrintProductDefinition $definition,
         string $currencyCode,
         \DateTimeImmutable $at,
+        ?SupplierRoute $resolvedRoute = null,
     ): array {
-        $routes = $this->routeRepository->findCandidates($definition->productCode(), $at);
+        $routes = null === $resolvedRoute
+            ? $this->routeRepository->findCandidates($definition->productCode(), $at)
+            : [$resolvedRoute];
         $supplierProducts = array_map(
             static fn (SupplierRoute $route) => $route->supplierProduct(),
             $routes,

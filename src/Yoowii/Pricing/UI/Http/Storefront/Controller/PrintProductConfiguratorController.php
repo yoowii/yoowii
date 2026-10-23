@@ -189,23 +189,23 @@ final class PrintProductConfiguratorController extends AbstractController
         ChannelContextInterface $channelContext,
         RealisaprintFixedOptionResolver $fixedOptions,
         PublishedConfiguratorValues $publishedValues,
-        \Doctrine\ORM\EntityManagerInterface $entityManager,
         RealisaprintInitialDisplayStateBuilder $displayStateBuilder,
         StorefrontInitialConfiguratorValues $initialValues,
         KernelInterface $kernel,
         LoggerInterface $logger,
         RealisaprintPrescriptTemplateProvider $prescriptTemplates,
         UriSigner $uriSigner,
+        StorefrontPrintSourcingResolver $sourcingResolver,
         bool $embeddedProductPage = false,
         ?string $configurationContext = null,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
-        // A shared Realisaprint definition describes the configurator schema,
-        // while a mapping remains specific to the commercial Yoowii product
-        // because it carries the supplier stock. Resolve Prescript from the
-        // latter, otherwise shared-definition codes cannot find their mapping.
-        $prescriptMapping = $this->prescriptMapping($productCode, $entityManager);
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $sourcing = $sourcingResolver->resolve($productCode, $now);
+        $prescriptMapping = ConfiguratorKind::Prescript === $sourcing->configuratorKind()
+            ? $sourcing->mapping()
+            : null;
         if ($prescriptMapping instanceof SupplierProductMappingVersion) {
             $provider = $prescriptMapping->configurationMapping()['realisaprint'];
             $summaryProfile = PrescriptSummaryProfile::tryFromConfigurationMapping($prescriptMapping->configurationMapping());
@@ -235,21 +235,21 @@ final class PrintProductConfiguratorController extends AbstractController
             ]);
         }
         $definition = $definitions->get($definitionCode);
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $availableOptions = $configurationCatalog->availableOptions(
             $definition,
             $currencyContext->getCurrencyCode(),
             $now,
+            $sourcing->route(),
         );
-        $isRealisaprintClassic = $this->hasRealisaprintMapping($definitionCode, $entityManager);
+        $isRealisaprintClassic = ConfiguratorKind::SupplierApi === $sourcing->configuratorKind();
         $matrixCombinations = $isRealisaprintClassic
             ? []
-            : $configurationCatalog->matrixCombinations($definition, $currencyContext->getCurrencyCode(), $now);
+            : $configurationCatalog->matrixCombinations($definition, $currencyContext->getCurrencyCode(), $now, $sourcing->route());
         $storedQuote = $this->matchingQuote($quoteToken, $product, $definitionCode, $quoteStore, $now);
-        $fixed = $fixedOptions->forProduct($definitionCode, $now);
+        $fixed = $fixedOptions->forMapping($sourcing->mapping());
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
         $schemas = $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed);
-        $initialSnapshot = $this->initialConfiguratorState($definitionCode, $entityManager, $now, $displayStateBuilder, $kernel, $logger);
+        $initialSnapshot = $this->initialConfiguratorState($definitionCode, $sourcing->mapping(), $now, $displayStateBuilder, $kernel, $logger);
         $initialState = $initialSnapshot['state'];
         $formData = is_array($configuration) && [] !== $configuration
             ? $configuration
@@ -281,6 +281,7 @@ final class PrintProductConfiguratorController extends AbstractController
             'initial_provider_state_stale' => $initialSnapshot['stale'],
             'manual_quote' => $isRealisaprintClassic,
             'configurator_mode' => $isRealisaprintClassic ? 'realisaprint-classic' : 'matrix-print',
+            'resolved_sourcing' => $sourcing,
             'embedded_product_page' => $embeddedProductPage,
             'configuration_context' => $configurationContext ?? 'print-' . $productCode,
         ]);
@@ -336,19 +337,15 @@ final class PrintProductConfiguratorController extends AbstractController
     }
 
     /** @return array{state: array<string, mixed>|null, stale: bool} */
-    private function initialConfiguratorState(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager, \DateTimeImmutable $now, RealisaprintInitialDisplayStateBuilder $displayStateBuilder, KernelInterface $kernel, LoggerInterface $logger): array
+    private function initialConfiguratorState(string $definitionCode, ?SupplierProductMappingVersion $mapping, \DateTimeImmutable $now, RealisaprintInitialDisplayStateBuilder $displayStateBuilder, KernelInterface $kernel, LoggerInterface $logger): array
     {
-        $definition = $entityManager->getRepository(\App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $definitionCode, 'active' => true]);
+        if (!$mapping instanceof SupplierProductMappingVersion || 'realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
+            return ['state' => null, 'stale' => false];
+        }
+        $definition = $mapping->printProductDefinition();
         if (!$definition instanceof \App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition) {
             return ['state' => null, 'stale' => false];
         }
-        foreach ($entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
-            if (!$mapping instanceof \App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion) {
-                continue;
-            }
-            if ('realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
-                continue;
-            }
             $state = $mapping->initialDisplayState();
             if (!is_array($state)) {
                 $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
@@ -367,7 +364,7 @@ final class PrintProductConfiguratorController extends AbstractController
                     ]);
                 }
 
-                continue;
+                return ['state' => null, 'stale' => false];
             }
 
             $compatibilityReason = $displayStateBuilder->compatibilityReason($state, $mapping, $definition);
@@ -400,7 +397,6 @@ final class PrintProductConfiguratorController extends AbstractController
             if ($compatible) {
                 return ['state' => $state, 'stale' => !$fresh];
             }
-        }
 
         return ['state' => null, 'stale' => false];
     }
@@ -414,23 +410,6 @@ final class PrintProductConfiguratorController extends AbstractController
         }
 
         return false;
-    }
-
-    private function prescriptMapping(string $productCode, \Doctrine\ORM\EntityManagerInterface $entityManager): ?SupplierProductMappingVersion
-    {
-        foreach ($entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]) as $mapping) {
-            if (!$mapping instanceof SupplierProductMappingVersion || 'realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
-                continue;
-            }
-            $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
-            if (ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping()) &&
-                is_array($provider) &&
-                is_string($provider['product'] ?? null) && is_string($provider['stock'] ?? null)) {
-                return $mapping;
-            }
-        }
-
-        return null;
     }
 
     /** @param list<string> $axes */
