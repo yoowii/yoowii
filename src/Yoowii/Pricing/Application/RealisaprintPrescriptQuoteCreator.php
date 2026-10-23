@@ -10,6 +10,7 @@ use App\Yoowii\Pricing\Domain\Quote\QuoteSource;
 use App\Yoowii\Pricing\Domain\Quote\QuoteTrace;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
+use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 
 /** Turns a configuration code produced by Prescript into an immutable Yoowii quote. */
 final readonly class RealisaprintPrescriptQuoteCreator
@@ -18,7 +19,7 @@ final readonly class RealisaprintPrescriptQuoteCreator
     {
     }
 
-    public function create(string $productCode, SupplierProductMappingVersion $mapping, string $configurationCode, int $quantity, PrintPricingPolicy $pricingPolicy, \DateTimeImmutable $at, ?string $expectedDelivery = null): PricingSnapshot
+    public function create(string $productCode, SupplierProductMappingVersion $mapping, string $configurationCode, int $quantity, PrintPricingPolicy $pricingPolicy, \DateTimeImmutable $at, ?string $expectedDelivery = null, ?SupplierRoute $route = null): PricingSnapshot
     {
         if ($quantity < 1 || '' === trim($configurationCode)) {
             throw new \InvalidArgumentException('La quantité ou le code de configuration Préscript est invalide.');
@@ -53,7 +54,7 @@ final readonly class RealisaprintPrescriptQuoteCreator
         $total = $supplierCost + $margin + $pricingPolicy->handlingFee();
         $correlationId = bin2hex(random_bytes(16));
 
-        return new PricingSnapshot(
+        $snapshot = new PricingSnapshot(
             'print.realisaprint_prescript',
             sprintf('%s@%s', $pricingPolicy->version(), $mapping->version()),
             [
@@ -81,6 +82,8 @@ final readonly class RealisaprintPrescriptQuoteCreator
             $at,
             new QuoteTrace(QuoteSource::RealisaprintApi, 'realisaprint', $mapping->supplierProduct()->code(), $mapping->version(), $configurationCode, $correlationId, $at),
         );
+
+        return null === $route ? $snapshot : $snapshot->withSourcingRoute($route->id(), $route->priority());
     }
 
     private function days(mixed $value): ?int

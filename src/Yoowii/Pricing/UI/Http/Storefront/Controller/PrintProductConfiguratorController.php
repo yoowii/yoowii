@@ -53,6 +53,7 @@ final class PrintProductConfiguratorController extends AbstractController
         RealisaprintFixedOptionResolver $fixedOptions,
         PublishedConfiguratorValues $publishedValues,
         RealisaprintAvailabilityFallback $availabilityFallback,
+        StorefrontPrintSourcingResolver $sourcingResolver,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
 
@@ -63,12 +64,18 @@ final class PrintProductConfiguratorController extends AbstractController
                 throw new \InvalidArgumentException('La configuration à rafraîchir est invalide.');
             }
             $definition = $definitions->get($this->definitionCode($product));
-            $configuration = $definition->configure($publishedValues->resolve($definition, $definitions->storefrontSchema($this->definitionCode($product)), $values, $fixedOptions->forProduct($this->definitionCode($product), new \DateTimeImmutable('now', new \DateTimeZone('UTC')))));
+            $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+            $sourcing = $sourcingResolver->resolve($productCode, $now);
+            $mapping = $sourcing->mapping();
+            if (ConfiguratorKind::SupplierApi !== $sourcing->configuratorKind() || !$mapping instanceof SupplierProductMappingVersion) {
+                throw new \DomainException('Le configurateur sélectionné ne prend pas en charge ce rafraîchissement.');
+            }
+            $configuration = $definition->configure($publishedValues->resolve($definition, $definitions->storefrontSchema($this->definitionCode($product)), $values, $fixedOptions->forMapping($mapping)));
 
             // show_variables is a display endpoint. It may run before a
             // configuration is priceable; quote() remains the strict boundary.
             $selectedOptions = array_filter($values, static fn (mixed $value): bool => is_scalar($value) && '' !== trim((string) $value));
-            $state = $refresh->refresh($configuration, new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $selectedOptions);
+            $state = $refresh->refreshForMapping($configuration, $mapping, $selectedOptions);
             $corrected = $availabilityFallback->applyToSchema($configuration->toArray(), $state, $definitions->storefrontSchema($this->definitionCode($product)), $definition->pricingAxes());
             foreach ($corrected as $option => $value) {
                 if ((string) ($configuration->toArray()[$option] ?? '') !== (string) $value) {
@@ -101,15 +108,16 @@ final class PrintProductConfiguratorController extends AbstractController
         PublishedConfiguratorValues $publishedValues,
         RealisaprintConfiguratorRefresh $refresh,
         RealisaprintVisibleConfigurationBuilder $visibleConfigurationBuilder,
-        \Doctrine\ORM\EntityManagerInterface $entityManager,
+        StorefrontPrintSourcingResolver $sourcingResolver,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
         $definitionCode = $this->definitionCode($product);
         $definition = $definitions->get($definitionCode);
         $currencyCode = $currencyContext->getCurrencyCode();
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-        $availableOptions = $configurationCatalog->availableOptions($definition, $currencyCode, $now);
-        $fixed = $fixedOptions->forProduct($definitionCode, $now);
+        $sourcing = $sourcingResolver->resolve($productCode, $now);
+        $availableOptions = $configurationCatalog->availableOptions($definition, $currencyCode, $now, $sourcing->route());
+        $fixed = $fixedOptions->forMapping($sourcing->mapping());
         $schemas = $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed);
         $submitted = $request->request->all('print_configurator');
         $form = $this->createConfiguratorForm($productCode, $availableOptions, $request, [], $schemas);
@@ -133,18 +141,23 @@ final class PrintProductConfiguratorController extends AbstractController
             $values = $publishedValues->resolve($definition, $schemas, $formData, $fixed);
             /** @var array<string, mixed> $values */
             $configuration = $definition->configure($values);
-            if ($this->hasRealisaprintMapping($definitionCode, $entityManager)) {
-                $state = $refresh->refresh($configuration, $now);
+            if (ConfiguratorKind::SupplierApi === $sourcing->configuratorKind()) {
+                $mapping = $sourcing->mapping();
+                if (!$mapping instanceof SupplierProductMappingVersion) {
+                    throw new \LogicException('Le sourcing API résolu ne possède pas de mapping publié.');
+                }
+                $state = $refresh->refreshForMapping($configuration, $mapping);
                 $this->assertCustomerPricingAxesComplete($formData, $definition->pricingAxes(), $fixed, $state);
                 $configuration = $visibleConfigurationBuilder->buildVisibleProviderConfiguration($configuration, $state);
             } else {
                 $this->assertPricingAxesComplete($configuration, $definition->pricingAxes());
             }
-            $quote = $quoteService->quote(
+            $quote = $quoteService->quoteForRoute(
                 $configuration,
                 $pricingPolicyProvider->get(),
                 $currencyCode,
                 $now,
+                $sourcing->route(),
             );
             $variant = $this->commercialVariant($product);
             $variantCode = $variant->getCode();
@@ -399,17 +412,6 @@ final class PrintProductConfiguratorController extends AbstractController
             }
 
         return ['state' => null, 'stale' => false];
-    }
-
-    private function hasRealisaprintMapping(string $definitionCode, \Doctrine\ORM\EntityManagerInterface $entityManager): bool
-    {
-        foreach ($entityManager->getRepository(\App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $definitionCode, 'active' => true]) as $mapping) {
-            if ($mapping instanceof \App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion && 'realisaprint' === $mapping->supplierProduct()->supplier()->code()) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /** @param list<string> $axes */

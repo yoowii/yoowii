@@ -65,7 +65,7 @@ final readonly class PrintQuoteService
             }
 
             try {
-                return $this->realisaprintCalculator->quote($route, $configuration, $pricingPolicy, $currencyCode, $calculatedAt, $correlationId);
+                return $this->realisaprintCalculator->quote($route, $configuration, $pricingPolicy, $currencyCode, $calculatedAt, $correlationId)->withSourcingRoute($route);
             } catch (RealisaprintQuoteException $exception) {
                 $fallbackReason = $exception->reason();
                 $safeDetail = $exception->safeDetail();
@@ -101,5 +101,54 @@ final readonly class PrintQuoteService
         ]);
 
         return $quote->withQuoteTrace($trace);
+    }
+
+    /**
+     * Quotes one storefront-resolved route only. This must be used after a
+     * configurator has been rendered: silently trying another supplier here
+     * would turn one customer configuration into another supplier's order.
+     */
+    public function quoteForRoute(
+        PrintConfiguration $configuration,
+        PrintPricingPolicy $pricingPolicy,
+        string $currencyCode,
+        \DateTimeImmutable $calculatedAt,
+        SupplierRoute $route,
+    ): PrintQuote {
+        if (!$route->isEligibleFor($configuration->productCode(), $calculatedAt)) {
+            throw new \DomainException('Le sourcing sélectionné n’est plus disponible. Recommencez votre configuration.');
+        }
+
+        $correlationId = bin2hex(random_bytes(16));
+        if ($this->realisaprintCalculator->supports($route)) {
+            if (null !== $this->realisaprintCalculator->fallbackReason($route)) {
+                throw new \DomainException('Le fournisseur sélectionné ne peut pas calculer le prix pour le moment.');
+            }
+
+            try {
+                return $this->realisaprintCalculator->quote($route, $configuration, $pricingPolicy, $currencyCode, $calculatedAt, $correlationId);
+            } catch (RealisaprintQuoteException $exception) {
+                $this->logger->warning('Locked storefront sourcing could not be quoted.', [
+                    'correlation_id' => $correlationId,
+                    'product_code' => $configuration->productCode(),
+                    'supplier_code' => $route->supplierProduct()->supplier()->code(),
+                    'supplier_product_code' => $route->supplierProduct()->code(),
+                    'reason' => $exception->reason()->value,
+                ]);
+
+                throw new \DomainException('Le fournisseur sélectionné ne peut pas calculer le prix pour le moment.');
+            }
+        }
+
+        $matrices = $this->matrixRepository->findSelectableFor([$route->supplierProduct()], $currencyCode, $calculatedAt);
+
+        return $this->calculator->calculate(
+            $configuration,
+            $pricingPolicy,
+            $currencyCode,
+            $calculatedAt,
+            [$route],
+            $matrices,
+        )->withSourcingRoute($route);
     }
 }

@@ -10,6 +10,7 @@ use App\Entity\Product\ProductVariant;
 use App\Yoowii\Commerce\Domain\FulfillmentType;
 use App\Yoowii\Pricing\Application\RealisaprintPrescriptQuoteCreator;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
+use App\Yoowii\Pricing\Application\StorefrontPrintSourcingResolver;
 use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
@@ -42,6 +43,7 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         ProductRepositoryInterface $productRepository,
         ChannelContextInterface $channelContext,
         EntityManagerInterface $entityManager,
+        StorefrontPrintSourcingResolver $sourcingResolver,
         RealisaprintClient $client,
         RealisaprintPrescriptQuoteCreator $creator,
         RetailPrintPricingPolicyProvider $pricingPolicy,
@@ -81,15 +83,9 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         if (!$variant instanceof ProductVariant || !$variant->isEnabled() || null === $variant->getCode()) {
             return $this->failure('Variante indisponible.', 422);
         }
-        $mapping = null;
-        foreach ($entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]) as $candidate) {
-            if ($candidate instanceof SupplierProductMappingVersion && 'realisaprint' === $candidate->supplierProduct()->supplier()->code()
-                && ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($candidate->configurationMapping())) {
-                $mapping = $candidate;
-                break;
-            }
-        }
-        if (null === $mapping) {
+        $sourcing = $sourcingResolver->resolve($productCode, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+        $mapping = $sourcing->mapping();
+        if (ConfiguratorKind::Prescript !== $sourcing->configuratorKind() || !$mapping instanceof SupplierProductMappingVersion) {
             return $this->failure('Mapping fournisseur indisponible.', 422);
         }
         $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
@@ -160,7 +156,7 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
             if (null !== $savedQuantity && (string) $savedQuantity !== (string) $quantity) {
                 return $this->failure('La quantité enregistrée chez Realisaprint est incorrecte.', 422);
             }
-            $snapshot = $creator->create($productCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $delivery);
+            $snapshot = $creator->create($productCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $delivery, $sourcing->route());
             if (!$cart->isEmpty() && null !== $cart->getCurrencyCode() && $cart->getCurrencyCode() !== $snapshot->currencyCode()) {
                 return $this->failure('La devise du panier ne correspond pas au devis.', 409);
             }

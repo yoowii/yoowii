@@ -10,9 +10,9 @@ use App\Yoowii\Commerce\Domain\FulfillmentType;
 use App\Yoowii\Pricing\Application\Quote\PrintQuoteStore;
 use App\Yoowii\Pricing\Application\RealisaprintPrescriptQuoteCreator;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
+use App\Yoowii\Pricing\Application\StorefrontPrintSourcingResolver;
 use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
-use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
 use Sylius\Component\Core\Repository\ProductRepositoryInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,7 +27,7 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
 {
     /** @param ProductRepositoryInterface<Product> $productRepository */
     #[Route('/products/{productCode}/prescript/quote', name: 'yoowii_shop_realisaprint_prescript_quote', requirements: ['productCode' => '[A-Za-z0-9._-]+'], methods: ['POST'])]
-    public function quote(string $productCode, Request $request, ProductRepositoryInterface $productRepository, ChannelContextInterface $channelContext, EntityManagerInterface $entityManager, RealisaprintPrescriptQuoteCreator $creator, RetailPrintPricingPolicyProvider $pricingPolicy, PrintQuoteStore $quoteStore, CsrfTokenManagerInterface $csrf): Response
+    public function quote(string $productCode, Request $request, ProductRepositoryInterface $productRepository, ChannelContextInterface $channelContext, RealisaprintPrescriptQuoteCreator $creator, RetailPrintPricingPolicyProvider $pricingPolicy, PrintQuoteStore $quoteStore, CsrfTokenManagerInterface $csrf, StorefrontPrintSourcingResolver $sourcingResolver): Response
     {
         $payload = $request->toArray();
         if (!$csrf->isTokenValid(new CsrfToken('prescript_quote_' . $productCode, is_string($payload['_token'] ?? null) ? $payload['_token'] : ''))) {
@@ -46,8 +46,10 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         if (!is_string($delivery) || !in_array($delivery, ['standard', 'urgence', 'express'], true)) {
             return new JsonResponse(['message' => 'Le délai sélectionné est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
-        $mapping = $this->mapping($productCode, $entityManager);
-        if (!$mapping instanceof SupplierProductMappingVersion) {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $sourcing = $sourcingResolver->resolve($productCode, $now);
+        $mapping = $sourcing->mapping();
+        if (ConfiguratorKind::Prescript !== $sourcing->configuratorKind() || !$mapping instanceof SupplierProductMappingVersion) {
             return new JsonResponse(['message' => 'La configuration Préscript est indisponible.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
         $variant = $product->getEnabledVariants()->first();
@@ -55,8 +57,7 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
             return new JsonResponse(['message' => 'La variante commerciale est indisponible.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
         try {
-            $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-            $snapshot = $creator->create($productCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now, $delivery);
+            $snapshot = $creator->create($productCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now, $delivery, $sourcing->route());
             $token = $quoteStore->issue($variant->getCode(), $productCode, $snapshot, $now);
         } catch (\Throwable) {
             return new JsonResponse(['message' => 'Le prix Préscript ne peut pas être calculé pour le moment.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
@@ -65,14 +66,4 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         return new JsonResponse(['quote_token' => $token, 'quote_html' => $this->renderView('shop/product/show/_print_quote.html.twig', ['pricing_snapshot' => $snapshot, 'quote_token' => $token])], Response::HTTP_CREATED, ['Cache-Control' => 'no-store']);
     }
 
-    private function mapping(string $productCode, EntityManagerInterface $entityManager): ?SupplierProductMappingVersion
-    {
-        foreach ($entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]) as $mapping) {
-            if ($mapping instanceof SupplierProductMappingVersion && 'realisaprint' === $mapping->supplierProduct()->supplier()->code() && ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping())) {
-                return $mapping;
-            }
-        }
-
-        return null;
-    }
 }

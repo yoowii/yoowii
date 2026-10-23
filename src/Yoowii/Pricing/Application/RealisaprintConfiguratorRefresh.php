@@ -51,6 +51,23 @@ final readonly class RealisaprintConfiguratorRefresh
         throw new \DomainException('Aucune route Realisaprint compatible ne permet de rafraîchir cette configuration.');
     }
 
+    /** Refreshes one already-resolved mapping and never searches a fallback route. */
+    public function refreshForMapping(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping, ?array $selectedOptions = null): array
+    {
+        $mapped = $this->mapper->mapMappingForQuote($configuration, $mapping->configurationMapping(), $mapping->version(), $selectedOptions);
+
+        return $this->variableStateCache->get($configuration, $mapped, function () use ($mapped, $mapping): array {
+            $response = $this->client->post('show_variables', [
+                'product' => $mapped['product'],
+                'stock' => $mapped['stock'],
+                'variables' => $mapped['variables'],
+                'retry' => 1,
+            ]);
+
+            return $this->normalizeResponse($response, $mapping);
+        });
+    }
+
     /** @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>} */
     public function preview(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping): array
     {

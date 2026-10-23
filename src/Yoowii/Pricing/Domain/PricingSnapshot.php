@@ -75,6 +75,31 @@ final readonly class PricingSnapshot
     }
 
     /**
+     * Stores the routing decision alongside the supplier/mapping data already
+     * captured by each calculator. It is diagnostic and immutable: checkout
+     * must fulfil the supplier encoded in this snapshot, not re-route it.
+     */
+    public function withSourcingRoute(?int $routeId, int $routePriority): self
+    {
+        if ($routePriority < 1) {
+            throw new \InvalidArgumentException('The sourcing route priority must be greater than zero.');
+        }
+
+        $snapshot = $this->toArray();
+        $configuration = $snapshot['configuration'];
+        $sourcing = $configuration['sourcing'] ?? [];
+        if (!is_array($sourcing)) {
+            throw new \LogicException('The pricing snapshot sourcing data is invalid.');
+        }
+        $sourcing['route_id'] = $routeId;
+        $sourcing['route_priority'] = $routePriority;
+        $configuration['sourcing'] = $sourcing;
+        $snapshot['configuration'] = $configuration;
+
+        return self::fromArray($snapshot);
+    }
+
+    /**
      * @return array{
      *     schema_version: int,
      *     calculator: string,

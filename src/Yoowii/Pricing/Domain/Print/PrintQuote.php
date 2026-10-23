@@ -6,6 +6,7 @@ namespace App\Yoowii\Pricing\Domain\Print;
 
 use App\Yoowii\Pricing\Domain\PricingSnapshot;
 use App\Yoowii\Pricing\Domain\Quote\QuoteTrace;
+use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 
 final readonly class PrintQuote
 {
@@ -78,5 +79,10 @@ final readonly class PrintQuote
         $snapshot['quote_trace'] = $trace->toArray();
 
         return new self(PricingSnapshot::fromArray($snapshot), $this->supplierCode, $this->supplierProductCode, $this->matrixVersion, $this->matrixChecksum, $this->productionCost, $this->shippingCost, $this->margin, $this->handlingFee);
+    }
+
+    public function withSourcingRoute(SupplierRoute $route): self
+    {
+        return new self($this->pricingSnapshot->withSourcingRoute($route->id(), $route->priority()), $this->supplierCode, $this->supplierProductCode, $this->matrixVersion, $this->matrixChecksum, $this->productionCost, $this->shippingCost, $this->margin, $this->handlingFee);
     }
 }

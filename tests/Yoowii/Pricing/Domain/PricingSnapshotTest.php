@@ -57,6 +57,17 @@ final class PricingSnapshotTest extends TestCase
         self::assertSame(12900, $restoredSnapshot->unitPrice());
     }
 
+    public function testItLocksTheSelectedSourcingRouteInTheImmutableConfiguration(): void
+    {
+        $snapshot = self::createSnapshot()->withSourcingRoute(42, 10);
+
+        self::assertSame([
+            'route_id' => 42,
+            'route_priority' => 10,
+        ], $snapshot->configuration()['sourcing']);
+        self::assertSame($snapshot->toArray(), PricingSnapshot::fromArray($snapshot->toArray())->toArray());
+    }
+
     public function testItRejectsABreakdownThatDoesNotMatchTheUnitPrice(): void
     {
         $this->expectException(\InvalidArgumentException::class);
