@@ -11,7 +11,7 @@
 {% set configurator_controller = configurator_mode ~ '-configurator' %}
 
 <div
-    class="yoowii-print-configurator yoowii-standard-print-configurator yoowii-{{ configurator_mode }}-configurator mx-auto max-w-7xl py-8 sm:py-12"
+    class="yoowii-print-configurator yoowii-standard-print-configurator yoowii-{{ configurator_mode }}-configurator w-full py-8 sm:py-12"
     {% if available %}data-controller="{{ configurator_controller }}"{% endif %}
     data-yoowii-configurator-presentation="cards"
     data-{{ configurator_controller }}-refresh-url-value="{{ refresh_url|default('') }}"
@@ -25,14 +25,14 @@
     {% endif %}
     data-{{ configurator_controller }}-initial-provider-state-stale-value="{{ initial_provider_state_stale|default(false) ? 'true' : 'false' }}"
 >
-    <header class="mb-8 max-w-2xl">
+    <header class="mb-8">
         <p class="mb-2 text-sm font-semibold uppercase tracking-wider text-primary">Yoowii Print</p>
         <h2 class="text-2xl font-bold text-base-content sm:text-3xl">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>
         <p class="mt-2 text-base-content/70">{{ 'yoowii.storefront.print_configuration_hint'|trans }}</p>
     </header>
 
     {% if available %}
-        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+        <div class="{{ embedded_product_page|default(false) ? 'min-w-0' : 'grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]' }}">
             <div class="min-w-0">
                 <div
                     class="alert alert-error d-none"
@@ -172,7 +172,8 @@
                 {% endif %}
             </div>
 
-            <div class="{{ embedded_product_page|default(false) ? 'hidden' : '' }}">
+            {% if not embedded_product_page|default(false) %}
+            <div>
                 <aside class="card border border-base-300 bg-base-100 shadow-sm yoowii-print-summary">
                     <div class="card-body gap-4 p-5">
                         <div class="flex items-center justify-between gap-3">
@@ -241,6 +242,7 @@
                     </div>
                 </aside>
             </div>
+            {% endif %}
         </div>
     {% else %}
         <div class="alert alert-warning" role="alert">
