@@ -736,6 +736,60 @@
         gap: 0.55rem;
     }
 
+    /* Matrix and classic API configurators own their respective controllers,
+       but deliberately share Prescript's calm, always-visible card rhythm.
+       Supplier markup is never targeted here: these rules apply only to the
+       Yoowii form generated from the published configuration schema. */
+    .yoowii-standard-print-configurator .yoowii-print-step {
+        margin-bottom: 1rem;
+        border-color: var(--color-base-300);
+        box-shadow: 0 1px 2px rgb(30 27 58 / 0.04);
+    }
+
+    .yoowii-standard-print-configurator .yoowii-print-step[open],
+    .yoowii-standard-print-configurator .yoowii-print-step.is-complete {
+        border-color: var(--color-base-300);
+        box-shadow: 0 1px 2px rgb(30 27 58 / 0.04);
+    }
+
+    .yoowii-standard-print-configurator .yoowii-print-step summary {
+        min-height: auto;
+        padding: 1rem 1rem 0;
+        cursor: default;
+        font-size: 0.9375rem;
+    }
+
+    .yoowii-standard-print-configurator .yoowii-print-step-status,
+    .yoowii-standard-print-configurator .yoowii-print-step-value,
+    .yoowii-standard-print-configurator .yoowii-print-step-chevron {
+        display: none;
+    }
+
+    .yoowii-standard-print-configurator .yoowii-print-step-content {
+        padding: 0.65rem 1rem 1rem;
+    }
+
+    .yoowii-standard-print-configurator .yoowii-print-choice-grid,
+    .yoowii-standard-print-configurator .yoowii-print-choice-grid.is-format-grid {
+        grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    }
+
+    .yoowii-standard-print-configurator .yoowii-print-choice-card {
+        min-height: 2.75rem;
+        padding: 0.7rem 0.8rem;
+        border-radius: var(--radius-field);
+    }
+
+    .yoowii-standard-print-configurator .is-format-grid .yoowii-print-choice-card {
+        min-height: 6.75rem;
+    }
+
+    .yoowii-standard-print-configurator .yoowii-print-step.is-disabled {
+        opacity: 0.58;
+        border-color: transparent;
+        background: var(--color-base-200);
+    }
+
     @media (max-width: 640px) {
         .yoowii-print-configurator .yoowii-print-choice-grid,
         .yoowii-print-configurator .yoowii-print-choice-grid.is-format-grid {

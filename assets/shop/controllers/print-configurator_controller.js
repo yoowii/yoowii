@@ -169,9 +169,7 @@ export default class extends Controller {
             return;
         }
 
-        this.stepTargets.forEach((candidate) => {
-            candidate.open = candidate === step;
-        });
+        this.openStepPanel(step);
         step.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
@@ -186,9 +184,7 @@ export default class extends Controller {
             return;
         }
 
-        this.stepTargets.forEach((candidate) => {
-            candidate.open = candidate === step;
-        });
+        this.openStepPanel(step);
         step.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
@@ -245,17 +241,13 @@ export default class extends Controller {
             const changedStep = this.stepTargets[changedStepIndex];
             const changedStepIsComplete = changedStep?.classList.contains('is-complete') ?? false;
 
-            this.stepTargets.forEach((step) => {
-                step.open = step === firstIncompleteStep;
-            });
+            this.openStepPanel(firstIncompleteStep);
 
             if (changedStepIsComplete && firstIncompleteStep) {
                 firstIncompleteStep.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         } else {
-            this.stepTargets.forEach((step) => {
-                step.open = step === firstIncompleteStep;
-            });
+            this.openStepPanel(firstIncompleteStep);
         }
 
         this.visibleSteps().forEach((step, index) => {
@@ -263,13 +255,30 @@ export default class extends Controller {
             if (number) number.textContent = String(index + 1);
         });
 
-        const quoteButton = this.element.querySelector('[data-action="print-configurator#calculate"]');
+        const quoteButton = this.element.querySelector(`[data-action~="${this.identifier}#calculate"]`);
         if (quoteButton) quoteButton.disabled = this.refreshPending || !this.isComplete();
         this.publishSummary();
     }
 
     visibleSteps() {
         return this.stepTargets.filter((step) => this.isOptionVisible(step.dataset.optionCode) && !step.classList.contains('d-none'));
+    }
+
+    openStepPanel(activeStep) {
+        // The Yoowii card presentation intentionally keeps every visible
+        // option exposed, like Prescript. The original progressive accordion
+        // remains available to any non-card storefront embedding.
+        if (this.element.dataset.yoowiiConfiguratorPresentation === 'cards') {
+            this.stepTargets.forEach((step) => {
+                step.open = !step.classList.contains('d-none');
+            });
+
+            return;
+        }
+
+        this.stepTargets.forEach((step) => {
+            step.open = step === activeStep;
+        });
     }
 
     publishSummary() {

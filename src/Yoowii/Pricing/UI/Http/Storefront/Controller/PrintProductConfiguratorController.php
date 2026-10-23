@@ -271,6 +271,7 @@ final class PrintProductConfiguratorController extends AbstractController
             'initial_provider_state' => $initialState,
             'initial_provider_state_stale' => $initialSnapshot['stale'],
             'manual_quote' => $this->hasRealisaprintMapping($definitionCode, $entityManager),
+            'configurator_mode' => $this->hasRealisaprintMapping($definitionCode, $entityManager) ? 'realisaprint-classic' : 'matrix-print',
             'embedded_product_page' => $embeddedProductPage,
             'configuration_context' => $configurationContext ?? 'print-' . $productCode,
         ]);

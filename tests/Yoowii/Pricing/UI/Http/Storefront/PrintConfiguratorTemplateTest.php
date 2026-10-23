@@ -22,13 +22,14 @@ final class PrintConfiguratorTemplateTest extends TestCase
     {
         $template = $this->template();
 
-        self::assertStringContainsString('data-print-configurator-initial-provider-state-value=', $template);
-        self::assertStringContainsString('data-print-configurator-initial-provider-state-stale-value="{{ initial_provider_state_stale|default(false) ? \'true\' : \'false\' }}"', $template);
+        self::assertStringContainsString('data-{{ configurator_controller }}-initial-provider-state-value=', $template);
+        self::assertStringContainsString('data-{{ configurator_controller }}-initial-provider-state-stale-value="{{ initial_provider_state_stale|default(false) ? \'true\' : \'false\' }}"', $template);
     }
 
     public function testItOnlyMountsTheStimulusControllerWhenTheConfiguratorIsAvailable(): void
     {
-        self::assertStringContainsString('{% if available %}data-controller="print-configurator"{% endif %}', $this->template());
+        self::assertStringContainsString('{% if available %}data-controller="{{ configurator_controller }}"{% endif %}', $this->template());
+        self::assertStringContainsString('data-yoowii-configurator-presentation="cards"', $this->template());
     }
 
     public function testDorureAChaudVisibilityIsAppliedByTwigBeforeStimulusConnects(): void
