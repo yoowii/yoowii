@@ -18,6 +18,9 @@
     data-{{ configurator_controller }}-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
     data-empty-quote-label="{{ 'yoowii.storefront.price_after_configuration'|trans }}"
     data-{{ configurator_controller }}-pricing-axes-value="{{ pricing_axes|default([])|json_encode|e('html_attr') }}"
+    {% if configurator_mode == 'matrix-print' %}
+        data-{{ configurator_controller }}-matrix-combinations-value="{{ matrix_combinations|default([])|json_encode|e('html_attr') }}"
+    {% endif %}
     data-{{ configurator_controller }}-summary-context-value="{{ configuration_context|default('print-' ~ product.code) }}"
     data-{{ configurator_controller }}-debug-value="{{ app.environment == 'dev' ? 'true' : 'false' }}"
     {% if initial_provider_state is not null %}

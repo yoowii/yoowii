@@ -84,5 +84,10 @@ CSV,
         self::assertSame(['a5', 'a6'], $options['format']);
         self::assertSame([1000, 2500], $options['quantity']);
         self::assertSame(['two_sided'], $options['sides']);
+        self::assertSame([
+            ['format' => 'a5', 'sides' => 'two_sided', 'paper' => 'coated_gloss', 'grammage' => '135', 'quantity' => '1000', 'finishing' => 'none'],
+            ['format' => 'a6', 'sides' => 'two_sided', 'paper' => 'coated_gloss', 'grammage' => '135', 'quantity' => '1000', 'finishing' => 'none'],
+            ['format' => 'a5', 'sides' => 'two_sided', 'paper' => 'coated_gloss', 'grammage' => '135', 'quantity' => '2500', 'finishing' => 'none'],
+        ], $catalog->matrixCombinations($definition, 'EUR', new \DateTimeImmutable('2026-09-15T00:00:00+00:00')));
     }
 }

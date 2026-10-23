@@ -137,6 +137,18 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertStringContainsString('window.setTimeout(() => this.refreshProviderState(), delay)', $controller);
     }
 
+    public function testMatrixModeUsesPublishedCombinationsWithoutCallingTheProviderRefreshEndpoint(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/matrix-print-configurator_controller.js');
+
+        self::assertIsString($controller);
+        self::assertStringContainsString('matrixCombinations: Array', $controller);
+        self::assertStringContainsString('applyMatrixAvailability()', $controller);
+        self::assertStringContainsString('async refreshProviderState()', $controller);
+        self::assertStringContainsString('never send a partial', $controller);
+        self::assertStringNotContainsString('fetch(', $controller);
+    }
+
     private function controller(): string
     {
         $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/print-configurator_controller.js');

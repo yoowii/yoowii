@@ -241,6 +241,10 @@ final class PrintProductConfiguratorController extends AbstractController
             $currencyContext->getCurrencyCode(),
             $now,
         );
+        $isRealisaprintClassic = $this->hasRealisaprintMapping($definitionCode, $entityManager);
+        $matrixCombinations = $isRealisaprintClassic
+            ? []
+            : $configurationCatalog->matrixCombinations($definition, $currencyContext->getCurrencyCode(), $now);
         $storedQuote = $this->matchingQuote($quoteToken, $product, $definitionCode, $quoteStore, $now);
         $fixed = $fixedOptions->forProduct($definitionCode, $now);
         $configuration = $storedQuote?->pricingSnapshot()->configuration()['options'] ?? [];
@@ -265,13 +269,18 @@ final class PrintProductConfiguratorController extends AbstractController
             'stored_quote' => $storedQuote,
             'quote_token' => null !== $storedQuote ? $quoteToken : null,
             'configuration' => is_array($configuration) ? $configuration : [],
-            'refresh_url' => $this->generateUrl('yoowii_shop_print_product_configuration_refresh', ['productCode' => $productCode, '_locale' => $request->getLocale()]),
+            // Matrix pricing resolves compatibility locally from its published
+            // rows. Only the Realisaprint controller may call show_variables.
+            'refresh_url' => $isRealisaprintClassic
+                ? $this->generateUrl('yoowii_shop_print_product_configuration_refresh', ['productCode' => $productCode, '_locale' => $request->getLocale()])
+                : '',
+            'matrix_combinations' => $matrixCombinations,
             'fixed_fields' => $fixed,
             'pricing_axes' => $definition->pricingAxes(),
             'initial_provider_state' => $initialState,
             'initial_provider_state_stale' => $initialSnapshot['stale'],
-            'manual_quote' => $this->hasRealisaprintMapping($definitionCode, $entityManager),
-            'configurator_mode' => $this->hasRealisaprintMapping($definitionCode, $entityManager) ? 'realisaprint-classic' : 'matrix-print',
+            'manual_quote' => $isRealisaprintClassic,
+            'configurator_mode' => $isRealisaprintClassic ? 'realisaprint-classic' : 'matrix-print',
             'embedded_product_page' => $embeddedProductPage,
             'configuration_context' => $configurationContext ?? 'print-' . $productCode,
         ]);
