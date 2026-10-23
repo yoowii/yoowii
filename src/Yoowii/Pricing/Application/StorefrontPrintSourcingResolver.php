@@ -28,7 +28,7 @@ final readonly class StorefrontPrintSourcingResolver
 
         foreach ($routes as $route) {
             $mode = $route->supplierProduct()->supplier()->integrationMode();
-            if (SupplierIntegrationMode::Matrix === $mode) {
+            if (in_array($mode, [SupplierIntegrationMode::Matrix, SupplierIntegrationMode::Manual], true)) {
                 return new ResolvedPrintSourcing($route, ConfiguratorKind::Matrix);
             }
 

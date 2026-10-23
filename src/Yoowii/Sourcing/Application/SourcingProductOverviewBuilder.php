@@ -69,7 +69,7 @@ final class SourcingProductOverviewBuilder
     {
         usort($routes, static fn (SupplierRoute $left, SupplierRoute $right): int => $left->priority() <=> $right->priority());
         $eligible = array_values(array_filter($routes, static fn (SupplierRoute $route): bool => $route->isEligibleFor($route->yoowiiProductCode(), $now)));
-        $currentMappings = array_values(array_filter($mappings, static fn (SupplierProductMappingVersion $mapping): bool => $mapping->isEffectiveAt($now)));
+        $currentMappings = array_values(array_filter($mappings, static fn (SupplierProductMappingVersion $mapping): bool => $mapping->isEffectiveAt($now) && null !== $mapping->publishedAt() && null === $mapping->archivedAt()));
         $currentMatrices = array_values(array_filter($matrices, static fn (SupplierPricingMatrixVersion $matrix): bool => $matrix->isSelectableAt($now)));
         $future = [
             'routes' => array_values(array_filter($routes, static fn (SupplierRoute $route): bool => $route->effectiveFrom() > $now)),
