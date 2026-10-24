@@ -39,7 +39,7 @@ final readonly class RealisaprintDraftCreator
      * @param array<string, array<string, mixed>> $options
      * @param non-empty-list<string> $pricingAxes
      */
-    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, string $configuratorMode, array $options, array $pricingAxes, ?string $selectedPicture = null): Product
+    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, string $configuratorMode, array $options, array $pricingAxes, ?string $selectedPicture = null, ?Taxon $taxon = null): Product
     {
         if (null === $catalogProduct->configuration()) {
             throw new \DomainException('Charge d’abord la configuration Realisaprint avant de créer le brouillon.');
@@ -119,7 +119,7 @@ final readonly class RealisaprintDraftCreator
         $this->initializeChannelPricings($product, $variant);
         $product->addVariant($variant);
 
-        $taxon = $this->taxons->resolve($name, $catalogProduct->name());
+        $taxon ??= $this->taxons->resolve($name, $catalogProduct->name());
         if ($taxon instanceof Taxon) {
             $productTaxon = new ProductTaxon();
             $productTaxon->setTaxon($taxon);
@@ -272,6 +272,7 @@ final readonly class RealisaprintDraftCreator
 
     /**
      * @param array<string, array<string, mixed>> $options
+     *
      * @return array<string, array{type: string, required?: bool, allowed_values?: list<string|int|float>, minimum?: int|float|null, maximum?: int|float|null}>
      */
     private function definitionOptions(array $options): array

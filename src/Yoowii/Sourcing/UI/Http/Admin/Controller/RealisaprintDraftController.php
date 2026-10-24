@@ -6,14 +6,15 @@ namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Yoowii\Sourcing\Application\RealisaprintDraftCreator;
 use App\Yoowii\Sourcing\Application\RealisaprintDraftPicturePreview;
+use App\Yoowii\Sourcing\Application\RealisaprintDraftTaxonResolver;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
 use App\Yoowii\Sourcing\UI\Http\Admin\Form\RealisaprintDraftType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\AsciiSlugger;
@@ -21,7 +22,7 @@ use Symfony\Component\String\Slugger\AsciiSlugger;
 final class RealisaprintDraftController extends AbstractController
 {
     #[Route('/realisaprint-catalog/{id}/draft', name: 'yoowii_admin_realisaprint_catalog_draft', requirements: ['id' => '\\d+'], methods: ['GET', 'POST'])]
-    public function create(int $id, Request $request, EntityManagerInterface $entityManager, RealisaprintDraftCreator $creator): Response
+    public function create(int $id, Request $request, EntityManagerInterface $entityManager, RealisaprintDraftCreator $creator, RealisaprintDraftTaxonResolver $taxons): Response
     {
         $catalogProduct = $entityManager->find(RealisaprintCatalogProduct::class, $id);
         if (!$catalogProduct instanceof RealisaprintCatalogProduct) {
@@ -32,6 +33,7 @@ final class RealisaprintDraftController extends AbstractController
         $data->productCode = $this->suggestedCode($catalogProduct);
         $data->name = $catalogProduct->name();
         $data->stock = $this->defaultStock($catalogProduct);
+        $data->taxon = $taxons->resolve($data->name, $catalogProduct->name());
         $this->prefillConfiguration($data, $catalogProduct);
         $stocks = $this->stockChoices($catalogProduct);
         $form = $this->createForm(RealisaprintDraftType::class, $data, ['stock_choices' => $stocks]);
@@ -45,7 +47,7 @@ final class RealisaprintDraftController extends AbstractController
             try {
                 $options = $this->draftOptions(json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR));
                 $axes = $this->pricingAxes(json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR));
-                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $data->configuratorMode, $options, $axes, $data->selectedPicture);
+                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $data->configuratorMode, $options, $axes, $data->selectedPicture, $data->taxon);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
                 return $this->redirectToRoute('yoowii_admin_realisaprint_catalog_show', ['id' => $id]);
@@ -70,6 +72,7 @@ final class RealisaprintDraftController extends AbstractController
         if (!$this->isCsrfTokenValid('realisaprint_draft_pictures_' . $id, (string) $request->request->get('_token'))) {
             return new JsonResponse(['message' => 'Jeton de sécurité invalide.'], Response::HTTP_FORBIDDEN, ['Cache-Control' => 'no-store']);
         }
+
         try {
             $stock = trim((string) $request->request->get('stock'));
 
@@ -189,6 +192,7 @@ final class RealisaprintDraftController extends AbstractController
 
     /**
      * @param array<string, mixed> $configuration
+     *
      * @return list<array<string, mixed>>
      */
     private function providerVariables(array $configuration): array

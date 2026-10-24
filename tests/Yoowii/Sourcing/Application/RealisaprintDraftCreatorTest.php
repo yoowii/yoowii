@@ -18,8 +18,8 @@ use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
 use App\Yoowii\Sourcing\Infrastructure\Translation\ProductTranslationDictionary;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
-use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
 final class RealisaprintDraftCreatorTest extends TestCase
@@ -142,6 +142,8 @@ final class RealisaprintDraftCreatorTest extends TestCase
                 'quantite' => ['type' => 'integer', 'allowed_values' => [100, 50]],
             ],
             ['format', 'quantite'],
+            null,
+            $taxon,
         );
 
         self::assertFalse($product->isEnabled());

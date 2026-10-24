@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Form;
 
+use App\Entity\Taxonomy\Taxon;
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
+use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
@@ -29,6 +31,15 @@ final class RealisaprintDraftType extends AbstractType
                 'choices' => $options['stock_choices'],
                 'required' => true,
                 'placeholder' => false,
+                'attr' => ['class' => 'form-select'],
+            ])
+            ->add('taxon', EntityType::class, [
+                'class' => Taxon::class,
+                'choice_label' => static fn (Taxon $taxon): string => sprintf('%s — %s', $taxon->getCode(), $taxon->getName()),
+                'label' => 'Catégorie Yoowii',
+                'help' => 'La catégorie détectée est présélectionnée. Vous pouvez la remplacer ; elle deviendra aussi la catégorie principale du produit.',
+                'placeholder' => 'Choisir une catégorie',
+                'required' => false,
                 'attr' => ['class' => 'form-select'],
             ])
             ->add('selectedPicture', HiddenType::class, ['required' => false])

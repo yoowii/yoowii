@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Data;
 
+use App\Entity\Taxonomy\Taxon;
+
 final class RealisaprintDraftData
 {
     public string $productCode = '';
@@ -11,6 +13,9 @@ final class RealisaprintDraftData
     public string $name = '';
 
     public string $stock = '';
+
+    /** Category assigned as both a product taxon and its main category. */
+    public ?Taxon $taxon = null;
 
     /** Provider picture selected in the draft form; it is downloaded server-side only on creation. */
     public string $selectedPicture = '';
