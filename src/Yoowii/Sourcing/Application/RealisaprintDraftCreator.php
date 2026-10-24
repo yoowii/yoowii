@@ -31,6 +31,7 @@ final readonly class RealisaprintDraftCreator
         private RealisaprintDraftTaxonResolver $taxons,
         private ProductTranslationDictionary $translations,
         private LoggerInterface $logger,
+        private ?RealisaprintDraftPictureImporter $pictureImporter = null,
     ) {
     }
 
@@ -38,7 +39,7 @@ final readonly class RealisaprintDraftCreator
      * @param array<string, array<string, mixed>> $options
      * @param non-empty-list<string> $pricingAxes
      */
-    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, string $configuratorMode, array $options, array $pricingAxes): Product
+    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, string $configuratorMode, array $options, array $pricingAxes, ?string $selectedPicture = null): Product
     {
         if (null === $catalogProduct->configuration()) {
             throw new \DomainException('Charge d’abord la configuration Realisaprint avant de créer le brouillon.');
@@ -173,6 +174,12 @@ final readonly class RealisaprintDraftCreator
 
         if ($definition === $candidateDefinition) {
             $this->entityManager->persist($definition);
+        }
+        if (is_string($selectedPicture) && '' !== trim($selectedPicture)) {
+            if (!$this->pictureImporter instanceof RealisaprintDraftPictureImporter) {
+                throw new \LogicException('Le service d’import des images Realisaprint est indisponible.');
+            }
+            $this->pictureImporter->attach($product, $selectedPicture);
         }
         $this->entityManager->persist($product);
         $this->entityManager->persist($route);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Yoowii\Sourcing\Application\RealisaprintDraftCreator;
+use App\Yoowii\Sourcing\Application\RealisaprintDraftPicturePreview;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
 use App\Yoowii\Sourcing\UI\Http\Admin\Form\RealisaprintDraftType;
@@ -12,6 +13,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\AsciiSlugger;
@@ -43,11 +45,11 @@ final class RealisaprintDraftController extends AbstractController
             try {
                 $options = $this->draftOptions(json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR));
                 $axes = $this->pricingAxes(json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR));
-                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $data->configuratorMode, $options, $axes);
+                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $data->configuratorMode, $options, $axes, $data->selectedPicture);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
                 return $this->redirectToRoute('yoowii_admin_realisaprint_catalog_show', ['id' => $id]);
-            } catch (\JsonException|\InvalidArgumentException|\DomainException $exception) {
+            } catch (\JsonException|\InvalidArgumentException|\DomainException|\RuntimeException $exception) {
                 $form->addError(new FormError($exception->getMessage()));
             }
         }
@@ -56,6 +58,25 @@ final class RealisaprintDraftController extends AbstractController
             'catalog_product' => $catalogProduct,
             'form' => $form,
         ]);
+    }
+
+    #[Route('/realisaprint-catalog/{id}/draft/pictures', name: 'yoowii_admin_realisaprint_catalog_draft_pictures', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    public function pictures(int $id, Request $request, EntityManagerInterface $entityManager, RealisaprintDraftPicturePreview $preview): JsonResponse
+    {
+        $catalogProduct = $entityManager->find(RealisaprintCatalogProduct::class, $id);
+        if (!$catalogProduct instanceof RealisaprintCatalogProduct) {
+            throw $this->createNotFoundException();
+        }
+        if (!$this->isCsrfTokenValid('realisaprint_draft_pictures_' . $id, (string) $request->request->get('_token'))) {
+            return new JsonResponse(['message' => 'Jeton de sécurité invalide.'], Response::HTTP_FORBIDDEN, ['Cache-Control' => 'no-store']);
+        }
+        try {
+            $stock = trim((string) $request->request->get('stock'));
+
+            return new JsonResponse(['pictures' => $preview->load($catalogProduct, $stock)], Response::HTTP_OK, ['Cache-Control' => 'no-store']);
+        } catch (\InvalidArgumentException|\DomainException $exception) {
+            return new JsonResponse(['message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
+        }
     }
 
     private function suggestedCode(RealisaprintCatalogProduct $catalogProduct): string

@@ -128,6 +128,40 @@ final readonly class RealisaprintClient
         }
     }
 
+    /** @return array{content: string, mime_type: string} */
+    public function downloadPicture(string $url): array
+    {
+        if (!self::isPictureUrl($url)) {
+            throw new \InvalidArgumentException('L’image sélectionnée ne provient pas du catalogue Realisaprint.');
+        }
+
+        $response = $this->client->request('GET', $url, [
+            'timeout' => $this->idleTimeout,
+            'max_duration' => $this->maxDuration,
+            'max_redirects' => 0,
+        ]);
+        $content = $response->getContent(false);
+        $status = $response->getStatusCode();
+        $headers = $response->getHeaders(false);
+        $mimeType = strtolower(trim(explode(';', (string) (($headers['content-type'][0] ?? '')))[0]));
+        if ($status < 200 || $status >= 300 || '' === $content || strlen($content) > 8 * 1024 * 1024 || !in_array($mimeType, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            throw new \DomainException('Le téléchargement de l’image Realisaprint a échoué.');
+        }
+
+        return ['content' => $content, 'mime_type' => $mimeType];
+    }
+
+    public static function isPictureUrl(string $url): bool
+    {
+        $parts = parse_url($url);
+        if (!is_array($parts) || 'https' !== ($parts['scheme'] ?? null) || !is_string($parts['host'] ?? null) || !is_string($parts['path'] ?? null)) {
+            return false;
+        }
+
+        return in_array(strtolower($parts['host']), ['www.realisaprint.com', 'realisaprint.com'], true)
+            && str_starts_with($parts['path'], '/api_img/');
+    }
+
     /**
      * @param array<string, bool|float|int|string|array<array-key, bool|float|int|string>> $parameters
      *

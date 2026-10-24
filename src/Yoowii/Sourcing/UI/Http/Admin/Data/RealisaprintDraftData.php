@@ -12,6 +12,9 @@ final class RealisaprintDraftData
 
     public string $stock = '';
 
+    /** Provider picture selected in the draft form; it is downloaded server-side only on creation. */
+    public string $selectedPicture = '';
+
     /** @var 'classic'|'prescript' */
     public string $configuratorMode = 'classic';
 

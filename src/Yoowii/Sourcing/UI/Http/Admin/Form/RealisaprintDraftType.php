@@ -7,6 +7,7 @@ namespace App\Yoowii\Sourcing\UI\Http\Admin\Form;
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -30,6 +31,7 @@ final class RealisaprintDraftType extends AbstractType
                 'placeholder' => false,
                 'attr' => ['class' => 'form-select'],
             ])
+            ->add('selectedPicture', HiddenType::class, ['required' => false])
             ->add('configuratorMode', ChoiceType::class, [
                 'label' => 'Configurateur storefront',
                 'choices' => ['API classique Yoowii' => 'classic', 'API Préscript Realisaprint' => 'prescript'],
