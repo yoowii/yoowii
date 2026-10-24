@@ -137,8 +137,11 @@ final class RealisaprintDraftCreatorTest extends TestCase
             'Agenda mensuel',
             '1229',
             'prescript',
-            ['format' => ['type' => 'code', 'allowed_values' => ['a4']]],
-            ['format'],
+            [
+                'format' => ['type' => 'code', 'allowed_values' => ['a4']],
+                'quantite' => ['type' => 'integer', 'allowed_values' => [100, 50]],
+            ],
+            ['format', 'quantite'],
         );
 
         self::assertFalse($product->isEnabled());
@@ -186,8 +189,11 @@ final class RealisaprintDraftCreatorTest extends TestCase
             'Agenda sans taxon',
             '1229',
             'prescript',
-            ['format' => ['type' => 'code', 'allowed_values' => ['a4']]],
-            ['format'],
+            [
+                'quantite' => ['allowed_values' => [50, 100], 'type' => 'integer'],
+                'format' => ['allowed_values' => ['a4'], 'type' => 'code'],
+            ],
+            ['quantite', 'format'],
         );
 
         self::assertNull($productWithoutTaxon->getMainTaxon());

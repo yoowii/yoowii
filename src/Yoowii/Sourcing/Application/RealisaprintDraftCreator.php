@@ -214,9 +214,42 @@ final readonly class RealisaprintDraftCreator
 
     private function assertCompatibleDefinition(PersistedPrintProductDefinition $existing, PersistedPrintProductDefinition $candidate): void
     {
-        if ($existing->options() !== $candidate->options() || $existing->pricingAxes() !== $candidate->pricingAxes()) {
+        $optionsMatch = $this->sameContents($existing->options(), $candidate->options());
+        $pricingAxesMatch = $this->sameContents($existing->pricingAxes(), $candidate->pricingAxes());
+        if (!$optionsMatch || !$pricingAxesMatch) {
             throw new \DomainException('La définition de configurateur partagée ne correspond pas aux options sélectionnées. Créez une révision avant de modifier son schéma.');
         }
+    }
+
+    /**
+     * Compares a schema by content, irrespective of array insertion order.
+     *
+     * @param array<mixed> $left
+     * @param array<mixed> $right
+     */
+    private function sameContents(array $left, array $right): bool
+    {
+        return $this->normalizeContents($left) === $this->normalizeContents($right);
+    }
+
+    /** @param array<mixed> $contents @return array<mixed> */
+    private function normalizeContents(array $contents): array
+    {
+        foreach ($contents as $key => $value) {
+            if (is_array($value)) {
+                $contents[$key] = $this->normalizeContents($value);
+            }
+        }
+
+        if (array_is_list($contents)) {
+            usort($contents, static fn (mixed $left, mixed $right): int => serialize($left) <=> serialize($right));
+
+            return $contents;
+        }
+
+        ksort($contents);
+
+        return $contents;
     }
 
     /** @return array<string, array<string, mixed>> */
