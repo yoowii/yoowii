@@ -21,6 +21,7 @@ use App\Yoowii\Pricing\Application\RealisaprintPrescriptTemplateProvider;
 use App\Yoowii\Pricing\Application\RealisaprintVisibleConfigurationBuilder;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Application\StorefrontInitialConfiguratorValues;
+use App\Yoowii\Pricing\Application\StorefrontPrintSourcingResolver;
 use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\Pricing\Domain\Print\PrescriptSummaryProfile;
 use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;

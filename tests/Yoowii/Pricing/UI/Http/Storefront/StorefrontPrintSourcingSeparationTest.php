@@ -13,6 +13,7 @@ final class StorefrontPrintSourcingSeparationTest extends TestCase
         $controller = file_get_contents(dirname(__DIR__, 6) . '/src/Yoowii/Pricing/UI/Http/Storefront/Controller/PrintProductConfiguratorController.php');
 
         self::assertIsString($controller);
+        self::assertStringContainsString('use App\\Yoowii\\Pricing\\Application\\StorefrontPrintSourcingResolver;', $controller);
         self::assertStringContainsString('StorefrontPrintSourcingResolver $sourcingResolver', $controller);
         self::assertStringContainsString('$sourcing = $sourcingResolver->resolve($productCode, $now);', $controller);
         self::assertStringContainsString('$sourcing->route()', $controller);
