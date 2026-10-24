@@ -73,6 +73,12 @@ Pour préserver les mappings existants, l'absence de ce champ applique une compa
 
 Un code déclaré mais absent de `PrintConfiguratorDriverRegistry` rend le mapping inéligible pour le storefront. La route suivante peut alors être retenue. Cette règle évite de publier par erreur un mapping dont le moteur n'est pas déployé.
 
+## Définition de configurateur par route
+
+Un mapping peut référencer une `printProductDefinition`. Lorsqu'elle existe, elle devient la définition réellement utilisée par la route résolue : schéma des champs, axes tarifaires et code inscrit dans le devis/snapshot. `Product::printDefinitionCode` reste un profil par défaut de compatibilité, notamment pour les routes matrice sans mapping ; il ne désigne pas le fournisseur.
+
+Ainsi, un seul produit commercial Sylius peut conserver son URL, ses contenus et sa variante tout en utilisant une définition Realisaprint, Laboprint ou matrice différente selon la route prioritaire publiée. La nouvelle définition est déterminée avant le rendu. Un devis déjà émis ne bascule jamais vers une autre route ou définition.
+
 ## Contrat d'immuabilité
 
 Une fois le produit affiché, le devis est calculé uniquement avec la route sélectionnée. Il ne tente pas un autre fournisseur si l'API échoue. Le client reçoit une erreur contrôlée et peut recommencer une configuration ultérieurement, après une décision back-office éventuelle.
@@ -133,6 +139,8 @@ Ajouter le code au mapping du produit fournisseur :
 ```
 
 La publication doit refuser ou signaler un mapping dont le code n'est pas installé. Vérifier dans le cockpit `/admin/print-sourcing/products/PRINT_*` que la route apparaît comme **Utilisée** ou **Secours**, jamais comme **Ignorée**.
+
+Choisir aussi, dans le formulaire de mapping, la définition de configurateur propre à cette route si son schéma diffère du profil Sylius par défaut. Cette sélection est ce qui permet de faire évoluer un même produit commercial vers une API dont les options ne sont pas celles de Realisaprint.
 
 ### 5. Brancher les endpoints serveur dédiés
 

@@ -43,4 +43,13 @@ final readonly class ResolvedPrintSourcing
     {
         return $this->mapping;
     }
+
+    /**
+     * The schema selected by this supplier mapping. Matrix-only routes may
+     * deliberately omit it and keep using the product's default schema.
+     */
+    public function definitionCode(): ?string
+    {
+        return $this->mapping?->printProductDefinition()?->productCode();
+    }
 }

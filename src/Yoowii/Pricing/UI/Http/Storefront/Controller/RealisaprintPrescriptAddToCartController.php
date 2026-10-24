@@ -88,6 +88,10 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         if (ConfiguratorKind::Prescript !== $sourcing->configuratorKind() || !$mapping instanceof SupplierProductMappingVersion) {
             return $this->failure('Mapping fournisseur indisponible.', 422);
         }
+        $definitionCode = $mapping->printProductDefinition()?->productCode() ?? $product->getPrintDefinitionCode();
+        if (!is_string($definitionCode) || '' === $definitionCode) {
+            return $this->failure('Définition de configurateur indisponible.', 422);
+        }
         $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
         if (!is_array($provider) || '' === (string) ($provider['product'] ?? '') || '' === (string) ($provider['stock'] ?? '')) {
             return $this->failure('Configuration fournisseur invalide.', 422);
@@ -156,7 +160,7 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
             if (null !== $savedQuantity && (string) $savedQuantity !== (string) $quantity) {
                 return $this->failure('La quantité enregistrée chez Realisaprint est incorrecte.', 422);
             }
-            $snapshot = $creator->create($productCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $delivery, $sourcing->route());
+            $snapshot = $creator->create($definitionCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $delivery, $sourcing->route());
             if (!$cart->isEmpty() && null !== $cart->getCurrencyCode() && $cart->getCurrencyCode() !== $snapshot->currencyCode()) {
                 return $this->failure('La devise du panier ne correspond pas au devis.', 409);
             }

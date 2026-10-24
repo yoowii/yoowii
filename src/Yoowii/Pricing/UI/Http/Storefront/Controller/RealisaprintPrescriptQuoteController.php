@@ -52,13 +52,17 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         if (ConfiguratorKind::Prescript !== $sourcing->configuratorKind() || !$mapping instanceof SupplierProductMappingVersion) {
             return new JsonResponse(['message' => 'La configuration Préscript est indisponible.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
+        $definitionCode = $mapping->printProductDefinition()?->productCode() ?? $product->getPrintDefinitionCode();
+        if (!is_string($definitionCode) || '' === $definitionCode) {
+            return new JsonResponse(['message' => 'La définition de configurateur est indisponible.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
+        }
         $variant = $product->getEnabledVariants()->first();
         if (!$variant instanceof ProductVariant || null === $variant->getCode()) {
             return new JsonResponse(['message' => 'La variante commerciale est indisponible.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
         try {
-            $snapshot = $creator->create($productCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now, $delivery, $sourcing->route());
-            $token = $quoteStore->issue($variant->getCode(), $productCode, $snapshot, $now);
+            $snapshot = $creator->create($definitionCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now, $delivery, $sourcing->route());
+            $token = $quoteStore->issue($variant->getCode(), $definitionCode, $snapshot, $now);
         } catch (\Throwable) {
             return new JsonResponse(['message' => 'Le prix Préscript ne peut pas être calculé pour le moment.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Data;
 
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -14,6 +15,9 @@ final class SupplierProductMappingData
 
     #[Assert\NotNull]
     public ?SupplierProduct $supplierProduct = null;
+
+    /** The schema used only when this supplier route is resolved. */
+    public ?PersistedPrintProductDefinition $printProductDefinition = null;
 
     #[Assert\NotBlank]
     #[Assert\Length(max: 64)]

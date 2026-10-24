@@ -169,6 +169,7 @@ final class RealisaprintDraftCreatorTest extends TestCase
         self::assertInstanceOf(SupplierProductMappingVersion::class, $mapping);
         self::assertSame($product->getPrintDefinitionCode(), $definition->productCode());
         self::assertSame($definition, $mapping->printProductDefinition());
+        self::assertSame('realisaprint_prescript', $mapping->configurationMapping()['yoowii']['configurator_driver']);
 
         $emptyTaxonRepository = $this->repository();
         $emptyTaxonRepository->method('findAll')->willReturn([]);

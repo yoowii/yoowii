@@ -42,6 +42,8 @@ final class SupplierProductMappingController extends AbstractController
                     $data->version,
                     $mapping,
                     $data->effectiveFrom ?? throw new \LogicException('Missing effective date.'),
+                    null,
+                    $data->printProductDefinition,
                 ));
                 $entityManager->flush();
             } catch (\JsonException|\InvalidArgumentException $exception) {

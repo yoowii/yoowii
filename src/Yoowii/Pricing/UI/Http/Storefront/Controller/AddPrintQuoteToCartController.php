@@ -78,8 +78,7 @@ final class AddPrintQuoteToCartController extends AbstractController
             !$product instanceof Product ||
             !$product->isEnabled() ||
             !$product->hasChannel($channelContext->getChannel()) ||
-            FulfillmentType::Print !== $product->getFulfillmentType() ||
-            $storedQuote->definitionCode() !== $product->getPrintDefinitionCode()
+            FulfillmentType::Print !== $product->getFulfillmentType()
         ) {
             throw $this->createNotFoundException('La variante ne correspond pas à un produit print Yoowii.');
         }

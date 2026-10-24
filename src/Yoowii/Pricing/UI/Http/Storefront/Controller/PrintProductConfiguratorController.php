@@ -65,20 +65,21 @@ final class PrintProductConfiguratorController extends AbstractController
             if (!is_array($values)) {
                 throw new \InvalidArgumentException('La configuration à rafraîchir est invalide.');
             }
-            $definition = $definitions->get($this->definitionCode($product));
             $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
             $sourcing = $sourcingResolver->resolve($productCode, $now);
+            $definitionCode = $this->resolvedDefinitionCode($product, $sourcing);
+            $definition = $definitions->get($definitionCode);
             $mapping = $sourcing->mapping();
             if (ConfiguratorKind::SupplierApi !== $sourcing->configuratorKind() || !$mapping instanceof SupplierProductMappingVersion) {
                 throw new \DomainException('Le configurateur sélectionné ne prend pas en charge ce rafraîchissement.');
             }
-            $configuration = $definition->configure($publishedValues->resolve($definition, $definitions->storefrontSchema($this->definitionCode($product)), $values, $fixedOptions->forMapping($mapping)));
+            $configuration = $definition->configure($publishedValues->resolve($definition, $definitions->storefrontSchema($definitionCode), $values, $fixedOptions->forMapping($mapping)));
 
             // show_variables is a display endpoint. It may run before a
             // configuration is priceable; quote() remains the strict boundary.
             $selectedOptions = array_filter($values, static fn (mixed $value): bool => is_scalar($value) && '' !== trim((string) $value));
             $state = $refresh->refreshForMapping($configuration, $mapping, $selectedOptions);
-            $corrected = $availabilityFallback->applyToSchema($configuration->toArray(), $state, $definitions->storefrontSchema($this->definitionCode($product)), $definition->pricingAxes());
+            $corrected = $availabilityFallback->applyToSchema($configuration->toArray(), $state, $definitions->storefrontSchema($definitionCode), $definition->pricingAxes());
             foreach ($corrected as $option => $value) {
                 if ((string) ($configuration->toArray()[$option] ?? '') !== (string) $value) {
                     $state['current'][$option] = (string) $value;
@@ -113,11 +114,11 @@ final class PrintProductConfiguratorController extends AbstractController
         StorefrontPrintSourcingResolver $sourcingResolver,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
-        $definitionCode = $this->definitionCode($product);
-        $definition = $definitions->get($definitionCode);
         $currencyCode = $currencyContext->getCurrencyCode();
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $sourcing = $sourcingResolver->resolve($productCode, $now);
+        $definitionCode = $this->resolvedDefinitionCode($product, $sourcing);
+        $definition = $definitions->get($definitionCode);
         $availableOptions = $configurationCatalog->availableOptions($definition, $currencyCode, $now, $sourcing->route());
         $fixed = $fixedOptions->forMapping($sourcing->mapping());
         $schemas = $this->withFixedSchema($definitions->storefrontSchema($definitionCode), $fixed);
@@ -216,9 +217,9 @@ final class PrintProductConfiguratorController extends AbstractController
         ?string $configurationContext = null,
     ): Response {
         $product = $this->findPrintProduct($productCode, $productRepository, $channelContext);
-        $definitionCode = $this->definitionCode($product);
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $sourcing = $sourcingResolver->resolve($productCode, $now);
+        $definitionCode = $this->resolvedDefinitionCode($product, $sourcing);
         $driver = $driverRegistry->get($sourcing->configuratorDriver());
         $prescriptMapping = $driver->usesSupplierDocument()
             ? $sourcing->mapping()
@@ -497,6 +498,16 @@ final class PrintProductConfiguratorController extends AbstractController
     {
         return $product->getPrintDefinitionCode()
             ?? throw new \LogicException('The print product is not linked to a calculator definition.');
+    }
+
+    /**
+     * A published supplier mapping may expose a different customer schema than
+     * the product's legacy/default schema. The latter remains the fallback for
+     * matrix-only routes and existing mappings that have not yet selected one.
+     */
+    private function resolvedDefinitionCode(Product $product, \App\Yoowii\Pricing\Application\ResolvedPrintSourcing $sourcing): string
+    {
+        return $sourcing->definitionCode() ?? $this->definitionCode($product);
     }
 
     private function commercialVariant(Product $product): ProductVariant

@@ -152,7 +152,14 @@ final readonly class RealisaprintDraftCreator
             $providerMapping['variables'] = $variables;
             (new RealisaprintMappingCompleteness())->assertComplete($definition, $catalogProduct->configuration(), $providerMapping);
         }
-        $configurationMapping = ['realisaprint' => $providerMapping];
+        $configurationMapping = [
+            'realisaprint' => $providerMapping,
+            // The definition is linked to this mapping below; declaring the
+            // driver here makes the generated draft ready for the generic
+            // storefront resolver instead of coupling the product itself to
+            // Realisaprint.
+            'yoowii' => ['configurator_driver' => 'prescript' === $configuratorMode ? 'realisaprint_prescript' : 'realisaprint_classic'],
+        ];
         $mapping = new SupplierProductMappingVersion(
             $supplierProduct,
             $productCode,

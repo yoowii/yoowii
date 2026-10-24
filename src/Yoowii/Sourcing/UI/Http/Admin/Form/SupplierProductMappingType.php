@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Form;
 
 use App\Yoowii\Pricing\Application\BuiltInPrintProductDefinitionRegistry;
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProduct;
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\SupplierProductMappingData;
 use Doctrine\ORM\EntityRepository;
@@ -32,6 +33,16 @@ final class SupplierProductMappingType extends AbstractType
                 'label' => 'Référence fournisseur',
                 'choice_label' => static fn (SupplierProduct $product): string => sprintf('%s — %s (%s)', $product->supplier()->name(), $product->name(), $product->code()),
                 'query_builder' => static fn (EntityRepository $repository) => $repository->createQueryBuilder('product')->innerJoin('product.supplier', 'supplier')->orderBy('supplier.name', 'ASC')->addOrderBy('product.name', 'ASC'),
+                'attr' => ['class' => 'form-select'],
+            ])
+            ->add('printProductDefinition', EntityType::class, [
+                'class' => PersistedPrintProductDefinition::class,
+                'label' => 'Définition de configurateur pour cette route',
+                'choice_label' => static fn (PersistedPrintProductDefinition $definition): string => $definition->productCode(),
+                'query_builder' => static fn (EntityRepository $repository) => $repository->createQueryBuilder('definition')->where('definition.active = :active')->setParameter('active', true)->orderBy('definition.productCode', 'ASC')->addOrderBy('definition.id', 'DESC'),
+                'placeholder' => 'Utiliser le profil par défaut du produit Sylius',
+                'required' => false,
+                'help' => 'Cette définition est utilisée seulement si cette route fournisseur est résolue. Laisser vide pour les routes matrice historiques.',
                 'attr' => ['class' => 'form-select'],
             ])
             ->add('version', TextType::class, ['label' => 'Version immuable', 'attr' => ['class' => 'form-control']])

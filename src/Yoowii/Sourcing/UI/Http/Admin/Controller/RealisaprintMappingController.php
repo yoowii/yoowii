@@ -61,7 +61,10 @@ final class RealisaprintMappingController extends AbstractController
                     $route->supplierProduct(),
                     $route->yoowiiProductCode(),
                     trim($data->version),
-                    ['realisaprint' => ['product' => $route->supplierProduct()->code(), 'stock' => trim($data->stock), 'variables' => $variables]],
+                    [
+                        'realisaprint' => ['product' => $route->supplierProduct()->code(), 'stock' => trim($data->stock), 'variables' => $variables],
+                        'yoowii' => ['configurator_driver' => 'realisaprint_classic'],
+                    ],
                     new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
                     null,
                     $definition,
