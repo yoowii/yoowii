@@ -82,7 +82,10 @@ final class RealisaprintDraftController extends AbstractController
                 false === ($providerVariable['values'] ?? null) && is_string($providerVariable['default'] ?? null) &&
                 '' !== trim($providerVariable['default']);
             if ('text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false) && false === ($providerVariable['values'] ?? null) && !$fixedText) {
-                throw new \DomainException(sprintf('La variable %s est en lecture seule sans valeur par défaut exploitable.', $name));
+                // The provider owns this technical value and does not expose a
+                // usable default. It cannot be configured or sent safely by
+                // Yoowii, so it must not become a customer-facing option.
+                continue;
             }
             $providerType = is_string($providerVariable['type'] ?? null) ? $providerVariable['type'] : '';
             $area = is_int($providerVariable['area'] ?? null) || is_string($providerVariable['area'] ?? null) ? (int) $providerVariable['area'] : 1;

@@ -89,12 +89,22 @@ final class RealisaprintDraftControllerTest extends TestCase
         self::assertTrue($options['quantite']['required']);
     }
 
-    public function testReadonlyValueWithoutUsableDefaultIsRejected(): void
+    public function testSupplierOwnedReadonlyValueWithoutUsableDefaultIsExcludedFromTheDraft(): void
     {
         $catalog = new RealisaprintCatalogProduct('70', 'Produit', new \DateTimeImmutable());
-        $catalog->refreshConfiguration(['stocks' => ['1' => 'Stock'], 'variables' => ['V' => ['name' => 'Face', 'type' => 'text', 'values' => false, 'readonly' => true]]], new \DateTimeImmutable());
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('valeur par défaut exploitable');
-        (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), new RealisaprintDraftData(), $catalog);
+        $configuration = ['stocks' => ['1' => 'Stock'], 'variables' => [
+            'MARQUE' => ['name' => 'Marque', 'type' => 'text', 'values' => false, 'readonly' => true],
+            'FORMAT' => ['name' => 'Format', 'type' => 'select', 'values' => ['a4' => 'A4']],
+        ]];
+        $catalog->refreshConfiguration($configuration, new \DateTimeImmutable());
+        $data = new RealisaprintDraftData();
+        (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), $data, $catalog);
+        $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+
+        self::assertArrayNotHasKey('marque', $options);
+        $definition = new PersistedPrintProductDefinition('PRINT_PRODUIT', 'v1', $options, ['format']);
+        (new RealisaprintMappingCompleteness())->assertComplete($definition, $configuration, ['stock' => '1', 'variables' => [
+            'FORMAT' => ['option' => 'format', 'values' => ['a4' => 'a4']],
+        ]]);
     }
 }

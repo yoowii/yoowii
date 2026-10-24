@@ -31,6 +31,9 @@ final class RealisaprintMappingCompleteness
         $expectedIds = [];
         foreach ($providerVariables as $id => $variable) {
             if (is_string($id) && is_array($variable)) {
+                if ($this->isSupplierOwnedReadonlyText($variable)) {
+                    continue;
+                }
                 $expectedIds[$id] = $variable;
             }
         }
@@ -96,5 +99,14 @@ final class RealisaprintMappingCompleteness
                 throw new \InvalidArgumentException(sprintf('Les correspondances de « %s » doivent couvrir exactement les valeurs Yoowii.', $id));
             }
         }
+    }
+
+    /** @param array<string, mixed> $variable */
+    private function isSupplierOwnedReadonlyText(array $variable): bool
+    {
+        return 'text' === ($variable['type'] ?? null)
+            && true === ($variable['readonly'] ?? false)
+            && false === ($variable['values'] ?? null)
+            && (!is_string($variable['default'] ?? null) || '' === trim($variable['default']));
     }
 }
