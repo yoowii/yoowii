@@ -25,6 +25,9 @@
                 </div>
             </div>
             <div class="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+                <a class="btn btn-secondary inline-flex h-11 min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-btn px-5 text-base font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href="{{ path('yoowii_shop_print_catalog', {'_locale': app.request.locale}) }}">
+                    {{ 'yoowii.storefront.mega_menu.create_print'|trans }}
+                </a>
                 <a class="btn btn-ghost btn-sm btn-square xl:hidden" href="{{ search_taxon ? path('sylius_shop_product_index', {'slug': search_taxon.slug, '_locale': search_taxon.translation.locale}) : path('sylius_shop_homepage') }}" aria-label="Rechercher">
                     {{ ux_icon('tabler:search', {class: 'size-5', 'aria-hidden': 'true'}) }}
                 </a>

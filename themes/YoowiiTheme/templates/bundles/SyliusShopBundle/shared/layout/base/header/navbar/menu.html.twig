@@ -33,7 +33,6 @@
                         {% if mega_menu_enabled and taxon.hasPanel %}<button class="btn btn-ghost btn-xs btn-square shrink-0 text-base-content hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" type="button" data-mega-menu-target="trigger" data-mega-menu-menu-id-param="main-{{ taxon.id }}" data-action="click->mega-menu#toggle mouseenter->mega-menu#openFromTrigger focus->mega-menu#openFromTrigger" aria-label="{{ 'yoowii.storefront.mega_menu.open_family'|trans({'%family%': taxon.name}) }}" aria-expanded="false" aria-controls="yoowii-mega-menu-panel"><svg class="size-4" aria-hidden="true"><use href="{{ asset('themes/yoowii-theme/media/mega-menu-icons.svg') }}#chevron-down"></use></svg></button>{% endif %}
                     </li>
                 {% endfor %}
-                <li class="flex items-center"><a class="btn btn-secondary inline-flex h-11 min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-btn px-5 text-base font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href="{{ path('yoowii_shop_print_catalog', {'_locale': app.request.locale}) }}">{{ 'yoowii.storefront.mega_menu.create_print'|trans }}</a></li>
             </ul>
         </nav>
     </div>
