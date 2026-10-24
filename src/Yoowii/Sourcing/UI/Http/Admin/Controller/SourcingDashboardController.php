@@ -33,9 +33,9 @@ final class SourcingDashboardController extends AbstractController
         $overview = $overviewBuilder->build($routes, $allMappings, $matrices, $now);
         /** @var list<Product> $catalogProducts */
         $catalogProducts = [] === $overview ? [] : $entityManager->getRepository(Product::class)->findBy(['code' => array_keys($overview)]);
-        $productNames = [];
+        $catalogProductsByCode = [];
         foreach ($catalogProducts as $catalogProduct) {
-            $productNames[$catalogProduct->getCode()] = $catalogProduct->getName();
+            $catalogProductsByCode[$catalogProduct->getCode()] = $catalogProduct;
         }
         $section = $request->query->get('section', 'overview');
         $section = in_array($section, ['overview', 'products', 'suppliers', 'mappings', 'routes', 'matrices'], true) ? $section : 'overview';
@@ -61,7 +61,12 @@ final class SourcingDashboardController extends AbstractController
             if (!$includeInactive && null === $primary && [] === $item['future']['routes']) {
                 continue;
             }
-            $products[$code] = $item + ['health' => $health, 'name' => $productNames[$code] ?? $code];
+            $catalogProduct = $catalogProductsByCode[$code] ?? null;
+            $products[$code] = $item + [
+                'health' => $health,
+                'name' => $catalogProduct?->getName() ?? $code,
+                'sylius_product_id' => $catalogProduct?->getId(),
+            ];
         }
         $page = max(1, $request->query->getInt('page', 1));
         $perPage = 25;
