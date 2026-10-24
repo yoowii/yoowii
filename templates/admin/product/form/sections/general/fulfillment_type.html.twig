@@ -5,5 +5,18 @@
 </div>
 
 <div class="mb-3">
-    {{ form_row(form.printDefinitionCode) }}
+    <div class="d-flex align-items-center gap-1">
+        {{ form_label(form.printDefinitionCode) }}
+        <button
+            class="btn btn-ghost-secondary btn-icon btn-sm rounded-circle"
+            type="button"
+            data-bs-toggle="tooltip"
+            data-bs-placement="right"
+            title="{{ 'yoowii.form.product.print_definition_tooltip'|trans }}"
+            aria-label="{{ 'yoowii.form.product.print_definition_tooltip'|trans }}"
+        ><i class="ti ti-info-circle" aria-hidden="true"></i></button>
+    </div>
+    {{ form_widget(form.printDefinitionCode) }}
+    {{ form_help(form.printDefinitionCode) }}
+    {{ form_errors(form.printDefinitionCode) }}
 </div>

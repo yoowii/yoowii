@@ -9,7 +9,8 @@ yoowii:
         product:
             fulfillment_type: Type d’exécution
             print_definition: Calculateur print
-            print_definition_help: Associe ce produit Sylius à une définition de calculateur et à ses matrices fournisseurs.
+            print_definition_help: Profil de configuration par défaut du produit. Une route fournisseur peut utiliser sa propre définition publiée.
+            print_definition_tooltip: Ce choix décrit le profil de configuration par défaut, pas le fournisseur. Si le mapping de la route fournisseur résolue porte une définition, le storefront utilise cette définition ; sinon il utilise ce profil, notamment pour les routes matrice.
             print_definition_placeholder: Aucun calculateur
     fulfillment_type:
         print: Production imprimée

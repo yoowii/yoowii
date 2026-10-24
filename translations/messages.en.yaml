@@ -9,7 +9,8 @@ yoowii:
         product:
             fulfillment_type: Fulfilment type
             print_definition: Print calculator
-            print_definition_help: Links this Sylius product to a calculator definition and its supplier matrices.
+            print_definition_help: Default product configuration profile. A supplier route may use its own published definition.
+            print_definition_tooltip: This choice describes the default configuration profile, not the supplier. If the resolved supplier route mapping has a definition, the storefront uses it; otherwise it uses this profile, including for matrix routes.
             print_definition_placeholder: No calculator
     fulfillment_type:
         print: Print production
