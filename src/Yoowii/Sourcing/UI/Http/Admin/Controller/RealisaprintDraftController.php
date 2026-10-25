@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
-use App\Yoowii\Sourcing\Application\RealisaprintDraftCreator;
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Application\RealisaprintDraftPicturePreview;
 use App\Yoowii\Sourcing\Application\RealisaprintDraftTaxonResolver;
+use App\Yoowii\Sourcing\Application\RealisaprintDraftCreator;
+use App\Yoowii\Sourcing\Application\RealisaprintPrintDefinitionCode;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
 use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
 use App\Yoowii\Sourcing\UI\Http\Admin\Form\RealisaprintDraftType;
@@ -36,6 +38,9 @@ final class RealisaprintDraftController extends AbstractController
         $data->taxon = $taxons->resolve($data->name, $catalogProduct->name());
         $this->prefillConfiguration($data, $catalogProduct);
         $stocks = $this->stockChoices($catalogProduct);
+        $sharedDefinition = $entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy([
+            'productCode' => RealisaprintPrintDefinitionCode::fromProviderProductId($catalogProduct->providerProductId()),
+        ], ['id' => 'DESC']);
         $form = $this->createForm(RealisaprintDraftType::class, $data, ['stock_choices' => $stocks]);
         $form->handleRequest($request);
 
@@ -43,7 +48,16 @@ final class RealisaprintDraftController extends AbstractController
             $form->addError(new FormError('Aucun stock Realisaprint n’est disponible. Synchronisez ou consultez la configuration Realisaprint avant de créer le brouillon.'));
         }
 
-        if ($form->isSubmitted() && [] !== $stocks && $form->isValid()) {
+        if ($form->isSubmitted() && '1' === $request->request->get('restore_shared_definition')) {
+            if (!$sharedDefinition instanceof PersistedPrintProductDefinition) {
+                $form->addError(new FormError('Aucune définition partagée ne peut être restaurée pour cette référence fournisseur.'));
+            } else {
+                $data->options = json_encode($sharedDefinition->options(), \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
+                $data->pricingAxes = json_encode($sharedDefinition->pricingAxes(), \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
+                $form = $this->createForm(RealisaprintDraftType::class, $data, ['stock_choices' => $stocks]);
+                $this->addFlash('success', 'Les valeurs d’origine de la définition partagée ont été rétablies. Vérifiez-les puis créez le brouillon.');
+            }
+        } elseif ($form->isSubmitted() && [] !== $stocks && $form->isValid()) {
             try {
                 $this->assertSinglePictureSource($data);
                 $options = $this->draftOptions(json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR));
@@ -60,6 +74,7 @@ final class RealisaprintDraftController extends AbstractController
         return $this->render('admin/sourcing/realisaprint_catalog_draft.html.twig', [
             'catalog_product' => $catalogProduct,
             'form' => $form,
+            'shared_definition' => $sharedDefinition instanceof PersistedPrintProductDefinition ? $sharedDefinition : null,
         ]);
     }
 

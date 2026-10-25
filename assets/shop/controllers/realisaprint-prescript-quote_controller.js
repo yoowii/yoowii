@@ -4,7 +4,7 @@ import { Controller } from '@hotwired/stimulus';
 // an event. The bridge observes it without changing supplier markup, fields or
 // handlers. It never uses that observation to calculate a price automatically.
 export default class extends Controller {
-    static values = { quoteUrl: String, cartUrl: String, csrfToken: String, summaryContext: String };
+    static values = { cartUrl: String, cartSummaryUrl: String, csrfToken: String, summaryContext: String };
     static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'purchaseSummary', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
 
     connect() {
@@ -27,6 +27,9 @@ export default class extends Controller {
         this.onOptionCardClick = this.onOptionCardClick.bind(this);
         this.onSupplierControlHover = this.onSupplierControlHover.bind(this);
         this.onSupplierPricePopoverHover = this.onSupplierPricePopoverHover.bind(this);
+        this.saveConfigurationBridge = this.saveConfiguration.bind(this);
+        this.previousSaveConfiguration = window.saveConfiguration;
+        window.saveConfiguration = this.saveConfigurationBridge;
         this.observeVisibility();
         if (this.hasEmbedTarget) {
             this.observeEmbed();
@@ -54,6 +57,9 @@ export default class extends Controller {
         this.configurationScope().removeEventListener('click', this.onOptionCardClick);
         this.configurationScope().removeEventListener('mouseover', this.onSupplierControlHover, true);
         this.configurationScope().removeEventListener('mouseover', this.onSupplierPricePopoverHover, true);
+        if (window.saveConfiguration === this.saveConfigurationBridge) {
+            window.saveConfiguration = this.previousSaveConfiguration;
+        }
     }
 
     observeVisibility() {
@@ -515,22 +521,6 @@ export default class extends Controller {
         this.scheduleSummary();
     }
 
-    calculate(event) {
-        event?.preventDefault();
-        this.syncConfiguration();
-        const code = this.configurationCode;
-        const quantity = this.quantity();
-        if (!code) {
-            this.showError('Terminez la configuration fournisseur avant de calculer le prix.');
-            return;
-        }
-        if (!quantity) {
-            this.showError('La quantité Préscript sélectionnée est introuvable.');
-            return;
-        }
-        this.requestQuote(code, quantity);
-    }
-
     calculateSupplierPrice(event) {
         event?.preventDefault();
         this.clearError();
@@ -551,9 +541,8 @@ export default class extends Controller {
         this.waitForSupplierCalculation();
     }
 
-    // Single storefront request: the backend saves, validates the quote and inserts the cart item.
-    async prepareCart(event) {
-        event?.preventDefault();
+    // Replaces the supplier global with a single Yoowii request.
+    async saveConfiguration() {
         if (this.pending) return;
         if (this.priceNeedsRefresh) {
             this.showError('Votre configuration a changé. Calculez les prix avant de continuer.');
@@ -566,8 +555,7 @@ export default class extends Controller {
             this.showError('Choisissez une quantité et un délai valides dans le tableau.');
             return;
         }
-        // Match Prescript's own saveConfiguration() collection contract.
-        // Calculations must update the supplier's hidden values before reading them.
+        // Supplier calculations update hidden VARTICLE fields before collection.
         if (typeof window.calculer !== 'function' || window.calculer('sans_graphisme') !== 0) {
             this.showError('La configuration fournisseur est invalide. Vérifiez les options sélectionnées.');
             return;
@@ -583,13 +571,14 @@ export default class extends Controller {
         const quantityVariable = `VARTICLE_${quantityVariableNumber}_`;
         const delayVariable = `VARTICLE_${delayVariableNumber}_`;
         const variables = {};
-        // The supplier template uses a per-document prefix before the variable id.
-        const supplierFields = this.configurationScope().querySelectorAll('input[name^="VARTICLE_"], select[name^="VARTICLE_"], textarea[name^="VARTICLE_"]');
-        supplierFields.forEach((field) => {
-            const match = field.name?.match(/^VARTICLE_(?:NUMERO_EN_COURS|\d+)_(\d+_)$/);
+        this.configurationScope().querySelectorAll('input, select, textarea').forEach((field) => {
+            const match = field.name?.match(/^VARTICLE_NUMERO_EN_COURS_(\d+_)$/);
             if (!match || field.value === '') return;
             const name = `VARTICLE_${match[1]}`;
-            if ((name !== quantityVariable && shownNames.has(name)) || name === delayVariable) {
+            // The delivery variable remains mandatory even when the supplier
+            // renders it outside a normal selectable row. All other values
+            // must correspond to a currently active supplier control.
+            if ((name !== quantityVariable && shownNames.has(name) && this.isActiveSupplierField(field)) || name === delayVariable) {
                 variables[name] = field.value;
             }
         });
@@ -611,11 +600,25 @@ export default class extends Controller {
                     _token: this.csrfTokenValue,
                 }),
             });
-            const payload = await response.json();
-            if (!response.ok || !payload.success) {
-                throw new Error(payload.message || 'Impossible d’ajouter le produit au panier.');
+            const body = await response.text();
+            const code = body.trim();
+            if (!response.ok || !/^\d+$/.test(code)) {
+                let message = 'Impossible d’ajouter le produit au panier.';
+                try {
+                    const payload = JSON.parse(body);
+                    message = payload.message || payload.error || message;
+                } catch {
+                    // The supplier-compatible success contract is plain text.
+                }
+                throw new Error(message);
             }
-            window.location.assign(payload.redirect_url);
+            const codeField = this.codeField();
+            if (codeField) {
+                codeField.value = code;
+                codeField.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            this.configurationCode = code;
+            window.location.assign(this.cartSummaryUrlValue);
         } catch (error) {
             this.showError(error.message || 'Impossible d’ajouter le produit au panier.');
         } finally {
@@ -624,47 +627,9 @@ export default class extends Controller {
         }
     }
 
-    async requestQuote(code, quantity, addToCart = false) {
-        if (this.pending) return;
-        const delivery = this.priceDelivery(this.selectedPriceOption());
-        if (!['standard', 'urgence', 'express'].includes(delivery)) {
-            this.showError('Sélectionnez un tarif et un délai valides dans le tableau.');
-            return;
-        }
-        const abortController = new AbortController();
-        this.quoteAbortController = abortController;
-        const sequence = ++this.quoteSequence;
-        this.pending = true;
-        this.setLoading(true);
-        try {
-            const response = await fetch(this.quoteUrlValue, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify({ code, quantity, delivery, _token: this.csrfTokenValue }),
-                signal: abortController.signal,
-            });
-            const payload = await response.json();
-            if (sequence !== this.quoteSequence) return;
-            if (!response.ok || !payload.quote_html) {
-                throw new Error(payload.message || 'Le prix Préscript ne peut pas être calculé.');
-            }
-            this.quoteResultTarget.innerHTML = payload.quote_html;
-            this.setQuoteStale(false);
-            this.errorTarget.classList.add('hidden', 'd-none');
-            if (addToCart) {
-                this.submitQuotedItem();
-            }
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                this.showError(error.message || 'Le prix Préscript ne peut pas être calculé.');
-            }
-        } finally {
-            if (this.quoteAbortController === abortController) {
-                this.quoteAbortController = null;
-                this.pending = false;
-                this.setLoading(false);
-            }
-        }
+    async prepareCart(event) {
+        event?.preventDefault();
+        await window.saveConfiguration?.();
     }
 
     quantity() {
@@ -702,7 +667,7 @@ export default class extends Controller {
             const label = this.labelFor(row, control);
             const value = this.valueFor(control);
             const code = control?.id || control?.name;
-            if (!control || !label || !code || seen.has(code)) return;
+            if (!control || !this.isActiveSupplierField(control) || !label || !code || seen.has(code)) return;
             seen.add(code);
             steps.push({ code, label, value, complete: value !== '', required: true });
         });
@@ -862,6 +827,15 @@ export default class extends Controller {
 
     configurationScope() {
         return this.productPage() || this.element;
+    }
+
+    isActiveSupplierField(field) {
+        const row = field.closest('.web_ligne_variable_saisie');
+        if (!row || field.disabled || row.classList.contains('css_zone_grisee') || row.hidden) return false;
+
+        const style = window.getComputedStyle(row);
+
+        return style.display !== 'none' && style.visibility !== 'hidden' && row.getClientRects().length > 0;
     }
 
     codeField() {
@@ -1037,26 +1011,4 @@ export default class extends Controller {
         this.refreshPurchaseAction();
     }
 
-    waitForConfigurationCode() {
-        return new Promise((resolve, reject) => {
-            const deadline = Date.now() + 20000;
-            const timer = window.setInterval(() => {
-                const code = this.codeField()?.value?.trim();
-                if (code && /^\d+$/.test(code)) {
-                    window.clearInterval(timer);
-                    resolve(code);
-                } else if (Date.now() >= deadline) {
-                    window.clearInterval(timer);
-                    reject(new Error('L’enregistrement de la configuration Préscript a expiré.'));
-                }
-            }, 150);
-        });
-    }
-
-    submitQuotedItem() {
-        const form = this.quoteResultTarget.querySelector('form');
-        if (form instanceof HTMLFormElement) {
-            form.requestSubmit();
-        }
-    }
 }

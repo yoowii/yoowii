@@ -33,7 +33,7 @@ final readonly class RealisaprintPrescriptTemplateProvider
 
         // The callback route must be stable per linked product. Never include a
         // quote/session token here, otherwise a cached template could leak it.
-        $key = 'yoowii.realisaprint.prescript.template.' . hash('sha256', implode('|', ['sanitized-v2', $product, $stock, (string) $margin, $country, $saveConfigurationUrl]));
+        $key = 'yoowii.realisaprint.prescript.template.' . hash('sha256', implode('|', ['sanitized-v3', $product, $stock, (string) $margin, $country, $saveConfigurationUrl]));
 
         return $this->cache->get($key, function (ItemInterface $item) use ($product, $stock, $margin, $country, $saveConfigurationUrl): string {
             $item->expiresAfter($this->timeToLive);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
 use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingValidator;
@@ -29,6 +30,11 @@ final class RealisaprintPublicationController extends AbstractController
     {
         $mapping = $this->mapping($id, $entityManager);
         $this->token($request, $csrf, 'validate_realisaprint_mapping_' . $id);
+        if (ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping())) {
+            $this->addFlash('warning', 'La validation show_variables et la cotation classique ne s’appliquent pas à un mapping Préscript. Utilisez la publication Préscript contrôlée.');
+
+            return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
+        }
         $route = $this->route($mapping, $entityManager);
         $definition = $this->definition($mapping, $entityManager);
 
@@ -59,6 +65,13 @@ final class RealisaprintPublicationController extends AbstractController
     {
         $mapping = $this->mapping($id, $entityManager);
         $this->token($request, $csrf, 'preview_realisaprint_mapping_' . $id);
+        if (ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping())) {
+            $mapping->storeInitialDisplayState(null);
+            $entityManager->flush();
+            $this->addFlash('warning', 'L’aperçu show_variables ne s’applique pas au configurateur Préscript.');
+
+            return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $id]);
+        }
         $state = $builder->build($mapping, $this->definition($mapping, $entityManager), new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
         $mapping->storeInitialDisplayState($state);
         $entityManager->flush();
@@ -71,8 +84,20 @@ final class RealisaprintPublicationController extends AbstractController
     public function validation(int $id, EntityManagerInterface $entityManager, RealisaprintValidationPreview $previewBuilder, RealisaprintMappingValidator $validator, RealisaprintClient $client): Response
     {
         $mapping = $this->mapping($id, $entityManager);
-        $validation = $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
+        $route = $this->route($mapping, $entityManager);
         $catalog = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $mapping->supplierProduct()->code()]);
+        if (ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping())) {
+            $provider = $mapping->configurationMapping()['realisaprint'] ?? [];
+            $stock = is_array($provider) && is_scalar($provider['stock'] ?? null) ? (string) $provider['stock'] : '';
+
+            return $this->render('admin/sourcing/realisaprint_prescript_mapping_validation.html.twig', [
+                'mapping' => $mapping,
+                'route' => $route,
+                'catalog_product' => $catalog instanceof RealisaprintCatalogProduct ? $catalog : null,
+                'prescript_stock_available' => $catalog instanceof RealisaprintCatalogProduct && '' !== $stock && $catalog->supportsPrescriptStock($stock),
+            ]);
+        }
+        $validation = $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
         $definition = $this->definition($mapping, $entityManager);
         $sample = $this->withFixedValues($validator->sample($definition), $mapping);
         if ($validation instanceof RealisaprintMappingValidation) {
@@ -100,7 +125,7 @@ final class RealisaprintPublicationController extends AbstractController
 
         return $this->render('admin/sourcing/realisaprint_mapping_validation.html.twig', [
             'mapping' => $mapping,
-            'route' => $this->route($mapping, $entityManager),
+            'route' => $route,
             'catalog_product' => $catalog instanceof RealisaprintCatalogProduct ? $catalog : null,
             'validation' => $validation,
             'preview' => $preview,

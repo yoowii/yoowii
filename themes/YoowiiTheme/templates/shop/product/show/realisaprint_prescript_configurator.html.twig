@@ -2,7 +2,7 @@
     class="yoowii-prescript-shell card border-base-300 bg-base-100 shadow-sm"
     data-controller="realisaprint-prescript-quote"
     data-realisaprint-prescript-quote-cart-url-value="{{ path('yoowii_shop_realisaprint_prescript_add_to_cart', {productCode: product.code, _locale: app.request.locale}) }}"
-    data-realisaprint-prescript-quote-quote-url-value="{{ path('yoowii_shop_realisaprint_prescript_quote', {productCode: product.code, _locale: app.request.locale}) }}"
+    data-realisaprint-prescript-quote-cart-summary-url-value="{{ path('sylius_shop_cart_summary', {_locale: app.request.locale}) }}"
     data-realisaprint-prescript-quote-csrf-token-value="{{ csrf_token('prescript_quote_' ~ product.code) }}"
     data-realisaprint-prescript-quote-summary-context-value="{{ configuration_context|default('print-' ~ product.code) }}"
     {% if prescript_summary_profile is not null %}

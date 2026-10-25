@@ -8,15 +8,16 @@ use PHPUnit\Framework\TestCase;
 
 final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
 {
-    public function testPrescriptObservationNeverTriggersAPriceRequestOnItsOwn(): void
+    public function testPrescriptInstallsASingleSaveConfigurationBridge(): void
     {
         $controller = $this->controller();
 
         self::assertStringContainsString('syncConfiguration()', $controller);
-        self::assertStringContainsString('calculate(event)', $controller);
-        self::assertStringContainsString('this.requestQuote(code, quantity);', $controller);
+        self::assertStringContainsString('this.saveConfigurationBridge = this.saveConfiguration.bind(this);', $controller);
+        self::assertStringContainsString('window.saveConfiguration = this.saveConfigurationBridge;', $controller);
+        self::assertStringContainsString('await window.saveConfiguration?.();', $controller);
         self::assertStringNotContainsString('this.captureCode()', $controller);
-        self::assertStringNotContainsString('window.setInterval(() => this.requestQuote', $controller);
+        self::assertStringNotContainsString('quoteUrlValue', $controller);
     }
 
     public function testPrescriptPublishesOnlyVisibleCustomerFieldsThroughTheSharedSummaryContract(): void
@@ -43,13 +44,13 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringContainsString('CSS.escape(field.input_id)', $controller);
     }
 
-    public function testAnOutdatedQuoteIsAbortedWhenTheSupplierConfigurationChanges(): void
+    public function testPrescriptUsesTheServerAsTheOnlyAuthoritativeQuotePath(): void
     {
         $controller = $this->controller();
 
-        self::assertStringContainsString('this.quoteAbortController?.abort();', $controller);
-        self::assertStringContainsString('signal: abortController.signal', $controller);
-        self::assertStringContainsString('sequence !== this.quoteSequence', $controller);
+        self::assertStringContainsString("fetch(this.cartUrlValue", $controller);
+        self::assertStringContainsString("window.location.assign(this.cartSummaryUrlValue);", $controller);
+        self::assertStringNotContainsString('requestQuote(', $controller);
     }
 
     public function testVisualAdaptationOnlyAddsScopedClassesToSupplierMarkup(): void
@@ -80,12 +81,13 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringNotContainsString('replaceWith(', $controller);
     }
 
-    public function testPrescriptPriceIsMarkedStaleWhenTheSupplierConfigurationChanges(): void
+    public function testPrescriptRequiresANewSupplierPriceAfterConfigurationChanges(): void
     {
         $controller = $this->controller();
 
         self::assertStringContainsString('markQuoteStale()', $controller);
-        self::assertStringContainsString('setQuoteStale(false)', $controller);
+        self::assertStringContainsString('this.priceNeedsRefresh = true;', $controller);
+        self::assertStringContainsString('this.cartRequestKey = null;', $controller);
         self::assertStringContainsString('quoteStale', $controller);
     }
 
@@ -108,8 +110,7 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringNotContainsString('new ResizeObserver', $controller);
         self::assertStringContainsString('calculateSupplierPrice(event)', $controller);
         self::assertStringContainsString('clearError()', $controller);
-        self::assertStringContainsString('waitForConfigurationCode()', $controller);
-        self::assertStringContainsString('submitQuotedItem()', $controller);
+        self::assertStringContainsString('saveConfiguration()', $controller);
     }
 
     public function testVisibleGalleryIsOwnedByTheYoowiiStimulusController(): void
@@ -127,6 +128,19 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
 
         self::assertStringContainsString('const selected = this.selectedPriceOption();', $controller);
         self::assertStringContainsString("this.addToCartTarget.classList.toggle('hidden', !selected);", $controller);
+    }
+
+    public function testItSendsOnlyActiveSupplierVariablesAndAlwaysIncludesTheDelivery(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString("this.configurationScope().querySelectorAll('input, select, textarea')", $controller);
+        self::assertStringContainsString('/^VARTICLE_NUMERO_EN_COURS_(\\d+_)$/', $controller);
+        self::assertStringContainsString('name !== quantityVariable && shownNames.has(name)', $controller);
+        self::assertStringContainsString('name === delayVariable', $controller);
+        self::assertStringContainsString('this.isActiveSupplierField(field)', $controller);
+        self::assertStringContainsString('this.isActiveSupplierField(control)', $controller);
+        self::assertStringContainsString('style.display !== \'none\' && style.visibility !== \'hidden\' && row.getClientRects().length > 0', $controller);
     }
 
     private function controller(): string

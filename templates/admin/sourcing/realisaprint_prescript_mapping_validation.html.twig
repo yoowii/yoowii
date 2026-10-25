@@ -1,0 +1,14 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+{% set page_title = 'Contrôle Préscript — ' ~ mapping.yoowiiProductCode %}
+{% block sourcing_actions %}
+    {% if catalog_product %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog_product.id}) }}">Retour au produit fournisseur</a>{% endif %}
+{% endblock %}
+{% block sourcing_content %}
+<div class="row justify-content-center"><div class="col-xl-9 col-xxl-8">
+    <div class="alert alert-info">Ce mapping utilise le document Préscript Realisaprint. Les contrôles <code>show_variables</code>, de couverture des variables et de cotation classique ne s’y appliquent pas.</div>
+    <div class="card"><div class="card-header"><h2 class="card-title">Éligibilité Préscript</h2></div><div class="card-body">
+        <dl class="row mb-0"><dt class="col-sm-4">Produit Yoowii</dt><dd class="col-sm-8"><code>{{ mapping.yoowiiProductCode }}</code></dd><dt class="col-sm-4">Route</dt><dd class="col-sm-8">#{{ route.id }}</dd><dt class="col-sm-4">Stock fournisseur</dt><dd class="col-sm-8"><code>{{ mapping.configurationMapping.realisaprint.stock|default('—') }}</code></dd><dt class="col-sm-4">Disponibilité Préscript</dt><dd class="col-sm-8"><span class="badge {{ prescript_stock_available ? 'bg-success-lt' : 'bg-danger-lt' }}">{{ prescript_stock_available ? 'Disponible' : 'Indisponible' }}</span></dd></dl>
+        {% if not prescript_stock_available %}<div class="alert alert-danger mt-3 mb-0">Le stock n’est plus disponible dans le catalogue Préscript synchronisé. Actualisez le catalogue avant publication.</div>{% else %}<div class="alert alert-secondary mt-3 mb-0">La publication Préscript vérifie la référence, le stock et l’état de la route, puis remplace atomiquement le mapping actif éventuel du produit.</div>{% endif %}
+    </div></div>
+</div></div>
+{% endblock %}

@@ -21,4 +21,15 @@ final class RealisaprintPrescriptMarkupSanitizerTest extends TestCase
         self::assertStringContainsString('/supplier.js', $sanitized);
         self::assertStringContainsString('Configurateur', $sanitized);
     }
+
+    public function testItRedactsSupplierApiCredentialsFromPrescriptScripts(): void
+    {
+        $markup = "<script>form_data.append('api_key', 'supplier-secret'); const api_key = \"another-secret\";</script>";
+
+        $sanitized = (new RealisaprintPrescriptMarkupSanitizer())->sanitize($markup);
+
+        self::assertStringNotContainsString('supplier-secret', $sanitized);
+        self::assertStringNotContainsString('another-secret', $sanitized);
+        self::assertStringContainsString('[redacted]', $sanitized);
+    }
 }

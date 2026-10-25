@@ -19,5 +19,7 @@ final class RealisaprintDraftPicturesTemplateTest extends TestCase
         self::assertStringContainsString('form.pictureUrl', $template);
         self::assertStringContainsString('form.pictureFile', $template);
         self::assertStringContainsString('clearProviderChoice', $template);
+        self::assertStringContainsString('Rétablir les valeurs d’origine', $template);
+        self::assertStringContainsString('restore_shared_definition', $template);
     }
 }

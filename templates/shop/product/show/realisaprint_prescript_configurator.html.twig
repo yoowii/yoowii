@@ -1,4 +1,4 @@
-<div class="yoowii-print-configurator" data-controller="realisaprint-prescript-quote" data-realisaprint-prescript-quote-quote-url-value="{{ path('yoowii_shop_realisaprint_prescript_quote', {productCode: product.code, _locale: app.request.locale}) }}" data-realisaprint-prescript-quote-csrf-token-value="{{ csrf_token('prescript_quote_' ~ product.code) }}">
+<div class="yoowii-print-configurator" data-controller="realisaprint-prescript-quote" data-realisaprint-prescript-quote-cart-url-value="{{ path('yoowii_shop_realisaprint_prescript_add_to_cart', {productCode: product.code, _locale: app.request.locale}) }}" data-realisaprint-prescript-quote-cart-summary-url-value="{{ path('sylius_shop_cart_summary', {_locale: app.request.locale}) }}" data-realisaprint-prescript-quote-csrf-token-value="{{ csrf_token('prescript_quote_' ~ product.code) }}">
     <div class="mb-4">
         <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Print</p>
         <h2 class="h1 mb-2">{{ 'yoowii.storefront.print_configuration'|trans }}</h2>

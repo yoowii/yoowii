@@ -61,6 +61,14 @@ final class RealisaprintDraftCreatorTest extends TestCase
         );
     }
 
+    public function testItTreatsEquivalentIntegerAndFloatSchemaValuesAsCompatible(): void
+    {
+        $method = new \ReflectionMethod(RealisaprintDraftCreator::class, 'sameContents');
+
+        self::assertTrue($method->invoke($this->creator(), ['largeur_cm' => ['default' => 30.0]], ['largeur_cm' => ['default' => 30]]));
+        self::assertFalse($method->invoke($this->creator(), ['largeur_cm' => ['default' => 30.0]], ['largeur_cm' => ['default' => 31]]));
+    }
+
     public function testItRejectsDraftCreationWhenNoSynchronizedStockIsAvailable(): void
     {
         $catalogProduct = $this->catalogProduct([]);

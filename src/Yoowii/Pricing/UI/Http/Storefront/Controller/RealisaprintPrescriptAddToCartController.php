@@ -9,12 +9,14 @@ use App\Entity\Product\Product;
 use App\Entity\Product\ProductVariant;
 use App\Yoowii\Commerce\Domain\FulfillmentType;
 use App\Yoowii\Pricing\Application\RealisaprintPrescriptQuoteCreator;
+use App\Yoowii\Pricing\Application\RealisaprintResponseError;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Application\StorefrontPrintSourcingResolver;
 use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
 use Sylius\Component\Core\Factory\CartItemFactoryInterface;
 use Sylius\Component\Core\Model\OrderItemInterface as CoreOrderItemInterface;
@@ -52,6 +54,7 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         OrderItemQuantityModifierInterface $quantityModifier,
         OrderModifierInterface $orderModifier,
         CsrfTokenManagerInterface $csrf,
+        LoggerInterface $logger,
     ): Response {
         try {
             $input = $request->toArray();
@@ -71,8 +74,9 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         }
         $session = $request->getSession();
         $sessionKey = 'yoowii_prescript_cart_' . hash('sha256', $productCode . ':' . $key);
-        if ($session->has($sessionKey)) {
-            return new JsonResponse(['success' => true, 'message' => 'Produit déjà ajouté au panier.', 'redirect_url' => $this->generateUrl('sylius_shop_cart_summary', ['_locale' => $request->getLocale()])], 200, ['Cache-Control' => 'no-store']);
+        $storedConfigurationCode = $session->get($sessionKey);
+        if (is_string($storedConfigurationCode) && preg_match('/^\d+$/D', $storedConfigurationCode)) {
+            return $this->configurationCodeResponse($storedConfigurationCode, Response::HTTP_OK);
         }
 
         $product = $productRepository->findOneByChannelAndCode($channelContext->getChannel(), $productCode);
@@ -145,11 +149,24 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
                 'product' => (string) $provider['product'],
                 'stock' => (string) $provider['stock'],
                 'variables' => $variables,
+                'code_only' => 1,
             ]);
             $code = $saved['code'] ?? null;
             $status = $saved['_http_status'] ?? 200;
-            if (!is_int($status) || $status < 200 || $status >= 300 || isset($saved['error'])
+            if (!is_int($status) || $status < 200 || $status >= 300 || RealisaprintResponseError::isPresent($saved)
                 || !is_scalar($code) || !preg_match('/^\d+$/D', (string) $code)) {
+                $logger->warning('Realisaprint Prescript save_configuration was rejected.', [
+                    'product_code' => $productCode,
+                    'mapping_id' => $mapping->id(),
+                    'mapping_version' => $mapping->version(),
+                    'provider_product' => (string) $provider['product'],
+                    'provider_stock' => (string) $provider['stock'],
+                    'http_status' => $status,
+                    'response_keys' => array_keys($saved),
+                    'supplier_error_present' => RealisaprintResponseError::isPresent($saved),
+                    'configuration_code_present' => is_scalar($code) && '' !== (string) $code,
+                ]);
+
                 return $this->failure('Realisaprint a refusé la configuration.', 502);
             }
             $savedDelivery = $saved['delai'] ?? null;
@@ -177,14 +194,17 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
             $orderModifier->addToOrder($cart, $cartItem);
             $entityManager->persist($cart);
             $entityManager->flush();
-            $session->set($sessionKey, true);
+            $session->set($sessionKey, (string) $code);
 
-            return new JsonResponse([
-                'success' => true,
-                'message' => 'Votre produit configuré a été ajouté au panier.',
-                'redirect_url' => $this->generateUrl('sylius_shop_cart_summary', ['_locale' => $request->getLocale()]),
-            ], 201, ['Cache-Control' => 'no-store']);
-        } catch (\Throwable) {
+            return $this->configurationCodeResponse((string) $code, Response::HTTP_CREATED);
+        } catch (\Throwable $exception) {
+            $logger->error('Realisaprint Prescript add-to-cart failed after configuration submission.', [
+                'product_code' => $productCode,
+                'mapping_id' => $mapping->id(),
+                'mapping_version' => $mapping->version(),
+                'failure_class' => $exception::class,
+            ]);
+
             return $this->failure('Impossible de finaliser la configuration ou le panier. Veuillez réessayer.', 502);
         }
     }
@@ -192,5 +212,10 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
     private function failure(string $message, int $status): JsonResponse
     {
         return new JsonResponse(['success' => false, 'message' => $message], $status, ['Cache-Control' => 'no-store']);
+    }
+
+    private function configurationCodeResponse(string $code, int $status): Response
+    {
+        return new Response($code, $status, ['Cache-Control' => 'no-store', 'Content-Type' => 'text/plain; charset=utf-8']);
     }
 }

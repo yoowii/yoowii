@@ -55,7 +55,8 @@ final readonly class RealisaprintDraftCreator
         if ($pictureSources > 1) {
             throw new \InvalidArgumentException('Choisissez une seule source pour l’image principale : URL, fichier ou visuel Realisaprint.');
         }
-        if (null === $catalogProduct->configuration()) {
+        $catalogConfiguration = $catalogProduct->configuration();
+        if (!is_array($catalogConfiguration)) {
             throw new \DomainException('Charge d’abord la configuration Realisaprint avant de créer le brouillon.');
         }
         $productCode = trim($productCode);
@@ -93,7 +94,7 @@ final readonly class RealisaprintDraftCreator
         /** @var PersistedPrintProductDefinition|null $definition */
         $definition = $this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findOneBy(['productCode' => $definitionCode], ['id' => 'DESC']);
         if ($definition instanceof PersistedPrintProductDefinition) {
-            $this->assertCompatibleDefinition($definition, $candidateDefinition);
+            $this->assertCompatibleDefinition($definition, $candidateDefinition, $catalogProduct);
         } else {
             $definition = $candidateDefinition;
         }
@@ -165,7 +166,7 @@ final readonly class RealisaprintDraftCreator
         $providerMapping = ['product' => $catalogProduct->providerProductId(), 'stock' => $stock, 'configurator' => $configuratorMode];
         if ('classic' === $configuratorMode) {
             $providerMapping['variables'] = $variables;
-            (new RealisaprintMappingCompleteness())->assertComplete($definition, $catalogProduct->configuration(), $providerMapping);
+            (new RealisaprintMappingCompleteness())->assertComplete($definition, $catalogConfiguration, $providerMapping);
         }
         $configurationMapping = [
             'realisaprint' => $providerMapping,
@@ -236,13 +237,73 @@ final readonly class RealisaprintDraftCreator
         return 1 === preg_match('/^PRINT_[A-Z0-9_]+$/D', $productCode);
     }
 
-    private function assertCompatibleDefinition(PersistedPrintProductDefinition $existing, PersistedPrintProductDefinition $candidate): void
+    private function assertCompatibleDefinition(PersistedPrintProductDefinition $existing, PersistedPrintProductDefinition $candidate, RealisaprintCatalogProduct $catalogProduct): void
     {
         $optionsMatch = $this->sameContents($existing->options(), $candidate->options());
         $pricingAxesMatch = $this->sameContents($existing->pricingAxes(), $candidate->pricingAxes());
         if (!$optionsMatch || !$pricingAxesMatch) {
-            throw new \DomainException('La définition de configurateur partagée ne correspond pas aux options sélectionnées. Créez une révision avant de modifier son schéma.');
+            $differences = array_merge(
+                $this->definitionDifferences($existing->options(), $candidate->options(), 'options'),
+                $this->definitionDifferences($existing->pricingAxes(), $candidate->pricingAxes(), 'pricing_axes'),
+            );
+            $this->logger->warning('Realisaprint shared definition differs from the submitted draft.', [
+                'provider_product_id' => $catalogProduct->providerProductId(),
+                'definition_code' => $existing->productCode(),
+                'existing_definition_id' => $existing->id(),
+                'candidate_definition_code' => $candidate->productCode(),
+                'differences' => $differences,
+            ]);
+
+            $summary = array_map(static fn (array $difference): string => sprintf('%s (%s → %s)', $difference['path'], $difference['existing'], $difference['submitted']), $differences);
+            throw new \DomainException(sprintf('La définition de configurateur partagée ne correspond pas aux options sélectionnées. Différences détectées : %s. Créez une révision avant de modifier son schéma.', implode('; ', $summary)));
         }
+    }
+
+    /**
+     * @param array<array-key, mixed> $existing
+     * @param array<array-key, mixed> $submitted
+     * @return list<array{path: string, existing: string, submitted: string}>
+     */
+    private function definitionDifferences(array $existing, array $submitted, string $path): array
+    {
+        $differences = [];
+        $existing = $this->normalizeContents($existing);
+        $submitted = $this->normalizeContents($submitted);
+        $keys = array_unique(array_merge(array_keys($existing), array_keys($submitted)));
+        foreach ($keys as $key) {
+            $currentPath = $path . '.' . (string) $key;
+            $left = $existing[$key] ?? null;
+            $right = $submitted[$key] ?? null;
+            if (is_array($left) && is_array($right)) {
+                $differences = array_merge($differences, $this->definitionDifferences($left, $right, $currentPath));
+            } elseif ($left !== $right) {
+                $differences[] = [
+                    'path' => $currentPath,
+                    'existing' => $this->displayDifferenceValue($left),
+                    'submitted' => $this->displayDifferenceValue($right),
+                ];
+            }
+            if (12 <= count($differences)) {
+                return $differences;
+            }
+        }
+
+        return $differences;
+    }
+
+    private function displayDifferenceValue(mixed $value): string
+    {
+        if (null === $value) {
+            return 'null';
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return json_encode($value, \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -265,6 +326,14 @@ final readonly class RealisaprintDraftCreator
         foreach ($contents as $key => $value) {
             if (is_array($value)) {
                 $contents[$key] = $this->normalizeContents($value);
+
+                continue;
+            }
+            // JSON decoding preserves the distinction between 50 and 50.0,
+            // even though both are the same supplier dimension. Numeric
+            // defaults must therefore compare by value, not PHP number type.
+            if (is_int($value) || is_float($value)) {
+                $contents[$key] = (string) $value;
             }
         }
 

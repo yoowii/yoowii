@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\PrintProduction\Infrastructure\Realisaprint;
 
 use App\Yoowii\PrintProduction\Application\RealisaprintRequestThrottle;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class RealisaprintClient
@@ -18,6 +19,7 @@ final readonly class RealisaprintClient
         private string $baseUrl,
         private int $idleTimeout,
         private int $maxDuration,
+        private LoggerInterface $logger,
     ) {
         if ($this->idleTimeout <= 0 || $this->maxDuration < $this->idleTimeout) {
             throw new \InvalidArgumentException('Realisaprint HTTP timeouts must be positive and the maximum duration must exceed the idle timeout.');
@@ -82,16 +84,46 @@ final readonly class RealisaprintClient
             ]);
 
             $body = $response->getContent(false);
-            $decoded = json_decode($body, true);
+            $status = $response->getStatusCode();
+            $codeOnly = $parameters['code_only'] ?? null;
+            if ('save_configuration' === $operation && is_scalar($codeOnly) && '1' === (string) $codeOnly && 1 === preg_match('/^\s*(\d+)\s*$/D', $body, $matches)) {
+                return ['code' => $matches[1], '_http_status' => $status];
+            }
 
+            $decoded = json_decode($body, true);
             if (!is_array($decoded)) {
-                return ['_http_status' => $response->getStatusCode(), '_malformed_response' => true];
+                $this->logger->warning('Realisaprint API returned a non-JSON response.', [
+                    'operation' => $operation,
+                    'http_status' => $status,
+                    'request' => $this->requestSummary($parameters),
+                    'response_length' => strlen($body),
+                    'response_fingerprint' => hash('sha256', $body),
+                ]);
+
+                return ['_http_status' => $status, '_malformed_response' => true];
             }
             /** @var array<string, mixed> $configuration */
             $configuration = $decoded;
-            $configuration['_http_status'] = $response->getStatusCode();
+            $configuration['_http_status'] = $status;
+            if ($status < 200 || $status >= 300 || $this->hasSupplierError($configuration)) {
+                $this->logger->warning('Realisaprint API rejected a request.', [
+                    'operation' => $operation,
+                    'http_status' => $status,
+                    'request' => $this->requestSummary($parameters),
+                    'response_keys' => array_keys($configuration),
+                    'supplier_error' => $this->supplierErrorSummary($configuration['error'] ?? null),
+                ]);
+            }
 
             return $configuration;
+        } catch (\Throwable $exception) {
+            $this->logger->error('Realisaprint API transport failed.', [
+                'operation' => $operation,
+                'request' => $this->requestSummary($parameters),
+                'failure_class' => $exception::class,
+            ]);
+
+            throw $exception;
         } finally {
             $this->throttle->complete($lease);
         }
@@ -172,5 +204,51 @@ final readonly class RealisaprintClient
         unset($parameters['api_key']);
 
         return $parameters;
+    }
+
+    /** @param array<string, mixed> $response */
+    private function hasSupplierError(array $response): bool
+    {
+        return array_key_exists('error', $response) && !in_array($response['error'], [false, null, ''], true);
+    }
+
+    /** @param array<string, bool|float|int|string|array<array-key, bool|float|int|string>> $parameters
+     *  @return array<string, mixed>
+     */
+    private function requestSummary(array $parameters): array
+    {
+        $summary = [];
+        foreach (['product', 'stock', 'code', 'quantity', 'country'] as $name) {
+            if (isset($parameters[$name]) && is_scalar($parameters[$name])) {
+                $summary[$name] = (string) $parameters[$name];
+            }
+        }
+        if (isset($parameters['variables']) && is_array($parameters['variables'])) {
+            $variables = [];
+            foreach ($parameters['variables'] as $name => $value) {
+                $variables[(string) $name] = [
+                    'length' => strlen((string) $value),
+                    'fingerprint' => substr(hash('sha256', (string) $value), 0, 16),
+                ];
+            }
+            ksort($variables);
+            $summary['variables'] = $variables;
+            $summary['variables_fingerprint'] = hash('sha256', serialize($variables));
+        }
+
+        return $summary;
+    }
+
+    /** @return array{type: string, message?: string} */
+    private function supplierErrorSummary(mixed $error): array
+    {
+        if (!is_scalar($error)) {
+            return ['type' => get_debug_type($error)];
+        }
+        $message = mb_substr(trim((string) $error), 0, 500);
+        $message = (string) preg_replace('#https?://[^\s]+#i', '[url-redacted]', $message);
+        $message = (string) preg_replace('/\b(api[_-]?key|token|secret|password)\b\s*[:=]\s*[^\s,;]+/i', '$1=[redacted]', $message);
+
+        return ['type' => get_debug_type($error), 'message' => $message];
     }
 }

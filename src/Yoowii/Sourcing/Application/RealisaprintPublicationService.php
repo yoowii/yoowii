@@ -62,7 +62,7 @@ final readonly class RealisaprintPublicationService
             $providerMapping[$key] = $value;
         }
         $this->completeness->assertComplete($definition, $catalog->configuration(), $providerMapping);
-        $this->activate($mapping, $route, $product, $definition, $now, true);
+        $this->activate($mapping, $route, $product, $definition, $now, true, true);
     }
 
     public function prescriptQuickPublicationEnabled(): bool
@@ -93,11 +93,16 @@ final readonly class RealisaprintPublicationService
             throw new \DomainException('Publication Préscript refusée : produit fournisseur synchronisé introuvable.');
         }
         $this->prescriptPolicy->assertPublishable($mapping, $route, $catalog);
-        $this->assertNoActiveAlternative($mapping, $definition);
-        $this->activate($mapping, $route, $product, $definition, $now, false);
+        // Préscript replaces the currently published classic mapping for this
+        // commercial product. Keeping both active would make the storefront
+        // route ambiguous and would leave the previous driver selectable.
+        // Préscript renders and quotes the supplier document directly. Its
+        // mapping may therefore reference a draft definition without making
+        // that shared definition active for other classic products.
+        $this->activate($mapping, $route, $product, $definition, $now, true, false);
     }
 
-    private function activate(SupplierProductMappingVersion $mapping, SupplierRoute $route, Product $product, PersistedPrintProductDefinition $definition, \DateTimeImmutable $now, bool $replaceActiveVersions): void
+    private function activate(SupplierProductMappingVersion $mapping, SupplierRoute $route, Product $product, PersistedPrintProductDefinition $definition, \DateTimeImmutable $now, bool $replaceActiveVersions, bool $activateDefinition): void
     {
         if ($replaceActiveVersions) {
             foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
@@ -122,32 +127,14 @@ final readonly class RealisaprintPublicationService
         $route->supplierProduct()->activate();
         $mapping->markPublished($now);
         $route->activate();
-        $definition->activate();
+        if ($activateDefinition) {
+            $definition->activate();
+        }
         $product->setEnabled(true);
         foreach ($product->getVariants() as $variant) {
             $variant->setEnabled(true);
         }
         $this->entityManager->flush();
-    }
-
-    private function assertNoActiveAlternative(SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition): void
-    {
-        foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy([
-            'yoowiiProductCode' => $mapping->yoowiiProductCode(),
-            'active' => true,
-        ]) as $activeMapping) {
-            if ($activeMapping !== $mapping) {
-                throw new \DomainException('Publication Préscript refusée : un autre mapping actif existe déjà pour ce produit.');
-            }
-        }
-        foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([
-            'productCode' => $mapping->yoowiiProductCode(),
-            'active' => true,
-        ]) as $activeDefinition) {
-            if ($activeDefinition !== $definition) {
-                throw new \DomainException('Publication Préscript refusée : une autre définition active existe déjà pour ce produit.');
-            }
-        }
     }
 
     private function assertCanonicalDefinition(Product $product, PersistedPrintProductDefinition $definition, SupplierRoute $route): void

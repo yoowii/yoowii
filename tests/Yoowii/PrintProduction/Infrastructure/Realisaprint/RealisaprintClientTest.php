@@ -7,6 +7,8 @@ namespace App\Tests\Yoowii\PrintProduction\Infrastructure\Realisaprint;
 use App\Yoowii\PrintProduction\Application\RealisaprintRequestThrottle;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
+use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -24,6 +26,7 @@ final class RealisaprintClientTest extends TestCase
             'https://api.example.test/',
             10,
             30,
+            new NullLogger(),
         );
 
         $command = $client->diagnosticCurl('show_variables', [
@@ -52,6 +55,7 @@ final class RealisaprintClientTest extends TestCase
             'https://api.example.test/',
             10,
             30,
+            new NullLogger(),
         );
 
         self::assertSame(['simulation' => true, 'operation' => 'show_variables', 'payload' => []], $client->post('show_variables', []));
@@ -70,6 +74,7 @@ final class RealisaprintClientTest extends TestCase
             'https://api.example.test/',
             10,
             9,
+            new NullLogger(),
         );
     }
 
@@ -88,9 +93,47 @@ final class RealisaprintClientTest extends TestCase
 
             return new MockResponse('{"stocks":[]}');
         });
-        $client = new RealisaprintClient($http, $throttle, 'shop', 'key', true, 'https://api.example.test', 10, 30);
+        $client = new RealisaprintClient($http, $throttle, 'shop', 'key', true, 'https://api.example.test', 10, 30, new NullLogger());
 
         self::assertSame([], $client->post('configurations', ['product' => '42'])['stocks']);
         self::assertSame(['acquire', 'request', 'complete'], $events);
+    }
+
+    public function testItReadsTheNumericCodeOnlySaveConfigurationResponse(): void
+    {
+        $throttle = $this->createMock(RealisaprintRequestThrottle::class);
+        $throttle->method('acquire')->willReturn('lease');
+        $http = new MockHttpClient(new MockResponse('123456'));
+        $client = new RealisaprintClient($http, $throttle, 'shop', 'key', true, 'https://api.example.test', 10, 30, new NullLogger());
+
+        self::assertSame(
+            ['code' => '123456', '_http_status' => 200],
+            $client->post('save_configuration', ['product' => '252', 'stock' => '874', 'variables' => [], 'code_only' => 1]),
+        );
+    }
+
+    public function testItLogsASanitizedSupplierRejection(): void
+    {
+        $logger = new class extends AbstractLogger {
+            /** @var list<array{level: mixed, message: string|\Stringable, context: array<mixed>}> */
+            public array $records = [];
+
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                $this->records[] = ['level' => $level, 'message' => $message, 'context' => $context];
+            }
+        };
+        $throttle = $this->createMock(RealisaprintRequestThrottle::class);
+        $throttle->method('acquire')->willReturn('lease');
+        $http = new MockHttpClient(new MockResponse('{"error":"Variable requise","code":""}'));
+        $client = new RealisaprintClient($http, $throttle, 'shop', 'key', true, 'https://api.example.test', 10, 30, $logger);
+
+        $client->post('save_configuration', ['product' => '252', 'stock' => '874', 'variables' => ['VARTICLE_1_' => '50']]);
+
+        self::assertSame('warning', $logger->records[0]['level']);
+        self::assertSame('Realisaprint API rejected a request.', $logger->records[0]['message']);
+        self::assertSame('Variable requise', $logger->records[0]['context']['supplier_error']['message']);
+        self::assertSame('252', $logger->records[0]['context']['request']['product']);
+        self::assertArrayNotHasKey('value', $logger->records[0]['context']['request']['variables']['VARTICLE_1_']);
     }
 }

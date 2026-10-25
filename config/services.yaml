@@ -131,6 +131,7 @@ services:
             $baseUrl: '%yoowii.realisaprint.base_url%'
             $idleTimeout: '%yoowii.realisaprint.http_idle_timeout%'
             $maxDuration: '%yoowii.realisaprint.http_max_duration%'
+            $logger: '@logger'
 
     yoowii.sourcing.draft_picture_http_client:
         class: Symfony\Component\HttpClient\NoPrivateNetworkHttpClient

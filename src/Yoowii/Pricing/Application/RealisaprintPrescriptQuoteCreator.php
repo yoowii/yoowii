@@ -29,7 +29,7 @@ final readonly class RealisaprintPrescriptQuoteCreator
             throw new \DomainException('Le produit ne possède pas de mapping Préscript actif.');
         }
         $response = $this->client->post('get_price', ['code' => $configurationCode, 'quantity' => $quantity, 'country' => 'FR']);
-        if (isset($response['error'])) {
+        if (RealisaprintResponseError::isPresent($response)) {
             throw new \DomainException('Realisaprint ne peut pas calculer le prix de cette configuration.');
         }
         $base = $this->cents($response['price'] ?? null);
