@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
 export default class extends Controller {
-    static targets = ['status', 'results', 'selected'];
+    static targets = ['status', 'results', 'selected', 'pictureUrl', 'pictureFile'];
     static values = { url: String, token: String };
 
     async load() {
@@ -50,11 +50,22 @@ export default class extends Controller {
             choice.className = 'form-check-input mt-2';
             choice.value = url;
             choice.checked = this.selectedTarget.value === url;
-            choice.addEventListener('change', () => { this.selectedTarget.value = choice.value; });
+            choice.addEventListener('change', () => {
+                this.selectedTarget.value = choice.value;
+                this.pictureUrlTarget.value = '';
+                this.pictureFileTarget.value = '';
+            });
             label.append(image, choice);
             column.append(label);
             this.resultsTarget.append(column);
         });
+    }
+
+    clearProviderChoice() {
+        if (this.pictureUrlTarget.value || this.pictureFileTarget.files.length) {
+            this.selectedTarget.value = '';
+            this.resultsTarget.querySelectorAll('input[type="radio"]').forEach((choice) => { choice.checked = false; });
+        }
     }
 
     setStatus(message, className) {

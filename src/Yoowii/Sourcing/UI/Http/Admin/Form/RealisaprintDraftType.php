@@ -9,11 +9,13 @@ use App\Yoowii\Sourcing\UI\Http\Admin\Data\RealisaprintDraftData;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\File;
 
 final class RealisaprintDraftType extends AbstractType
 {
@@ -43,6 +45,24 @@ final class RealisaprintDraftType extends AbstractType
                 'attr' => ['class' => 'form-select'],
             ])
             ->add('selectedPicture', HiddenType::class, ['required' => false])
+            ->add('pictureUrl', TextType::class, [
+                'label' => 'URL de l’image',
+                'help' => 'Saisissez une URL HTTPS publique vers une image JPEG, PNG ou WebP.',
+                'required' => false,
+                'empty_data' => '',
+                'attr' => ['class' => 'form-control', 'inputmode' => 'url', 'placeholder' => 'https://…'],
+            ])
+            ->add('pictureFile', FileType::class, [
+                'label' => 'Importer une image',
+                'help' => 'JPEG, PNG ou WebP, 8 Mo maximum.',
+                'required' => false,
+                'attr' => ['class' => 'form-control', 'accept' => 'image/jpeg,image/png,image/webp'],
+                'constraints' => [new File([
+                    'maxSize' => '8M',
+                    'mimeTypes' => ['image/jpeg', 'image/png', 'image/webp'],
+                    'mimeTypesMessage' => 'Choisissez une image JPEG, PNG ou WebP.',
+                ])],
+            ])
             ->add('configuratorMode', ChoiceType::class, [
                 'label' => 'Configurateur storefront',
                 'choices' => ['API classique Yoowii' => 'classic', 'API Préscript Realisaprint' => 'prescript'],

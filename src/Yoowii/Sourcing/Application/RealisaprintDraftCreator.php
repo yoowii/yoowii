@@ -21,6 +21,7 @@ use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use App\Yoowii\Sourcing\Infrastructure\Translation\ProductTranslationDictionary;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 
 /** Creates a disabled, non-routable Sylius print product from the read-only provider catalogue. */
@@ -32,6 +33,7 @@ final readonly class RealisaprintDraftCreator
         private ProductTranslationDictionary $translations,
         private LoggerInterface $logger,
         private ?RealisaprintDraftPictureImporter $pictureImporter = null,
+        private ?DraftProductImageImporter $customPictureImporter = null,
     ) {
     }
 
@@ -39,8 +41,20 @@ final readonly class RealisaprintDraftCreator
      * @param array<string, array<string, mixed>> $options
      * @param non-empty-list<string> $pricingAxes
      */
-    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, string $configuratorMode, array $options, array $pricingAxes, ?string $selectedPicture = null, ?Taxon $taxon = null): Product
+    public function create(RealisaprintCatalogProduct $catalogProduct, string $productCode, string $name, string $stock, string $configuratorMode, array $options, array $pricingAxes, ?string $selectedPicture = null, ?Taxon $taxon = null, ?string $pictureUrl = null, ?UploadedFile $pictureFile = null): Product
     {
+        $pictureSources = 0;
+        foreach ([$selectedPicture, $pictureUrl] as $pictureSource) {
+            if (is_string($pictureSource) && '' !== trim($pictureSource)) {
+                ++$pictureSources;
+            }
+        }
+        if ($pictureFile instanceof UploadedFile) {
+            ++$pictureSources;
+        }
+        if ($pictureSources > 1) {
+            throw new \InvalidArgumentException('Choisissez une seule source pour l’image principale : URL, fichier ou visuel Realisaprint.');
+        }
         if (null === $catalogProduct->configuration()) {
             throw new \DomainException('Charge d’abord la configuration Realisaprint avant de créer le brouillon.');
         }
@@ -181,6 +195,16 @@ final readonly class RealisaprintDraftCreator
             }
             $this->pictureImporter->attach($product, $selectedPicture);
         }
+        if ((is_string($pictureUrl) && '' !== trim($pictureUrl)) || $pictureFile instanceof UploadedFile) {
+            if (!$this->customPictureImporter instanceof DraftProductImageImporter) {
+                throw new \LogicException('Le service d’import des images est indisponible.');
+            }
+            if (is_string($pictureUrl) && '' !== trim($pictureUrl)) {
+                $this->customPictureImporter->attachFromUrl($product, $pictureUrl);
+            } elseif ($pictureFile instanceof UploadedFile) {
+                $this->customPictureImporter->attachUploadedFile($product, $pictureFile);
+            }
+        }
         $this->entityManager->persist($product);
         $this->entityManager->persist($route);
         $this->entityManager->persist($mapping);
@@ -224,15 +248,18 @@ final readonly class RealisaprintDraftCreator
     /**
      * Compares a schema by content, irrespective of array insertion order.
      *
-     * @param array<mixed> $left
-     * @param array<mixed> $right
+     * @param array<array-key, mixed> $left
+     * @param array<array-key, mixed> $right
      */
     private function sameContents(array $left, array $right): bool
     {
         return $this->normalizeContents($left) === $this->normalizeContents($right);
     }
 
-    /** @param array<mixed> $contents @return array<mixed> */
+    /**
+     * @param array<array-key, mixed> $contents
+     * @return array<array-key, mixed>
+     */
     private function normalizeContents(array $contents): array
     {
         foreach ($contents as $key => $value) {

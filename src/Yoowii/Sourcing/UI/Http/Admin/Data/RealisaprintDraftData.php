@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Data;
 
 use App\Entity\Taxonomy\Taxon;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class RealisaprintDraftData
 {
@@ -19,6 +20,12 @@ final class RealisaprintDraftData
 
     /** Provider picture selected in the draft form; it is downloaded server-side only on creation. */
     public string $selectedPicture = '';
+
+    /** Remote image URL supplied by the administrator. */
+    public string $pictureUrl = '';
+
+    /** Image uploaded by the administrator. */
+    public ?UploadedFile $pictureFile = null;
 
     /** @var 'classic'|'prescript' */
     public string $configuratorMode = 'classic';

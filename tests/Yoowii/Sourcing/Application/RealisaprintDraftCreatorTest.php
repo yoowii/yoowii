@@ -42,6 +42,25 @@ final class RealisaprintDraftCreatorTest extends TestCase
         );
     }
 
+    public function testItRejectsMultipleMainPictureSources(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Choisissez une seule source pour l’image principale');
+
+        $this->creator()->create(
+            $this->catalogProduct(['837' => 'Agenda']),
+            'PRINT_AGENDA',
+            'Agenda',
+            '837',
+            'classic',
+            [],
+            ['format'],
+            'https://www.realisaprint.com/api_img/example.jpg',
+            null,
+            'https://example.test/image.jpg',
+        );
+    }
+
     public function testItRejectsDraftCreationWhenNoSynchronizedStockIsAvailable(): void
     {
         $catalogProduct = $this->catalogProduct([]);

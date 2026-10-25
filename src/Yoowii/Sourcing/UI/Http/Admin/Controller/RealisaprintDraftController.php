@@ -45,9 +45,10 @@ final class RealisaprintDraftController extends AbstractController
 
         if ($form->isSubmitted() && [] !== $stocks && $form->isValid()) {
             try {
+                $this->assertSinglePictureSource($data);
                 $options = $this->draftOptions(json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR));
                 $axes = $this->pricingAxes(json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR));
-                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $data->configuratorMode, $options, $axes, $data->selectedPicture, $data->taxon);
+                $product = $creator->create($catalogProduct, trim($data->productCode), trim($data->name), trim($data->stock), $data->configuratorMode, $options, $axes, $data->selectedPicture, $data->taxon, $data->pictureUrl, $data->pictureFile);
                 $this->addFlash('success', sprintf('Le brouillon %s est créé et reste désactivé jusqu’à la publication contrôlée.', $product->getCode()));
 
                 return $this->redirectToRoute('yoowii_admin_realisaprint_catalog_show', ['id' => $id]);
@@ -87,6 +88,23 @@ final class RealisaprintDraftController extends AbstractController
         $code = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '_', $catalogProduct->name()) ?? 'PRODUCT');
 
         return 'PRINT_' . trim($code, '_');
+    }
+
+    private function assertSinglePictureSource(RealisaprintDraftData $data): void
+    {
+        $sources = 0;
+        foreach ([$data->selectedPicture, $data->pictureUrl] as $value) {
+            if ('' !== trim($value)) {
+                ++$sources;
+            }
+        }
+        if (null !== $data->pictureFile) {
+            ++$sources;
+        }
+
+        if ($sources > 1) {
+            throw new \InvalidArgumentException('Choisissez une seule source pour l’image principale : URL, fichier ou visuel Realisaprint.');
+        }
     }
 
     private function prefillConfiguration(RealisaprintDraftData $data, RealisaprintCatalogProduct $catalogProduct): void
