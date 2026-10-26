@@ -63,6 +63,13 @@
         </div>
 
         <div class="alert alert-error hidden" role="alert" data-realisaprint-prescript-quote-target="error"></div>
+        <a
+            class="btn btn-outline btn-primary mt-3 hidden"
+            href="{{ path('sylius_shop_contact_request', {_locale: app.request.locale}) }}"
+            data-realisaprint-prescript-quote-target="quoteRequest"
+        >
+            Demander un devis personnalisé
+        </a>
 
         <p class="hidden text-sm font-medium text-warning" role="status" aria-live="polite" data-realisaprint-prescript-quote-target="quoteStale">
             Votre configuration a changé. Recalculez le prix avant d’ajouter le produit au panier.

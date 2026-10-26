@@ -5,7 +5,7 @@ import { Controller } from '@hotwired/stimulus';
 // handlers. It never uses that observation to calculate a price automatically.
 export default class extends Controller {
     static values = { cartUrl: String, cartSummaryUrl: String, csrfToken: String, summaryContext: String };
-    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'purchaseSummary', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
+    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'purchaseSummary', 'quoteRequest', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
 
     connect() {
         this.configurationCode = null;
@@ -604,13 +604,17 @@ export default class extends Controller {
             const code = body.trim();
             if (!response.ok || !/^\d+$/.test(code)) {
                 let message = 'Impossible d’ajouter le produit au panier.';
+                let requestQuote = false;
                 try {
                     const payload = JSON.parse(body);
                     message = payload.message || payload.error || message;
+                    requestQuote = payload.request_quote === true;
                 } catch {
                     // The supplier-compatible success contract is plain text.
                 }
-                throw new Error(message);
+                const error = new Error(message);
+                error.requestQuote = requestQuote;
+                throw error;
             }
             const codeField = this.codeField();
             if (codeField) {
@@ -620,7 +624,7 @@ export default class extends Controller {
             this.configurationCode = code;
             window.location.assign(this.cartSummaryUrlValue);
         } catch (error) {
-            this.showError(error.message || 'Impossible d’ajouter le produit au panier.');
+            this.showError(error.message || 'Impossible d’ajouter le produit au panier.', error.requestQuote === true);
         } finally {
             this.pending = false;
             this.setLoading(false);
@@ -809,9 +813,13 @@ export default class extends Controller {
         }
     }
 
-    showError(message) {
+    showError(message, requestQuote = false) {
         this.errorTarget.textContent = message;
         this.errorTarget.classList.remove('hidden', 'd-none');
+        if (this.hasQuoteRequestTarget) {
+            this.quoteRequestTarget.classList.toggle('hidden', !requestQuote);
+            this.quoteRequestTarget.classList.toggle('d-none', !requestQuote);
+        }
     }
 
     clearError() {
@@ -819,6 +827,10 @@ export default class extends Controller {
 
         this.errorTarget.textContent = '';
         this.errorTarget.classList.add('hidden', 'd-none');
+        if (this.hasQuoteRequestTarget) {
+            this.quoteRequestTarget.classList.add('hidden');
+            this.quoteRequestTarget.classList.add('d-none');
+        }
     }
 
     productPage() {

@@ -99,19 +99,6 @@ final class RealisaprintClientTest extends TestCase
         self::assertSame(['acquire', 'request', 'complete'], $events);
     }
 
-    public function testItReadsTheNumericCodeOnlySaveConfigurationResponse(): void
-    {
-        $throttle = $this->createMock(RealisaprintRequestThrottle::class);
-        $throttle->method('acquire')->willReturn('lease');
-        $http = new MockHttpClient(new MockResponse('123456'));
-        $client = new RealisaprintClient($http, $throttle, 'shop', 'key', true, 'https://api.example.test', 10, 30, new NullLogger());
-
-        self::assertSame(
-            ['code' => '123456', '_http_status' => 200],
-            $client->post('save_configuration', ['product' => '252', 'stock' => '874', 'variables' => [], 'code_only' => 1]),
-        );
-    }
-
     public function testItLogsASanitizedSupplierRejection(): void
     {
         $logger = new class extends AbstractLogger {

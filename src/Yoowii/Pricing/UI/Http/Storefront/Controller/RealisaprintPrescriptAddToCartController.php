@@ -79,7 +79,11 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
             return $this->configurationCodeResponse($storedConfigurationCode, Response::HTTP_OK);
         }
 
-        $product = $productRepository->findOneByChannelAndCode($channelContext->getChannel(), $productCode);
+        $channel = $channelContext->getChannel();
+        if (!$channel instanceof \Sylius\Component\Core\Model\ChannelInterface) {
+            return $this->failure('Canal de vente indisponible.', 500);
+        }
+        $product = $productRepository->findOneByChannelAndCode($channel, $productCode);
         if (!$product instanceof Product || !$product->isEnabled() || FulfillmentType::Print !== $product->getFulfillmentType()) {
             return $this->failure('Produit indisponible.', 404);
         }
@@ -97,7 +101,9 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
             return $this->failure('Définition de configurateur indisponible.', 422);
         }
         $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
-        if (!is_array($provider) || '' === (string) ($provider['product'] ?? '') || '' === (string) ($provider['stock'] ?? '')) {
+        $providerProduct = is_array($provider) ? ($provider['product'] ?? null) : null;
+        $providerStock = is_array($provider) ? ($provider['stock'] ?? null) : null;
+        if (!is_array($provider) || !is_string($providerProduct) || '' === trim($providerProduct) || !is_string($providerStock) || '' === trim($providerStock)) {
             return $this->failure('Configuration fournisseur invalide.', 422);
         }
         $raw = $input['variables'] ?? null;
@@ -118,16 +124,17 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         // The supplier script already synchronizes quantity and delivery in the Prescript form.
         // Validate these technical fields when their names are configured in the active mapping.
         $diagnostic = $provider['prescript_diagnostic_variables'] ?? [];
+        $quantityVariable = is_array($diagnostic) && is_string($diagnostic['quantity'] ?? null) ? $diagnostic['quantity'] : null;
+        $deliveryVariable = is_array($diagnostic) && is_string($diagnostic['delivery'] ?? null) ? $diagnostic['delivery'] : null;
         if (is_array($diagnostic)) {
-            $quantityVariable = $diagnostic['quantity'] ?? null;
-            $deliveryVariable = $diagnostic['delivery'] ?? null;
-            if (is_string($quantityVariable) && isset($variables[$quantityVariable])
+            if (null !== $quantityVariable && isset($variables[$quantityVariable])
                 && $variables[$quantityVariable] !== (string) $quantity) {
                 return $this->failure('La quantité fournisseur ne correspond pas à votre sélection.', 422);
             }
-            if (is_string($deliveryVariable) && isset($variables[$deliveryVariable])) {
+            if (null !== $deliveryVariable && isset($variables[$deliveryVariable])) {
                 $deliveryValues = $provider['prescript_delivery_values'] ?? ['standard' => '0', 'urgence' => '1', 'express' => '2'];
-                if (!is_array($deliveryValues) || (string) ($deliveryValues[$delivery] ?? '') !== $variables[$deliveryVariable]) {
+                $expectedDeliveryValue = is_array($deliveryValues) ? ($deliveryValues[$delivery] ?? null) : null;
+                if (!is_scalar($expectedDeliveryValue) || (string) $expectedDeliveryValue !== $variables[$deliveryVariable]) {
                     return $this->failure('Le délai fournisseur ne correspond pas à votre sélection.', 422);
                 }
             }
@@ -146,10 +153,9 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
 
         try {
             $saved = $client->post('save_configuration', [
-                'product' => (string) $provider['product'],
-                'stock' => (string) $provider['stock'],
+                'product' => $providerProduct,
+                'stock' => $providerStock,
                 'variables' => $variables,
-                'code_only' => 1,
             ]);
             $code = $saved['code'] ?? null;
             $status = $saved['_http_status'] ?? 200;
@@ -159,22 +165,23 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
                     'product_code' => $productCode,
                     'mapping_id' => $mapping->id(),
                     'mapping_version' => $mapping->version(),
-                    'provider_product' => (string) $provider['product'],
-                    'provider_stock' => (string) $provider['stock'],
+                    'provider_product' => $providerProduct,
+                    'provider_stock' => $providerStock,
                     'http_status' => $status,
                     'response_keys' => array_keys($saved),
                     'supplier_error_present' => RealisaprintResponseError::isPresent($saved),
                     'configuration_code_present' => is_scalar($code) && '' !== (string) $code,
                 ]);
 
-                return $this->failure('Realisaprint a refusé la configuration.', 502);
+                return $this->failure('Cette configuration ne peut pas être commandée automatiquement. Demandez un devis personnalisé.', 422, true);
             }
             $savedDelivery = $saved['delai'] ?? null;
             if (is_string($savedDelivery) && mb_strtolower(trim($savedDelivery)) !== $delivery) {
                 return $this->failure('Le délai enregistré par Realisaprint ne correspond pas à votre sélection.', 422);
             }
-            $savedQuantity = $saved['current_values'][$diagnostic['quantity'] ?? ''] ?? null;
-            if (null !== $savedQuantity && (string) $savedQuantity !== (string) $quantity) {
+            $savedValues = $saved['current_values'] ?? null;
+            $savedQuantity = is_array($savedValues) && null !== $quantityVariable ? ($savedValues[$quantityVariable] ?? null) : null;
+            if (null !== $savedQuantity && (!is_scalar($savedQuantity) || (string) $savedQuantity !== (string) $quantity)) {
                 return $this->failure('La quantité enregistrée chez Realisaprint est incorrecte.', 422);
             }
             $snapshot = $creator->create($definitionCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $delivery, $sourcing->route());
@@ -209,9 +216,13 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         }
     }
 
-    private function failure(string $message, int $status): JsonResponse
+    private function failure(string $message, int $status, bool $requestQuote = false): JsonResponse
     {
-        return new JsonResponse(['success' => false, 'message' => $message], $status, ['Cache-Control' => 'no-store']);
+        return new JsonResponse([
+            'success' => false,
+            'message' => $message,
+            'request_quote' => $requestQuote,
+        ], $status, ['Cache-Control' => 'no-store']);
     }
 
     private function configurationCodeResponse(string $code, int $status): Response

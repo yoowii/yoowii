@@ -53,6 +53,15 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringNotContainsString('requestQuote(', $controller);
     }
 
+    public function testPrescriptOffersAQuoteRequestOnlyAfterASupplierRefusal(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('requestQuote = payload.request_quote === true;', $controller);
+        self::assertStringContainsString('error.requestQuote === true', $controller);
+        self::assertStringContainsString('quoteRequestTarget', $controller);
+    }
+
     public function testVisualAdaptationOnlyAddsScopedClassesToSupplierMarkup(): void
     {
         $controller = $this->controller();

@@ -8,6 +8,9 @@
         {{ prescript_template|raw }}
     </div>
     <div class="alert alert-danger d-none mt-3" role="alert" data-realisaprint-prescript-quote-target="error"></div>
+    <a class="btn btn-outline-primary hidden d-none mt-3" href="{{ path('sylius_shop_contact_request', {_locale: app.request.locale}) }}" data-realisaprint-prescript-quote-target="quoteRequest">
+        Demander un devis personnalisé
+    </a>
     <div class="mt-4" data-realisaprint-prescript-quote-target="quoteResult">
         <p class="text-secondary mb-0" data-empty-quote>{{ 'yoowii.storefront.price_after_configuration'|trans }}</p>
     </div>

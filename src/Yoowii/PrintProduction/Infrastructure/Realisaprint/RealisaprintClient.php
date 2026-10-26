@@ -85,11 +85,6 @@ final readonly class RealisaprintClient
 
             $body = $response->getContent(false);
             $status = $response->getStatusCode();
-            $codeOnly = $parameters['code_only'] ?? null;
-            if ('save_configuration' === $operation && is_scalar($codeOnly) && '1' === (string) $codeOnly && 1 === preg_match('/^\s*(\d+)\s*$/D', $body, $matches)) {
-                return ['code' => $matches[1], '_http_status' => $status];
-            }
-
             $decoded = json_decode($body, true);
             if (!is_array($decoded)) {
                 $this->logger->warning('Realisaprint API returned a non-JSON response.', [
