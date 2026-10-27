@@ -1,4 +1,14 @@
 yoowii:
+    admin:
+        product:
+            bulk_availability:
+                enable: Activer
+                disable: Désactiver
+                enable_confirmation: Activer les produits sélectionnés ?
+                disable_confirmation: Désactiver les produits sélectionnés ?
+                no_products_selected: Sélectionnez au moins un produit.
+                updated_enabled: '%count% produit(s) activé(s).'
+                updated_disabled: '%count% produit(s) désactivé(s).'
     form:
         taxon:
             main_navigation_title: Navigation storefront Yoowii

@@ -1,0 +1,5 @@
+yoowii_commerce_admin:
+    resource: '../../src/Yoowii/Commerce/UI/Http/Admin/Controller/'
+    type: attribute
+    prefix: '/%sylius_admin.path_name%'
+    trailing_slash_on_root: false

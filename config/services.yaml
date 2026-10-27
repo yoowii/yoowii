@@ -78,6 +78,10 @@ services:
         resource: '../src/Yoowii/Sourcing/UI/Http/Admin/Controller/'
         tags: ['controller.service_arguments']
 
+    App\Yoowii\Commerce\UI\Http\Admin\Controller\:
+        resource: '../src/Yoowii/Commerce/UI/Http/Admin/Controller/'
+        tags: ['controller.service_arguments']
+
     App\Yoowii\Pricing\UI\Http\Storefront\Controller\:
         resource: '../src/Yoowii/Pricing/UI/Http/Storefront/Controller/'
         tags: ['controller.service_arguments']

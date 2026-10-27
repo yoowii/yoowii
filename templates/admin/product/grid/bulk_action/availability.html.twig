@@ -1,0 +1,38 @@
+{% import '@SyliusAdmin/shared/helper/button.html.twig' as button %}
+
+{% set activating = options.enabled %}
+{% set action_id = activating ? 'bulk_enable' : 'bulk_disable' %}
+{% set modal_id = 'product-' ~ action_id ~ '-modal' %}
+
+<div>
+    {{ button.default({
+        text: action.label|trans,
+        class: activating ? 'btn-ghost-success' : 'btn-ghost-warning',
+        disabled: true,
+        icon: activating ? 'tabler:circle-check' : 'tabler:circle-x',
+        attr: 'data-check-all-action=index data-bs-toggle=modal data-bs-target=#' ~ modal_id,
+    }) }}
+
+    <div class="modal fade" {{ sylius_test_html_attribute('modal', action_id) }} id="{{ modal_id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title py-5">{{ (activating ? 'yoowii.admin.product.bulk_availability.enable_confirmation' : 'yoowii.admin.product.bulk_availability.disable_confirmation')|trans }}</h1>
+                </div>
+                <div class="modal-footer">
+                    <form action="{{ path(options.link.route, {enabled: activating ? 'enable' : 'disable'}) }}" method="post" data-bulk-delete="index">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('yoowii_bulk_product_availability') }}">
+
+                        {{ button.default({ text: 'sylius.ui.cancel'|trans, attr: 'data-bs-dismiss=modal' }) }}
+                        {{ button.default({
+                            text: action.label|trans,
+                            type: 'submit',
+                            class: activating ? 'btn-success' : 'btn-warning',
+                            attr: sylius_test_html_attribute('confirm-button'),
+                        }) }}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
