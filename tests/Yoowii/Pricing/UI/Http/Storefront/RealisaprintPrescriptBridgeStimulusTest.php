@@ -12,12 +12,13 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
     {
         $controller = $this->controller();
 
-        self::assertStringContainsString('syncConfiguration()', $controller);
         self::assertStringContainsString('this.saveConfigurationBridge = this.saveConfiguration.bind(this);', $controller);
         self::assertStringContainsString('window.saveConfiguration = this.saveConfigurationBridge;', $controller);
         self::assertStringContainsString('await window.saveConfiguration?.();', $controller);
         self::assertStringNotContainsString('this.captureCode()', $controller);
         self::assertStringNotContainsString('quoteUrlValue', $controller);
+        self::assertStringNotContainsString('syncConfiguration()', $controller);
+        self::assertStringNotContainsString('setInterval(', $controller);
     }
 
     public function testPrescriptPublishesOnlyVisibleCustomerFieldsThroughTheSharedSummaryContract(): void
@@ -94,10 +95,10 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
     {
         $controller = $this->controller();
 
-        self::assertStringContainsString('markQuoteStale()', $controller);
         self::assertStringContainsString('this.priceNeedsRefresh = true;', $controller);
         self::assertStringContainsString('this.cartRequestKey = null;', $controller);
         self::assertStringContainsString('quoteStale', $controller);
+        self::assertStringNotContainsString('quoteResultTarget', $controller);
     }
 
     public function testItPublishesSupplierMediaToTheYoowiiGalleryAndPlacesOptionsInTheProductLayout(): void

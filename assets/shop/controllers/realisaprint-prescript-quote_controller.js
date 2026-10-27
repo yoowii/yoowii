@@ -1,21 +1,14 @@
 import { Controller } from '@hotwired/stimulus';
 
-// The supplier script sets input#code_liaison programmatically without emitting
-// an event. The bridge observes it without changing supplier markup, fields or
-// handlers. It never uses that observation to calculate a price automatically.
+// The bridge keeps Prescript's supplier markup and global callback compatible,
+// while the server remains the sole authority for pricing and cart insertion.
 export default class extends Controller {
     static values = { cartUrl: String, cartSummaryUrl: String, csrfToken: String, summaryContext: String };
-    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'purchaseSummary', 'quoteRequest', 'quoteResult', 'quoteStale', 'status', 'supplierCalculate'];
+    static targets = ['addToCart', 'error', 'embed', 'loading', 'options', 'pricing', 'purchaseSummary', 'quoteRequest', 'quoteStale', 'status', 'supplierCalculate'];
 
     connect() {
-        this.configurationCode = null;
         this.cartRequestKey = null;
         this.pending = false;
-        this.quoteAbortController = null;
-        this.quoteSequence = 0;
-        this.quoteStale = false;
-        this.visible = false;
-        this.timer = null;
         this.summaryTimer = null;
         this.galleryTimer = null;
         this.gallerySignature = null;
@@ -30,7 +23,6 @@ export default class extends Controller {
         this.saveConfigurationBridge = this.saveConfiguration.bind(this);
         this.previousSaveConfiguration = window.saveConfiguration;
         window.saveConfiguration = this.saveConfigurationBridge;
-        this.observeVisibility();
         if (this.hasEmbedTarget) {
             this.observeEmbed();
             this.syncEmbedState();
@@ -42,8 +34,6 @@ export default class extends Controller {
     }
 
     disconnect() {
-        this.stopPolling();
-        this.quoteAbortController?.abort();
         window.clearTimeout(this.summaryTimer);
         window.clearTimeout(this.galleryTimer);
         this.intersectionObserver?.disconnect();
@@ -60,29 +50,6 @@ export default class extends Controller {
         if (window.saveConfiguration === this.saveConfigurationBridge) {
             window.saveConfiguration = this.previousSaveConfiguration;
         }
-    }
-
-    observeVisibility() {
-        if (!('IntersectionObserver' in window)) {
-            this.visible = true;
-            this.startPolling();
-
-            return;
-        }
-
-        this.intersectionObserver = new IntersectionObserver(([entry]) => {
-            this.visible = entry.isIntersecting;
-
-            if (this.visible) {
-                this.startPolling();
-                this.syncConfiguration();
-
-                return;
-            }
-
-            this.stopPolling();
-        }, { threshold: 0.01 });
-        this.intersectionObserver.observe(this.element);
     }
 
     observeEmbed() {
@@ -107,23 +74,6 @@ export default class extends Controller {
             });
             this.pricingObserver.observe(this.pricingTarget, { childList: true, subtree: true });
         }
-    }
-
-    startPolling() {
-        if (this.timer !== null) {
-            return;
-        }
-
-        this.timer = window.setInterval(() => this.syncConfiguration(), 350);
-    }
-
-    stopPolling() {
-        if (this.timer === null) {
-            return;
-        }
-
-        window.clearInterval(this.timer);
-        this.timer = null;
     }
 
     syncEmbedState() {
@@ -491,33 +441,7 @@ export default class extends Controller {
         this.priceNeedsRefresh = true;
         this.cartRequestKey = null;
         this.supplierPriceCalculated = false;
-        this.configurationCode = null;
-        const code = this.codeField();
-        if (code) code.value = '';
-        this.markQuoteStale();
-        this.clearQuote();
         this.refreshPurchaseAction();
-        this.scheduleSummary();
-    }
-
-    syncConfiguration() {
-        if (!this.visible) {
-            return;
-        }
-
-        const field = this.codeField();
-        const code = field?.value?.trim();
-        if (!code || code === this.configurationCode) {
-            return;
-        }
-
-        const hasPreviousConfiguration = this.configurationCode !== null;
-        this.configurationCode = code;
-        if (hasPreviousConfiguration) {
-            this.quoteAbortController?.abort();
-            this.markQuoteStale();
-            this.clearQuote();
-        }
         this.scheduleSummary();
     }
 
@@ -621,7 +545,6 @@ export default class extends Controller {
                 codeField.value = code;
                 codeField.dispatchEvent(new Event('change', { bubbles: true }));
             }
-            this.configurationCode = code;
             window.location.assign(this.cartSummaryUrlValue);
         } catch (error) {
             this.showError(error.message || 'Impossible d’ajouter le produit au panier.', error.requestQuote === true);
@@ -780,25 +703,6 @@ export default class extends Controller {
         }
 
         return control.value?.trim() || '';
-    }
-
-    clearQuote() {
-        if (this.hasQuoteResultTarget) {
-            this.quoteResultTarget.innerHTML = '<p class="text-base-content/70" data-empty-quote>Le prix final dépend de votre configuration.</p>';
-        }
-    }
-
-    markQuoteStale() {
-        if (this.quoteResultTarget.querySelector('[data-quote-token]')) {
-            this.setQuoteStale(true);
-        }
-    }
-
-    setQuoteStale(stale) {
-        this.quoteStale = stale;
-        if (this.hasQuoteStaleTarget) {
-            this.quoteStaleTarget.classList.toggle('hidden', !stale);
-        }
     }
 
     setLoading(loading) {
