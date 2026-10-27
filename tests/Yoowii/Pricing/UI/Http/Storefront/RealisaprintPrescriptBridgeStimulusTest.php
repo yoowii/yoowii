@@ -91,6 +91,15 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringNotContainsString('replaceWith(', $controller);
     }
 
+    public function testItOnlyRevealsTheConfiguratorAfterSupplierMarkupIsAvailable(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('this.prescriptDocumentReady = false;', $controller);
+        self::assertStringContainsString(".web_ligne_variable_saisie, [id^=\"BALISE_BLOC_\"], #div_tableau_de_prix_NUMERO_EN_COURS", $controller);
+        self::assertStringContainsString("classList.toggle('is-prescript-ready', this.prescriptDocumentReady)", $controller);
+    }
+
     public function testPrescriptRequiresANewSupplierPriceAfterConfigurationChanges(): void
     {
         $controller = $this->controller();

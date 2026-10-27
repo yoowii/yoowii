@@ -51,6 +51,14 @@ final class PrintProductPageTemplateTest extends TestCase
         );
     }
 
+    public function testPrescriptLoadingStateKeepsOnlyItsStatusVisible(): void
+    {
+        $stylesheet = file_get_contents(dirname(__DIR__, 5) . '/themes/YoowiiTheme/assets/css/main.css');
+
+        self::assertIsString($stylesheet);
+        self::assertStringContainsString('.yoowii-prescript-shell:not(.is-prescript-ready) .card-body > :not(.yoowii-prescript-status)', $stylesheet);
+    }
+
     private function themeTemplate(string $path): string
     {
         $template = file_get_contents(dirname(__DIR__, 5) . '/themes/YoowiiTheme/templates/' . $path);

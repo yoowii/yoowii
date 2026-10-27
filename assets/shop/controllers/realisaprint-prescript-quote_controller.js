@@ -15,6 +15,7 @@ export default class extends Controller {
         this.priceNeedsRefresh = false;
         this.supplierPriceCalculated = false;
         this.supplierCalculation = null;
+        this.prescriptDocumentReady = false;
         this.onEmbedInput = this.scheduleSummary.bind(this);
         this.onSupplierInput = this.onSupplierInput.bind(this);
         this.onOptionCardClick = this.onOptionCardClick.bind(this);
@@ -81,16 +82,21 @@ export default class extends Controller {
             return;
         }
 
-        const isReady = this.embedTarget.children.length > 0;
-        this.element.classList.toggle('is-prescript-ready', isReady);
-        if (isReady) {
+        // A sanitized Prescript template can contain only scripts or empty
+        // wrappers while it is still booting. Do not reveal the storefront UI
+        // until one of its actual interactive/document nodes is available.
+        this.prescriptDocumentReady ||= this.embedTarget.querySelector(
+            '.web_ligne_variable_saisie, [id^="BALISE_BLOC_"], #div_tableau_de_prix_NUMERO_EN_COURS',
+        ) !== null;
+        this.element.classList.toggle('is-prescript-ready', this.prescriptDocumentReady);
+        if (this.prescriptDocumentReady) {
             this.decorateSupplierDocument();
             this.assembleSupplierDocument();
             this.scheduleGalleryUpdate();
             this.syncOptionCardStates();
         }
 
-        if (isReady && this.hasStatusTarget) {
+        if (this.prescriptDocumentReady && this.hasStatusTarget) {
             this.statusTarget.classList.add('hidden');
         }
     }

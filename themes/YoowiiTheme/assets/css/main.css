@@ -258,6 +258,12 @@
         scroll-margin-top: 2rem;
     }
 
+    /* The provider template is present so its scripts can initialise, but its
+       raw markup must never flash before the Yoowii adapter has assembled it. */
+    .yoowii-prescript-shell:not(.is-prescript-ready) .card-body > :not(.yoowii-prescript-status) {
+        display: none;
+    }
+
     .yoowii-prescript-embed {
         min-width: 0;
         overflow-x: auto;
