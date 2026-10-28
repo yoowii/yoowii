@@ -39,9 +39,9 @@
     {% if mega_menu_enabled %}
         <div class="fixed inset-x-0 bottom-0 z-10 top-[var(--header-h)] bg-neutral/50" hidden data-mega-menu-target="backdrop" data-action="click->mega-menu#close" aria-hidden="true"></div>
         <div id="yoowii-mega-menu-panel" class="absolute inset-x-0 top-full z-20 border-b border-base-300 bg-base-100 shadow-2xl" hidden data-mega-menu-target="panel">
-            <div class="yoowii-container max-h-[calc(100dvh-var(--header-h))] overflow-y-auto py-7">
+            <div class="yoowii-container max-h-[calc(100dvh-var(--header-h))] overflow-y-auto pb-7">
                 <div class="grid grid-cols-[270px_minmax(0,1fr)_25%] gap-8">
-                    <aside class="border-r border-base-300 pr-5" aria-label="{{ 'yoowii.storefront.mega_menu.families_label'|trans }}" data-mega-menu-target="familyNavigation">
+                    <aside class="border-r border-base-300" aria-label="{{ 'yoowii.storefront.mega_menu.families_label'|trans }}" data-mega-menu-target="familyNavigation">
                         <ul class="space-y-1">{% for taxon in menu_taxons %}<li><button class="flex w-full items-center justify-between gap-3 rounded-btn px-3 py-2.5 text-left text-base font-bold leading-6 text-base-content hover:bg-base-200 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary{% if loop.first %} bg-base-200 text-primary{% endif %}" type="button" data-mega-menu-target="family" data-mega-menu-family-id-param="{{ taxon.id }}" data-family-id="{{ taxon.id }}" data-action="click->mega-menu#activateFamily mouseenter->mega-menu#activateFamily focus->mega-menu#activateFamily"><span>{{ taxon.name }}</span><svg class="size-4" aria-hidden="true"><use href="{{ asset('themes/yoowii-theme/media/mega-menu-icons.svg') }}#chevron-right"></use></svg></button></li>{% endfor %}</ul>
                     </aside>
 
@@ -50,7 +50,7 @@
                         <div class="contents" hidden data-mega-menu-target="familyPanel" data-family-id="{{ taxon.id }}" data-has-media-featured="{{ mediaFeatured is not empty ? 'true' : 'false' }}">
                             {{ mega_menu.groups(taxon) }}
                             {% if mediaFeatured is not empty %}
-                                <aside class="min-w-0 overflow-hidden rounded-box bg-base-200">
+                                <aside class="mt-5 min-w-0 overflow-hidden rounded-box bg-base-200">
                                     {% if mediaFeatured|length == 1 %}
                                         {% set media = mediaFeatured|first %}<img class="h-full min-h-[320px] w-full object-cover" src="{{ advanced_taxon_media_url(media.path) }}" alt="{{ media.title|default(taxon.name) }}" loading="lazy">
                                     {% else %}
@@ -65,7 +65,7 @@
                         {% if taxon.hasPanel %}
                             <section class="col-span-3 min-w-0" hidden data-mega-menu-target="familyPanel" data-family-id="main-{{ taxon.id }}" data-has-media-featured="false">
                                 <div class="grid grid-cols-[minmax(0,1fr)_25%] gap-8">
-                                    <div class="min-w-0">
+                                    <div class="min-w-0 mt-5">
                                         <div class="flex items-start justify-between gap-4 border-b border-base-300 pb-4"><p class="font-display text-xl font-extrabold text-base-content">{{ taxon.name }}</p><a class="shrink-0 text-base font-bold leading-6 text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.locale}) }}">{{ 'yoowii.storefront.mega_menu.view_all_category'|trans }} <span aria-hidden="true">→</span></a></div>
                                         {% if taxon.children is not empty %}<ul class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{% for child in taxon.children %}<li><a class="font-display font-extrabold text-base-content hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href="{{ path('sylius_shop_product_index', {'slug': child.slug, '_locale': child.locale}) }}">{{ child.name }}</a></li>{% endfor %}</ul>{% endif %}
                                         {% if taxon.products is not empty %}<ul class="mt-5 grid grid-cols-[repeat(auto-fill,minmax(160px,200px))] gap-3">{% for product in taxon.products %}{% set image = product.imagesByType('thumbnail').first ?: product.images.first %}<li class="w-full max-w-[200px]"><a class="group block overflow-hidden rounded-box border border-base-300 bg-base-100 hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href="{{ path('sylius_shop_product_show', {'slug': product.slug, '_locale': app.request.locale}) }}">{% if image and image.path %}<img class="aspect-[4/3] w-full object-cover" src="{{ image.path|imagine_filter('sylius_shop_product_thumbnail') }}" alt="" loading="lazy">{% else %}<span class="flex aspect-[4/3] items-center justify-center bg-base-200 text-primary"><svg class="size-7" aria-hidden="true"><use href="{{ asset('themes/yoowii-theme/media/mega-menu-icons.svg') }}#category"></use></svg></span>{% endif %}<span class="block p-3 text-base font-bold leading-6 text-base-content group-hover:text-primary">{{ product.name }}</span></a></li>{% endfor %}</ul>{% if taxon.hasMoreProducts %}<a class="mt-4 inline-block text-base font-bold leading-6 text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.locale}) }}">{{ 'yoowii.storefront.mega_menu.view_all_products'|trans }} <span aria-hidden="true">→</span></a>{% endif %}{% endif %}
@@ -76,7 +76,7 @@
                         {% endif %}
                     {% endfor %}
 
-                    <aside class="yoowii-mega-menu-services min-h-[320px] rounded-box p-6" hidden data-mega-menu-target="servicePanel">
+                    <aside class="yoowii-mega-menu-services min-h-[320px] rounded-box p-6  mt-5" hidden data-mega-menu-target="servicePanel">
                         <span class="mb-6 flex size-12 items-center justify-center rounded-full bg-base-100 text-primary shadow-sm"><svg class="size-6" aria-hidden="true"><use href="{{ asset('themes/yoowii-theme/media/mega-menu-icons.svg') }}#sparkle"></use></svg></span>
                         <p class="font-display text-xl font-extrabold text-base-content">{{ 'yoowii.storefront.mega_menu.services.title'|trans }}</p>
                         <ul class="mt-5 space-y-4 text-base font-bold leading-6">{% for service in services %}<li><a class="flex items-center justify-between gap-2 text-base-content hover:text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href="{{ path('sylius_shop_contact_request') }}#{{ service.anchor }}"><span>{{ service.label|trans }}</span><span class="text-primary" aria-hidden="true">→</span></a></li>{% endfor %}</ul>

@@ -1,6 +1,6 @@
 {% macro groups(taxon) %}
     {% set level2_taxons = advanced_taxon_ordered_children(taxon) %}
-    <div class="min-w-0">
+    <div class="min-w-0 mt-5">
         <div class="flex items-start justify-between gap-4 border-b border-base-300 pb-4">
             <p class="font-display text-xl font-extrabold text-base-content">{{ taxon.name }}</p>
             <a class="shrink-0 text-base font-bold leading-6 text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href="{{ path('sylius_shop_product_index', {'slug': taxon.slug, '_locale': taxon.translation.locale}) }}">{{ 'yoowii.storefront.mega_menu.view_all_category'|trans }} <span aria-hidden="true">→</span></a>
