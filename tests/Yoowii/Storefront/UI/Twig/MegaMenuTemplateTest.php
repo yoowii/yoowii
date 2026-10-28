@@ -33,8 +33,8 @@ final class MegaMenuTemplateTest extends TestCase
 
         self::assertStringNotContainsString('role="dialog"', $template);
         self::assertStringNotContainsString('trapFocus', $template);
-        self::assertStringContainsString('data-action="mouseenter->mega-menu#openFromTrigger focus->mega-menu#openFromTrigger"', $template);
-        self::assertStringContainsString("path('yoowii_shop_print_catalog'", $template);
+        self::assertStringContainsString('mouseenter->mega-menu#openFromTrigger focus->mega-menu#openFromTrigger', $template);
+        self::assertStringContainsString("path('sylius_shop_product_index'", $template);
         self::assertStringContainsString('focus-visible:outline focus-visible:outline-2', $template);
     }
 
@@ -62,6 +62,16 @@ final class MegaMenuTemplateTest extends TestCase
         self::assertStringContainsString("'yoowii.storefront.mega_menu.quick_access'|trans", $template);
         self::assertStringContainsString("product.imagesByType('thumbnail').first", $template);
         self::assertStringContainsString('taxon.hasMoreProducts', $template);
+    }
+
+    public function testItUsesMainNavigationLinksAsMegaMenuTriggers(): void
+    {
+        $template = $this->menuTemplate();
+
+        self::assertStringContainsString('data-mega-menu-target="trigger" data-mega-menu-menu-id-param="main-{{ taxon.id }}"', $template);
+        self::assertStringContainsString('click->mega-menu#toggle:prevent mouseenter->mega-menu#openFromTrigger focus->mega-menu#openFromTrigger', $template);
+        self::assertStringNotContainsString("'yoowii.storefront.mega_menu.open_family'|trans", $template);
+        self::assertStringNotContainsString('#chevron-down', $template);
     }
 
     public function testItRendersAFocusedPanelWithoutChangingTheAllProductsPanel(): void
