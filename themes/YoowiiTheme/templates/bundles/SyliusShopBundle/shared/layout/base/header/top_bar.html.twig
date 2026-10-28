@@ -1,10 +1,22 @@
 <div class="bg-primary text-primary-content">
     <div class="yoowii-container flex min-h-9 items-center justify-between gap-4 text-xs font-medium">
-        <p>Impression personnalisée, accompagnement humain et livraison partout en France.</p>
+        <p class="flex items-center gap-2">
+            {{ ux_icon('tabler:rosette-discount-check', {class: 'size-5 shrink-0', 'aria-hidden': 'true'}) }}
+            <span>Impression personnalisée, accompagnement humain et livraison partout en France.</span>
+        </p>
         <nav class="hidden shrink-0 items-center gap-3 lg:flex" aria-label="Liens utiles">
-            <a class="hover:underline" href="{{ path('sylius_shop_contact_request') }}">Besoin d’aide ?</a>
-            <a class="hover:underline" href="{{ path('sylius_shop_contact_request') }}">Contact</a>
-            <a class="hover:underline" href="{{ path('sylius_shop_account_order_index') }}">Suivi de commande</a>
+            <a class="inline-flex items-center gap-1 hover:underline" href="{{ path('sylius_shop_contact_request') }}">
+                {{ ux_icon('tabler:help-circle', {class: 'size-5', 'aria-hidden': 'true'}) }}
+                <span>Besoin d’aide ?</span>
+            </a>
+            <a class="inline-flex items-center gap-1 hover:underline" href="{{ path('sylius_shop_contact_request') }}">
+                {{ ux_icon('tabler:headset', {class: 'size-5', 'aria-hidden': 'true'}) }}
+                <span>Contact</span>
+            </a>
+            <a class="inline-flex items-center gap-1 hover:underline" href="{{ path('sylius_shop_account_order_index') }}">
+                {{ ux_icon('tabler:truck-delivery', {class: 'size-5', 'aria-hidden': 'true'}) }}
+                <span>Suivi de commande</span>
+            </a>
         </nav>
     </div>
 </div>

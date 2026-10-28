@@ -35,7 +35,7 @@
     --color-accent-content: #1E1B3A;
     --color-primary: #6D3FD0;
     --color-primary-content: #ffffff;
-    --color-secondary: #F07FDC;
+    --color-secondary: #FA3489;
     --color-secondary-content: #1E1B3A;
     --color-neutral: #1E1B3A;
     --color-neutral-content: #FFFFFF;
@@ -267,9 +267,6 @@
     .yoowii-prescript-embed {
         min-width: 0;
         overflow-x: auto;
-        border: 1px solid var(--color-base-300);
-        border-radius: var(--radius-box);
-        background: var(--color-base-100);
     }
 
     .yoowii-prescript-embed > * {
@@ -400,12 +397,12 @@
     }
 
     .yoowii-prescript-options .web_ligne_variable_saisie {
-        margin: 0 0 1rem;
-        padding: 1rem;
-        border: 1px solid var(--color-base-300);
-        border-radius: var(--radius-box);
-        background: var(--color-base-100);
-        box-shadow: 0 1px 2px rgb(30 27 58 / 0.04);
+        margin: 0 0 1.25rem;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
     }
 
     .yoowii-prescript-options .web_ligne_variable_saisie_intitule,
@@ -499,7 +496,7 @@
         box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 10%, transparent);
     }
 
-    .yoowii-print-configurator .yoowii-print-step.is-disabled {
+    .yoowii-print-configurator:not(.yoowii-standard-print-configurator) .yoowii-print-step.is-disabled {
         opacity: 0.52;
         background: var(--color-base-200);
     }
@@ -799,24 +796,25 @@
        Supplier markup is never targeted here: these rules apply only to the
        Yoowii form generated from the published configuration schema. */
     .yoowii-standard-print-configurator .yoowii-print-step {
-        margin: 0 0 1rem;
-        padding: 1rem;
-        border: 1px solid var(--color-base-300);
-        border-radius: var(--radius-box);
+        margin: 0;
+        padding: 0 0 1.25rem;
+        border: 0;
+        border-radius: 0;
         background: transparent;
-        box-shadow: 0 1px 2px rgb(30 27 58 / 0.04);
-        transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+        box-shadow: none;
+        transition: opacity 160ms ease;
+    }
+
+    .yoowii-standard-print-configurator .yoowii-print-step + .yoowii-print-step {
+        padding-top: 1.25rem;
     }
 
     .yoowii-standard-print-configurator .yoowii-print-step[open] {
-        border-color: var(--color-primary);
         background: transparent;
-        box-shadow: 0 4px 12px rgb(30 27 58 / 0.1);
+        box-shadow: none;
     }
 
     .yoowii-standard-print-configurator .yoowii-print-step.is-complete {
-        border-color: var(--color-primary);
-        border-left-color: var(--color-primary);
         background: transparent;
     }
 
@@ -950,7 +948,6 @@
     .yoowii-standard-print-configurator .yoowii-print-step.is-disabled {
         opacity: 0.58;
         border-color: transparent;
-        background: var(--color-base-200);
     }
 
     .yoowii-print-flow-summary {
