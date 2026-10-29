@@ -31,6 +31,19 @@ jobs:
           printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+          # Vérifier que le fichier known_hosts contient une entrée
+          test -s ~/.ssh/known_hosts || {
+            echo "::error::known_hosts est vide"
+            exit 1
+          }
+
+          # Vérifier que l'entrée correspond à l'adresse du VPS
+          ssh-keygen -F "91.229.245.159" \
+            -f ~/.ssh/known_hosts >/dev/null || {
+              echo "::error::Clé d'hôte introuvable pour le VPS"
+              exit 1
+            }
+
       - name: Tester la connexion
         env:
           HOST: ${{ vars.PREPROD_HOST }}
