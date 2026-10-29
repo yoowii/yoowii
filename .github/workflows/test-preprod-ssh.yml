@@ -2,6 +2,9 @@ name: Test SSH Preprod
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - chore/ci-cd
 
 permissions:
   contents: read
