@@ -1,0 +1,44 @@
+name: Test SSH Preprod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-ssh:
+    name: Test connexion VPS
+    runs-on: ubuntu-latest
+    environment: preprod
+
+    steps:
+      - name: Configurer SSH
+        env:
+          SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
+          SSH_HOST_KEY: ${{ secrets.PREPROD_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+
+          install -m 700 -d ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Tester la connexion
+        env:
+          HOST: ${{ vars.PREPROD_HOST }}
+          USER: ${{ vars.PREPROD_USER }}
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$USER@$HOST" \
+            "whoami && id && hostname"
