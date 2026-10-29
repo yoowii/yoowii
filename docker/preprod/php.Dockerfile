@@ -9,7 +9,10 @@ RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --no-
 FROM node:22-alpine AS assets
 WORKDIR /srv/sylius
 COPY --from=vendor /srv/sylius /srv/sylius
-RUN npm ci --no-audit --no-fund && npm run build:prod
+# Use the committed Yarn v1 lockfile; npm 10 fails resolving Sylius file: dependencies.
+RUN npm install --global yarn@1.22.22 \
+    && yarn install --frozen-lockfile --non-interactive \
+    && yarn build:prod
 
 FROM ghcr.io/sylius/sylius-php:8.3-alpine
 USER root
