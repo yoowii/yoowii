@@ -144,6 +144,10 @@ final class PrintConfiguratorStimulusTest extends TestCase
         self::assertIsString($controller);
         self::assertStringContainsString('matrixCombinations: Array', $controller);
         self::assertStringContainsString('applyMatrixAvailability()', $controller);
+        self::assertStringContainsString('clearFollowingOptions(changedAxis)', $controller);
+        self::assertStringContainsString('const precedingAxes = this.pricingAxesValue.slice(0, axisIndex);', $controller);
+        self::assertStringContainsString('A new choice clears only its successors.', $controller);
+        self::assertStringContainsString('this.clearOption(axis))', $controller);
         self::assertStringContainsString('async refreshProviderState()', $controller);
         self::assertStringContainsString('never send a partial', $controller);
         self::assertStringNotContainsString('fetch(', $controller);

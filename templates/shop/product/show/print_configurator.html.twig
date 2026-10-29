@@ -8,20 +8,25 @@
 {% endfor %}
 {% set initial_visibility = initial_provider_state.visibility|default({}) %}
 {% set initial_availability = initial_provider_state.availability|default({}) %}
+{% set configurator_controller = configurator_mode|default('') == 'matrix-print' ? 'matrix-print-configurator' : 'print-configurator' %}
 
 <div
     class="yoowii-print-configurator"
-    {% if available %}data-controller="print-configurator"{% endif %}
-    data-print-configurator-refresh-url-value="{{ refresh_url|default('') }}"
-    data-print-configurator-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
+    {% if available %}data-controller="{{ configurator_controller }}"{% endif %}
+    data-yoowii-configurator-presentation="cards"
+    data-{{ configurator_controller }}-refresh-url-value="{{ refresh_url|default('') }}"
+    data-{{ configurator_controller }}-has-quote-value="{{ stored_quote and quote_token ? 'true' : 'false' }}"
     data-empty-quote-label="{{ 'yoowii.storefront.price_after_configuration'|trans }}"
-    data-print-configurator-pricing-axes-value="{{ pricing_axes|default([])|json_encode|e('html_attr') }}"
-    data-print-configurator-manual-quote-value="{{ manual_quote|default(false) ? 'true' : 'false' }}"
-    data-print-configurator-debug-value="{{ app.environment == 'dev' ? 'true' : 'false' }}"
-    {% if initial_provider_state is not null %}
-        data-print-configurator-initial-provider-state-value="{{ initial_provider_state|json_encode|e('html_attr') }}"
+    data-{{ configurator_controller }}-pricing-axes-value="{{ pricing_axes|default([])|json_encode|e('html_attr') }}"
+    data-{{ configurator_controller }}-manual-quote-value="{{ manual_quote|default(false) ? 'true' : 'false' }}"
+    data-{{ configurator_controller }}-debug-value="{{ app.environment == 'dev' ? 'true' : 'false' }}"
+    {% if configurator_controller == 'matrix-print-configurator' %}
+        data-matrix-print-configurator-matrix-combinations-value="{{ matrix_combinations|default([])|json_encode|e('html_attr') }}"
     {% endif %}
-    data-print-configurator-initial-provider-state-stale-value="{{ initial_provider_state_stale|default(false) ? 'true' : 'false' }}"
+    {% if initial_provider_state is not null %}
+        data-{{ configurator_controller }}-initial-provider-state-value="{{ initial_provider_state|json_encode|e('html_attr') }}"
+    {% endif %}
+    data-{{ configurator_controller }}-initial-provider-state-stale-value="{{ initial_provider_state_stale|default(false) ? 'true' : 'false' }}"
 >
     <header class="mb-4 max-w-2xl">
         <h1 class="font-display text-3xl font-bold tracking-tight text-base-content sm:text-4xl">{{ product.name }}</h1>
@@ -36,14 +41,14 @@
                 <div
                     class="alert alert-danger d-none"
                     role="alert"
-                    data-print-configurator-target="error"
+                    data-{{ configurator_controller }}-target="error"
                 ></div>
 
                 {{ form_start(form, {
                     attr: {
                         class: 'yoowii-print-options',
-                        'data-print-configurator-target': 'form',
-                        'data-action': 'submit->print-configurator#submit'
+                        ('data-' ~ configurator_controller ~ '-target'): 'form',
+                        'data-action': 'submit->' ~ configurator_controller ~ '#submit'
                     }
                 }) }}
                 {{ form_errors(form) }}
@@ -77,7 +82,7 @@
 
                     <details
                         class="yoowii-print-step{{ step_complete ? ' is-complete' : '' }}{{ not step_enabled ? ' is-disabled' : '' }}{{ not initially_visible ? ' d-none' : '' }}"
-                        data-print-configurator-target="step option"
+                        data-{{ configurator_controller }}-target="step option"
                         data-step-index="{{ step_index }}"
                         data-option-code="{{ field.vars.name }}"
                         data-area="{{ field.vars.attr['data-area']|default(1) }}"
@@ -85,7 +90,7 @@
                         aria-hidden="{{ initially_visible ? 'false' : 'true' }}"
                         {% if step_enabled and not step_complete %}open{% endif %}
                     >
-                        <summary data-action="click->print-configurator#guardStep">
+                        <summary data-action="click->{{ configurator_controller }}#guardStep">
                             <span class="yoowii-print-step-status" aria-hidden="true">
                                 <span class="yoowii-print-step-number">{{ loop.index }}</span>
                                 <span class="yoowii-print-step-check">✓</span>
@@ -110,7 +115,7 @@
                                                 attr: {
                                                     class: 'btn-check',
                                                     autocomplete: 'off',
-                                                    'data-action': 'change->print-configurator#change',
+                                                    'data-action': 'change->' ~ configurator_controller ~ '#change',
                                                     'data-choice-label': choice.vars.label
                                                 }
                                             }) }}
@@ -126,7 +131,7 @@
                             </div>
                             {% else %}
                                 {% set live_input = 'integer' in field.vars.block_prefixes or 'number' in field.vars.block_prefixes or 'text' in field.vars.block_prefixes %}
-                                {{ form_widget(field, {disabled: not initially_visible, attr: {'data-action': live_input ? 'input->print-configurator#input' : 'change->print-configurator#change'}}) }}
+                                {{ form_widget(field, {disabled: not initially_visible, attr: {'data-action': live_input ? 'input->' ~ configurator_controller ~ '#input' : 'change->' ~ configurator_controller ~ '#change'}}) }}
                             {% endif %}
                         </div>
                     </details>
@@ -142,7 +147,7 @@
                         {{ 'yoowii.storefront.calculate_price'|trans }}
                     </button>
                 </noscript>
-                {% if manual_quote|default(false) %}<button class="btn btn-primary btn-lg mt-3" type="button" data-action="print-configurator#calculate">
+                {% if manual_quote|default(false) %}<button class="btn btn-primary btn-lg mt-3" type="button" data-action="{{ configurator_controller }}#calculate">
                     {{ 'yoowii.storefront.calculate_price'|trans }}
                 </button>{% endif %}
                 {{ form_end(form, {render_rest: false}) }}
@@ -156,7 +161,7 @@
                             <button
                                 class="btn btn-link btn-sm p-0"
                                 type="button"
-                                data-action="print-configurator#reset"
+                                data-action="{{ configurator_controller }}#reset"
                             >
                                 {{ 'yoowii.storefront.restore_choices'|trans }}
                             </button>
@@ -173,7 +178,7 @@
                                 {% endfor %}
                                 <li
                                     class="{{ selected_label is not null ? 'is-complete' : 'is-pending' }}{{ initial_visibility[option_code] is defined and not initial_visibility[option_code] ? ' d-none' : '' }}"
-                                    data-print-configurator-target="summaryItem"
+                                    data-{{ configurator_controller }}-target="summaryItem"
                                     data-step-index="{{ loop.index0 }}"
                                     data-option-code="{{ option_code }}"
                                     data-pending-label="{{ 'yoowii.storefront.choice_pending'|trans }}"
@@ -187,7 +192,7 @@
                                     <button
                                         class="btn btn-link btn-sm p-0"
                                         type="button"
-                                        data-action="print-configurator#openStep"
+                                        data-action="{{ configurator_controller }}#openStep"
                                         data-step-index="{{ loop.index0 }}"
                                     >
                                         {{ 'yoowii.storefront.change_choice'|trans }}
@@ -200,13 +205,13 @@
                             class="yoowii-print-calculating d-none"
                             role="status"
                             aria-live="polite"
-                            data-print-configurator-target="loading"
+                            data-{{ configurator_controller }}-target="loading"
                         >
                             <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
                             <span>{{ 'yoowii.storefront.calculating_price'|trans }}</span>
                         </div>
 
-                        <div data-print-configurator-target="quoteResult">
+                        <div data-{{ configurator_controller }}-target="quoteResult">
                             {% include 'shop/product/show/_print_quote.html.twig' with {
                                 pricing_snapshot: stored_quote ? stored_quote.pricingSnapshot : null,
                                 quote_token: quote_token

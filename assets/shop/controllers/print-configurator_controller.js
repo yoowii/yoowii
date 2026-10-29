@@ -114,7 +114,7 @@ export default class extends Controller {
         this.hasUserInteracted = true;
         this.applyNumericMinimum(event.target);
         this.quoteRequested = false;
-        const step = event.target.closest('[data-print-configurator-target="step"]');
+        const step = event.target.closest(`[data-${this.identifier}-target~="step"]`);
         const stepIndex = this.stepTargets.indexOf(step);
 
         this.clearError();

@@ -14,10 +14,18 @@ export default class extends PrintConfiguratorController {
         this.applyMatrixAvailability();
     }
 
+    change(event, refreshDelay) {
+        const step = event.target.closest(`[data-${this.identifier}-target~="step"]`);
+        this.changedAxis = step?.dataset.optionCode || null;
+
+        super.change(event, refreshDelay);
+    }
+
     scheduleRefresh() {
         // The shared controller calls this at connect and after each change.
         // In matrix mode this is intentionally synchronous and network-free.
-        this.applyMatrixAvailability();
+        this.applyMatrixAvailability(this.changedAxis);
+        this.changedAxis = null;
     }
 
     async refreshProviderState() {
@@ -25,7 +33,7 @@ export default class extends PrintConfiguratorController {
         // configuration to the Realisaprint refresh endpoint.
     }
 
-    applyMatrixAvailability() {
+    applyMatrixAvailability(changedAxis = null) {
         if (!this.hasFormTarget) {
             return;
         }
@@ -35,14 +43,20 @@ export default class extends PrintConfiguratorController {
             return;
         }
 
+        // A matrix configurator is a sequence of decisions. Changing paper,
+        // for example, must not keep grammage and quantity as constraints on
+        // the paper choices; otherwise a value which is valid for the format
+        // is incorrectly left hidden. A new choice clears only its successors.
+        this.clearFollowingOptions(changedAxis);
         const selected = this.providerOptions();
         const availability = {};
 
-        this.pricingAxesValue.forEach((axis) => {
+        this.pricingAxesValue.forEach((axis, axisIndex) => {
             const values = new Set();
+            const precedingAxes = this.pricingAxesValue.slice(0, axisIndex);
             combinations.forEach((combination) => {
-                const compatible = Object.entries(selected).every(([option, value]) =>
-                    option === axis || String(combination[option] ?? '') === String(value),
+                const compatible = precedingAxes.every((option) =>
+                    selected[option] === undefined || String(combination[option] ?? '') === String(selected[option]),
                 );
                 const candidate = combination[axis];
                 if (compatible && candidate !== undefined) {
@@ -59,5 +73,28 @@ export default class extends PrintConfiguratorController {
             alerts: [],
             infos: [],
         }, { source: 'matrix', changedStepIndex: -1 });
+    }
+
+    clearFollowingOptions(changedAxis) {
+        const changedIndex = this.pricingAxesValue.indexOf(changedAxis);
+        if (changedIndex < 0) {
+            return;
+        }
+
+        this.pricingAxesValue.slice(changedIndex + 1).forEach((axis) => this.clearOption(axis));
+    }
+
+    clearOption(axis) {
+        const step = this.optionTargets.find((candidate) => candidate.dataset.optionCode === axis);
+        if (!step) {
+            return;
+        }
+
+        step.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked').forEach((input) => {
+            input.checked = false;
+        });
+        step.querySelectorAll('select').forEach((select) => {
+            select.value = '';
+        });
     }
 }

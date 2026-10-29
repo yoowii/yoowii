@@ -32,6 +32,15 @@ final class PrintConfiguratorTemplateTest extends TestCase
         self::assertStringContainsString('data-yoowii-configurator-presentation="cards"', $this->template());
     }
 
+    public function testMatrixModeReceivesItsPublishedCompatibilityRows(): void
+    {
+        $template = $this->template();
+
+        self::assertStringContainsString("configurator_mode|default('') == 'matrix-print' ? 'matrix-print-configurator'", $template);
+        self::assertStringContainsString('data-matrix-print-configurator-matrix-combinations-value=', $template);
+        self::assertStringContainsString('matrix_combinations|default([])|json_encode', $template);
+    }
+
     public function testDorureAChaudVisibilityIsAppliedByTwigBeforeStimulusConnects(): void
     {
         $template = $this->template();
