@@ -21,6 +21,8 @@ services:
         condition: service_healthy
     volumes:
       - media:/srv/sylius/public/media
+      # Private customer artwork and BAT files; never expose this volume through nginx.
+      - private_assets:/srv/sylius/var/private/print
     networks:
       - internal
 
@@ -70,7 +72,9 @@ services:
 networks:
   internal:
     driver: bridge
+    internal: true
 
 volumes:
   mysql_data:
   media:
+  private_assets:

@@ -23,3 +23,4 @@ COPY --from=assets /srv/sylius/public/build /srv/sylius/public/build
 COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
 ENV APP_ENV=prod APP_DEBUG=0
 RUN mkdir -p var/cache var/log public/media && chown -R www-data:www-data var public/media
+USER www-data

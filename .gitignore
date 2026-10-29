@@ -59,5 +59,8 @@ phpstan.neon
 
 ###> liip/imagine-bundle ###
 /public/media/cache/
+
+# One-off preproduction migration archives (contain customer and database data).
+/backups/
 ###< liip/imagine-bundle ###
 
