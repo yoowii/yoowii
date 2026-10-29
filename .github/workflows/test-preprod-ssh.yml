@@ -38,10 +38,22 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [[ -z "$HOST" ]]; then
+            echo "::error::PREPROD_HOST est vide ou absent"
+            exit 1
+          fi
+
+          if [[ -z "$USER" ]]; then
+            echo "::error::PREPROD_USER est vide ou absent"
+            exit 1
+          fi
+
+          echo "Connexion SSH au VPS..."
+
           ssh \
             -i ~/.ssh/id_ed25519 \
             -o StrictHostKeyChecking=yes \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
-            "$USER@$HOST" \
+            "${USER}@${HOST}" \
             "whoami && id && hostname"
