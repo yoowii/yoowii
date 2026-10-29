@@ -1,0 +1,76 @@
+# Yoowii preproduction: deploy only after PHP/Nginx application images exist.
+# Run with: docker compose --env-file /opt/yoowii/preprod/.env -p yoowii-preprod -f compose.preprod.yml config
+name: yoowii-preprod
+
+services:
+  php:
+    image: ghcr.io/yoowii/yoowii-php:${YOOWII_IMAGE_TAG:?Set YOOWII_IMAGE_TAG to an immutable release tag}
+    restart: unless-stopped
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: '0'
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      DEFAULT_URI: https://preprod.yoowii.com
+      YOOWII_REDIS_DSN: redis://redis:6379
+      MAILER_DSN: ${MAILER_DSN:-null://null}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - media:/srv/sylius/public/media
+    networks:
+      - internal
+
+  nginx:
+    image: ghcr.io/yoowii/yoowii-nginx:${YOOWII_IMAGE_TAG:?Set YOOWII_IMAGE_TAG to an immutable release tag}
+    restart: unless-stopped
+    depends_on:
+      - php
+    ports:
+      - '127.0.0.1:8086:80'
+    volumes:
+      - media:/srv/sylius/public/media:ro
+    networks:
+      - internal
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -uroot -e "SELECT 1" >/dev/null 2>&1']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - internal
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  media:
