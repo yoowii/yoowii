@@ -30,6 +30,8 @@ final class PrintProductPageTemplateTest extends TestCase
         self::assertStringContainsString('data-controller="yoowii-gallery"', $template);
         self::assertStringContainsString('yoowii:prescript-gallery-update@document->yoowii-gallery#update', $template);
         self::assertStringContainsString('sylius_shop.product.show.content.info.overview.accordion', $template);
+        self::assertStringContainsString('<div class="mb-8 w-full">', $template);
+        self::assertStringNotContainsString('<div class="mb-8 max-w-4xl">', $template);
         self::assertStringContainsString("sylius_shop.product.show.content.product_listing", $template);
     }
 
