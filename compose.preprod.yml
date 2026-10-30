@@ -25,6 +25,7 @@ services:
       - private_assets:/srv/sylius/var/private/print
     networks:
       - internal
+      - web
 
   nginx:
     image: ghcr.io/yoowii/yoowii-nginx:${YOOWII_IMAGE_TAG:?Set YOOWII_IMAGE_TAG to an immutable release tag}
@@ -36,7 +37,7 @@ services:
     volumes:
       - media:/srv/sylius/public/media:ro
     networks:
-      - internal
+      - web
 
   mysql:
     image: mysql:8.4
@@ -73,6 +74,8 @@ networks:
   internal:
     driver: bridge
     internal: true
+  web:
+    driver: bridge
 
 volumes:
   mysql_data:
