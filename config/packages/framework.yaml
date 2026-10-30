@@ -10,6 +10,12 @@ framework:
         mapping:
             paths: [ '%kernel.project_dir%/config/serialization' ]
 
+when@prod:
+    framework:
+        # PHP-FPM receives requests only from the internal Docker nginx proxy.
+        trusted_proxies: 'REMOTE_ADDR'
+        trusted_headers: ['x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-port']
+
 when@dev:
     framework:
         profiler: { only_exceptions: false }
