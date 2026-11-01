@@ -1,0 +1,45 @@
+name: Deploy Yoowii preprod
+
+on:
+  workflow_run:
+    workflows: ["Build Yoowii preprod images"]
+    types: [completed]
+    branches: [chore/ci-cd]
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: "40-character commit SHA of a successfully published image pair"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-yoowii-preprod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    runs-on: ubuntu-24.04
+    environment: preprod
+    steps:
+      - name: Deploy immutable tag over restricted SSH
+        env:
+          SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
+          SSH_HOST_KEY: ${{ secrets.PREPROD_SSH_HOST_KEY }}
+          HOST: ${{ vars.PREPROD_HOST }}
+          USER: ${{ vars.PREPROD_USER }}
+          IMAGE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.image_sha || github.event.workflow_run.head_sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$IMAGE_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Invalid image SHA"; exit 1; }
+          test -n "$HOST" && test -n "$USER" && test -n "$SSH_KEY" && test -n "$SSH_HOST_KEY"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15 \
+            "$USER@$HOST" "sudo -n /usr/local/sbin/yoowii-deploy-preprod $IMAGE_SHA"
