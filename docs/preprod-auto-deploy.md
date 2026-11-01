@@ -19,7 +19,7 @@ This setup only redeploys `php` and `nginx`; it deliberately never runs migratio
 
 ## Promotion rules
 
-Build workflow creates two images from `chore/ci-cd`. Successful push-triggered builds trigger the deploy workflow. `preprod` environment may require reviewers/approval. A manual workflow dispatch redeploys an explicit immutable SHA.
+Build workflow creates two images from `chore/ci-cd`. The build workflow itself runs a deployment job after successful image publication. A separate manual workflow handles explicit SHA redeployment. `preprod` environment may require reviewers/approval. A manual workflow dispatch redeploys an explicit immutable SHA.
 
 The script pulls both images, recreates php/nginx only, checks the local storefront, atomically saves the tag on success and attempts rollback to the previous tag after deployment failure. Rollback covers images, **not** DB/schema migration (none is run). Make a fresh backup before any manually approved schema change.
 
