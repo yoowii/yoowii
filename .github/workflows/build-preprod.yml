@@ -11,7 +11,8 @@ permissions:
 
 concurrency:
   group: build-preprod-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a workflow while it may be deploying to the VPS.
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -43,12 +44,14 @@ jobs:
           tags: ghcr.io/yoowii/yoowii-nginx:sha-${{ github.sha }}
 
   deploy:
-    # Temporarily disabled while the VPS healthcheck script is being updated.
-    if: ${{ false }}
     name: Deploy to preprod VPS
     needs: build
     runs-on: ubuntu-24.04
     environment: preprod
+    # Shared with deploy-preprod.yml, ensuring one deployment at a time.
+    concurrency:
+      group: deploy-yoowii-preprod
+      cancel-in-progress: false
     steps:
       - name: Deploy immutable image tag through restricted SSH
         env:
