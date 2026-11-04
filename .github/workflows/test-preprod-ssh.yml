@@ -70,3 +70,17 @@ jobs:
             -o ConnectTimeout=15 \
             "${USER}@${HOST}" \
             "whoami && id && hostname"
+
+      - name: Vérifier l'autorisation sudo sans déployer
+        env:
+          HOST: ${{ vars.PREPROD_HOST }}
+          USER: ${{ vars.PREPROD_USER }}
+        run: |
+          set -euo pipefail
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${USER}@${HOST}" \
+            'sudo -n -l /usr/local/sbin/yoowii-deploy-preprod d91b93698fa66e1987947fd649519f3d77519f33'
