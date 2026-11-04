@@ -43,6 +43,8 @@ jobs:
           tags: ghcr.io/yoowii/yoowii-nginx:sha-${{ github.sha }}
 
   deploy:
+    # Temporarily disabled while the VPS healthcheck script is being updated.
+    if: ${{ false }}
     name: Deploy to preprod VPS
     needs: build
     runs-on: ubuntu-24.04
