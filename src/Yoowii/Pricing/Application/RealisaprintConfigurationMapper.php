@@ -16,8 +16,10 @@ final readonly class RealisaprintConfigurationMapper
     {
     }
 
-    /** @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} */
-    /** @param array<string, mixed>|null $selectedOptions Canonical storefront choices explicitly supplied by the customer. */
+    /**
+     * @param array<string, mixed>|null $selectedOptions Canonical storefront choices explicitly supplied by the customer.
+     * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string}
+     */
     public function map(PrintConfiguration $configuration, SupplierProduct $supplierProduct, \DateTimeImmutable $at, ?array $selectedOptions = null): array
     {
         $mapping = $this->mapping($configuration->productCode(), $supplierProduct, $at);
@@ -44,7 +46,7 @@ final readonly class RealisaprintConfigurationMapper
      * Maps a draft mapping without making it eligible for live orders.
      *
      * @param array<string, mixed> $configurationMapping
-     *
+     * @param array<string, mixed>|null $selectedOptions
      * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string}
      */
     public function mapMapping(PrintConfiguration $configuration, array $configurationMapping, string $version, ?array $selectedOptions = null): array
@@ -153,7 +155,7 @@ final readonly class RealisaprintConfigurationMapper
 
     /**
      * @param array<string, mixed>      $rules
-     * @param array<string, string|int> $options
+     * @param array<string, mixed> $options
      *
      * @param array<string, mixed>|null $selectedOptions
      * @return array<string, bool|float|int|string>
@@ -216,12 +218,12 @@ final readonly class RealisaprintConfigurationMapper
     }
 
     /** @param array<string, mixed> $rules
-     * @param array<string, string|int> $options
+     * @param array<string, mixed> $options
      */
     private function quoteQuantity(array $rules, array $options): int
     {
         foreach ($rules as $variable => $rule) {
-            if (!is_string($variable) || !is_array($rule) || true !== ($rule['quantity'] ?? false) || !is_string($rule['option'] ?? null)) {
+            if (!is_array($rule) || true !== ($rule['quantity'] ?? false) || !is_string($rule['option'] ?? null)) {
                 continue;
             }
             $quantity = $options[$rule['option']] ?? null;
