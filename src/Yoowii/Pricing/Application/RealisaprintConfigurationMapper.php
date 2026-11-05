@@ -88,12 +88,12 @@ final readonly class RealisaprintConfigurationMapper
     public function mapMappingForQuote(PrintConfiguration $configuration, array $configurationMapping, string $version, ?array $selectedOptions = null): array
     {
         $provider = $configurationMapping['realisaprint'] ?? null;
+        /** @var array<string, mixed>|null $rules */
         $rules = is_array($provider) ? ($provider['variables'] ?? null) : null;
         if (!is_array($rules)) {
             throw new \DomainException('The Realisaprint mapping must define product, stock and variables.');
         }
 
-        /** @var array<string, mixed> $rules */
         $quoteQuantity = $this->quoteQuantity($rules, $configuration->toArray());
         $withoutQuantity = $this->withoutQuantityRules($rules);
         $mapped = $this->mapMapping($configuration, ['realisaprint' => array_merge($provider, ['variables' => $withoutQuantity])], $version, $selectedOptions);
