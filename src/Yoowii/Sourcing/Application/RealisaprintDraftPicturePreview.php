@@ -68,9 +68,7 @@ final readonly class RealisaprintDraftPicturePreview
             }
             if (is_array($variable['values'] ?? null) && [] !== $variable['values']) {
                 $first = array_key_first($variable['values']);
-                if (null !== $first) {
-                    $defaults[$id] = $first;
-                }
+                $defaults[$id] = $first;
             }
         }
 
