@@ -33,7 +33,7 @@ final class SynchronizeLinkedRealisaprintConfigurationsCommand extends Command
         $seen = [];
         $failed = false;
         foreach ($this->entityManager->getRepository(SupplierRoute::class)->findAll() as $route) {
-            if (!$route instanceof SupplierRoute || 'realisaprint' !== $route->supplierProduct()->supplier()->code()) {
+            if ('realisaprint' !== $route->supplierProduct()->supplier()->code()) {
                 continue;
             }
             $providerId = $route->supplierProduct()->code();
@@ -57,6 +57,7 @@ final class SynchronizeLinkedRealisaprintConfigurationsCommand extends Command
                         if (!$definition instanceof PersistedPrintProductDefinition || !is_array($provider)) {
                             throw new \InvalidArgumentException('Missing product definition or supplier mapping.');
                         }
+                        /** @var array<string, mixed> $provider */
                         $this->completeness->assertComplete($definition, $product->configuration() ?? [], $provider);
                     } catch (\InvalidArgumentException $exception) {
                         $output->writeln(sprintf('<error>%s / %s: intervention required: %s</error>', $providerId, $mapping->yoowiiProductCode(), $exception->getMessage()));
