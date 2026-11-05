@@ -103,7 +103,7 @@ final class RealisaprintPublicationController extends AbstractController
         $validatedConfiguration = [];
         if ($validation instanceof RealisaprintMappingValidation) {
             foreach ($validation->testConfiguration() as $key => $value) {
-                if (is_string($key) && (is_string($value) || is_int($value) || is_float($value))) {
+                if (is_string($value) || is_int($value) || is_float($value)) {
                     $sample[$key] = $value;
                     $validatedConfiguration[$key] = $value;
                 }
