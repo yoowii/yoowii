@@ -21,7 +21,7 @@ final class RealisaprintMappingCompletenessTest extends TestCase
             ],
         ]);
 
-        self::assertTrue(true);
+        self::addToAssertionCount(1);
     }
 
     public function testItRejectsAnIncompleteMapping(): void
