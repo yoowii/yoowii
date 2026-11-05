@@ -24,7 +24,7 @@ final readonly class RealisaprintFixedOptionResolver
                 continue;
             }
             foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]) as $mapping) {
-                if (!$mapping instanceof SupplierProductMappingVersion || $mapping->supplierProduct() !== $route->supplierProduct() || !$mapping->isEffectiveAt($at)) {
+                if ($mapping->supplierProduct() !== $route->supplierProduct() || !$mapping->isEffectiveAt($at)) {
                     continue;
                 }
                 foreach ($this->forMapping($mapping) as $option => $candidate) {
@@ -47,7 +47,8 @@ final readonly class RealisaprintFixedOptionResolver
         }
 
         $fixed = [];
-        $rules = $mapping->configurationMapping()['realisaprint']['variables'] ?? [];
+        $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
+        $rules = is_array($provider) ? ($provider['variables'] ?? null) : null;
         if (!is_array($rules)) {
             return [];
         }
@@ -55,7 +56,8 @@ final readonly class RealisaprintFixedOptionResolver
             if (!is_array($rule) || !is_string($rule['option'] ?? null) || !is_scalar($rule['fixed_value'] ?? null)) {
                 continue;
             }
-            $canonical = $this->canonicalValue($rule['fixed_value'], $rule['values'] ?? []);
+            $providerValues = $rule['values'] ?? null;
+            $canonical = $this->canonicalValue($rule['fixed_value'], is_array($providerValues) ? $providerValues : []);
             if (null === $canonical) {
                 throw new \DomainException(sprintf('La valeur fixe Realisaprint de « %s » ne correspond pas au mapping publié.', $rule['option']));
             }
@@ -69,7 +71,7 @@ final readonly class RealisaprintFixedOptionResolver
     private function canonicalValue(mixed $fixedValue, array $values): string|int|float|null
     {
         foreach ($values as $canonical => $providerValue) {
-            if ((string) $providerValue === (string) $fixedValue) {
+            if (is_scalar($providerValue) && is_scalar($fixedValue) && (string) $providerValue === (string) $fixedValue) {
                 return ctype_digit((string) $canonical) ? (int) $canonical : (string) $canonical;
             }
         }
