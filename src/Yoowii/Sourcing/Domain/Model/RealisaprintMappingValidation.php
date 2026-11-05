@@ -17,7 +17,11 @@ class RealisaprintMappingValidation
     #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
-    /** @param list<string> $coverageErrors */
+    /**
+     * @param array<string, mixed> $testConfiguration
+     * @param list<string> $coverageErrors
+     * @param array<string, mixed>|null $priceApiDiagnostic
+     */
     public function __construct(
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(name: 'mapping_id', nullable: false, onDelete: 'CASCADE')]
@@ -82,7 +86,7 @@ class RealisaprintMappingValidation
         return $this->supplierOptionsCost;
     }
 
-    /**  array<string, string|int|float> */
+    /** @return array<string, mixed> */
     public function testConfiguration(): array
     {
         return $this->testConfiguration;
