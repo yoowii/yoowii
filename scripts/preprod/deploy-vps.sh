@@ -38,6 +38,50 @@ for service in php nginx; do
   }
 done
 
+# This pipeline only recreates php/nginx. Reject changes requiring a separate
+# infrastructure rollout, including edits to mounts and published ports.
+# Compare normalized Compose models using the same image tag and .env.
+old_model="$(mktemp "$dir/.compose.preprod.old-json.XXXXXXXX")"
+new_model="$(mktemp "$dir/.compose.preprod.new-json.XXXXXXXX")"
+cleanup() {
+  rm -f "$staged" "$backup" "$old_model" "$new_model"
+  [[ -z "$env_tmp" ]] || rm -f "$env_tmp"
+}
+YOOWII_IMAGE_TAG="$tag" docker compose --env-file "$dir/.env" -f "$dir/compose.preprod.yml" config --format json > "$old_model"
+YOOWII_IMAGE_TAG="$tag" docker compose --env-file "$dir/.env" -f "$staged" config --format json > "$new_model"
+python3 - "$old_model" "$new_model" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    old = json.load(source)
+with open(sys.argv[2], encoding="utf-8") as source:
+    new = json.load(source)
+
+expected = {"php", "nginx", "mysql", "redis"}
+if set(new.get("services", {})) != expected:
+    sys.exit("Unsafe Compose: service list changed; use an approved infrastructure rollout.")
+
+for name in ("mysql", "redis"):
+    if old["services"].get(name) != new["services"].get(name):
+        sys.exit(f"Unsafe Compose: {name} configuration changed.")
+
+for name in ("networks", "volumes", "secrets", "configs"):
+    if old.get(name, {}) != new.get(name, {}):
+        sys.exit(f"Unsafe Compose: top-level {name} changed.")
+
+for name in ("php", "nginx"):
+    before = old["services"].get(name, {})
+    after = new["services"][name]
+    for field in ("volumes", "networks", "ports", "expose", "network_mode",
+                  "privileged", "devices", "cap_add", "pid", "ipc",
+                  "userns_mode", "secrets", "configs"):
+        if before.get(field) != after.get(field):
+            sys.exit(f"Unsafe Compose: {name}.{field} changed.")
+
+print("Infrastructure guard passed: protected services, networks, volumes and mounts unchanged.")
+PY
+
 compose=(docker compose --env-file "$dir/.env" -f "$dir/compose.preprod.yml")
 healthcheck() {
   local response attempt
