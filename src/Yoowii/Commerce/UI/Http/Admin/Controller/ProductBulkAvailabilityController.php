@@ -54,8 +54,6 @@ final class ProductBulkAvailabilityController extends AbstractController
     }
 
     /**
-     * @param mixed $ids
-     *
      * @return list<int>
      */
     private function productIds(mixed $ids): array
