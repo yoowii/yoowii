@@ -50,7 +50,7 @@ final class PrintConfiguratorType extends AbstractType
                 $builder->add($code, $type, [
                     'label' => $schema['label'],
                     'attr' => array_filter([
-                        'data-area' => $schema['area'] ?? 1,
+                        'data-area' => $schema['area'],
                         'data-option-code' => $code,
                         'data-depends-on' => is_array($schema['depends_on'] ?? null) ? ($schema['depends_on']['option'] . ':' . $schema['depends_on']['value']) : null,
                         'min' => $schema['minimum'] ?? null,
