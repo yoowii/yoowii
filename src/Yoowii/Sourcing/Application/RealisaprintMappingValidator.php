@@ -30,13 +30,13 @@ final readonly class RealisaprintMappingValidator
         $errors = $this->coverageErrors($mapping, $definition);
         $priceDiagnostic = null;
         $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
+        /** @var array<string, mixed>|null $provider */
         $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
 
         try {
             if (!$catalog instanceof RealisaprintCatalogProduct || !is_array($catalog->configuration()) || !is_array($provider)) {
                 throw new \InvalidArgumentException('Configuration fournisseur synchronisée introuvable.');
             }
-            /** @var array<string, mixed> $provider */
             $this->completeness->assertComplete($definition, $catalog->configuration(), $provider);
         } catch (\InvalidArgumentException $exception) {
             $errors[] = $exception->getMessage();
