@@ -67,8 +67,8 @@ final class RealisaprintMappingCompleteness
             }
             $sourceValues = $providerVariable['values'] ?? false;
             if (false === $sourceValues) {
-                $fixed = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false)
-                    && is_string($providerVariable['default'] ?? null) && '' !== trim($providerVariable['default']);
+                $fixed = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false) &&
+                    is_string($providerVariable['default'] ?? null) && '' !== trim($providerVariable['default']);
                 if ($fixed) {
                     $allowed = $options[$optionCode]['allowed_values'] ?? [];
                     if (!is_array($allowed) || 1 !== count($allowed) || !is_scalar($allowed[0]) || count($values) !== 1 ||
@@ -78,6 +78,7 @@ final class RealisaprintMappingCompleteness
                 } elseif ([] !== $values) {
                     throw new \InvalidArgumentException(sprintf('« %s » est une valeur libre : ses correspondances doivent être {}.', $id));
                 }
+
                 continue;
             }
             if (!is_array($sourceValues)) {
@@ -108,9 +109,9 @@ final class RealisaprintMappingCompleteness
     /** @param array<string, mixed> $variable */
     private function isSupplierOwnedReadonlyText(array $variable): bool
     {
-        return 'text' === ($variable['type'] ?? null)
-            && true === ($variable['readonly'] ?? false)
-            && false === ($variable['values'] ?? null)
-            && (!is_string($variable['default'] ?? null) || '' === trim($variable['default']));
+        return 'text' === ($variable['type'] ?? null) &&
+            true === ($variable['readonly'] ?? false) &&
+            false === ($variable['values'] ?? null) &&
+            (!is_string($variable['default'] ?? null) || '' === trim($variable['default']));
     }
 }
