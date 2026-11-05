@@ -23,8 +23,10 @@ final readonly class RealisaprintConfiguratorRefresh
     ) {
     }
 
-    /** @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>} */
-    /** @param array<string, mixed>|null $selectedOptions Canonical choices explicitly submitted by the storefront. */
+    /**
+     * @param array<string, mixed>|null $selectedOptions Canonical choices explicitly submitted by the storefront.
+     * @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}
+     */
     public function refresh(PrintConfiguration $configuration, \DateTimeImmutable $at, ?array $selectedOptions = null): array
     {
         foreach ($this->routes->findCandidates($configuration->productCode(), $at) as $route) {
@@ -51,7 +53,12 @@ final readonly class RealisaprintConfiguratorRefresh
         throw new \DomainException('Aucune route Realisaprint compatible ne permet de rafraîchir cette configuration.');
     }
 
-    /** Refreshes one already-resolved mapping and never searches a fallback route. */
+    /**
+     * Refreshes one already-resolved mapping and never searches a fallback route.
+     *
+     * @param array<string, mixed>|null $selectedOptions
+     * @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}
+     */
     public function refreshForMapping(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping, ?array $selectedOptions = null): array
     {
         $mapped = $this->mapper->mapMappingForQuote($configuration, $mapping->configurationMapping(), $mapping->version(), $selectedOptions);
@@ -230,7 +237,7 @@ final readonly class RealisaprintConfiguratorRefresh
         $visibility = $response['visibility'] ?? $response['variable_visibility'] ?? null;
         $values = $response['variable_values'] ?? null;
         foreach ($rules as $providerVariable => $rule) {
-            if (!is_string($providerVariable) || !is_array($rule)) {
+            if (!is_array($rule)) {
                 continue;
             }
             $option = $rule['option'] ?? null;
