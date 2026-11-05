@@ -130,6 +130,7 @@ final readonly class RealisaprintVariableStateCache
     /** @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}|null */
     private function stale(string $key): ?array
     {
+        /** @var array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}|null $state */
         $state = $this->cache->get($key . '.stale', static function (ItemInterface $item, bool &$save): null {
             $save = false;
 
