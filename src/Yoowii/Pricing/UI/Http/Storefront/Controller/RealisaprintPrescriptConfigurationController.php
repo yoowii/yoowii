@@ -37,10 +37,10 @@ final class RealisaprintPrescriptConfigurationController extends AbstractControl
         $variables = $request->request->all('variables');
         $sanitized = [];
         foreach ($variables as $name => $value) {
-                if (is_string($name) && is_scalar($value) && '' !== trim((string) $value)) {
-                    $sanitized[$name] = (string) $value;
-                }
+            if (is_string($name) && is_scalar($value) && '' !== trim((string) $value)) {
+                $sanitized[$name] = (string) $value;
             }
+        }
 
         try {
             // Do not forward client-provided credentials, product, stock or callback URL.
