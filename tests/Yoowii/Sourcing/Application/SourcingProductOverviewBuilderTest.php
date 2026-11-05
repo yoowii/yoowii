@@ -56,6 +56,8 @@ final class SourcingProductOverviewBuilderTest extends TestCase
         $overview = (new SourcingProductOverviewBuilder())->build([$route], [$mapping], [], new \DateTimeImmutable('2026-10-14T00:00:00+00:00'));
 
         self::assertSame([], $overview['PRINT_FLYER']['current_mappings']);
-        self::assertContains('Le fournisseur API principal n’a pas de mapping applicable.', $overview['PRINT_FLYER']['errors']);
+        $errors = $overview['PRINT_FLYER']['errors'];
+        self::assertIsArray($errors);
+        self::assertContains('Le fournisseur API principal n’a pas de mapping applicable.', $errors);
     }
 }
