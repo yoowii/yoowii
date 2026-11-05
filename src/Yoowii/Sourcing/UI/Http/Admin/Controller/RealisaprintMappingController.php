@@ -19,7 +19,6 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\String\Slugger\AsciiSlugger;
 
 final class RealisaprintMappingController extends AbstractController
 {
@@ -144,6 +143,7 @@ final class RealisaprintMappingController extends AbstractController
 
     /**
      * @param array<string, mixed> $configuration
+     *
      * @return array<string, array{option: string, values: array<string, bool|float|int|string>, quantity?: true}>
      */
     private function variables(RealisaprintMappingData $data, array $configuration): array
