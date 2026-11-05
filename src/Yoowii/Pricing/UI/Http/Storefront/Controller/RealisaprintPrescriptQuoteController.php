@@ -33,7 +33,11 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         if (!$csrf->isTokenValid(new CsrfToken('prescript_quote_' . $productCode, is_string($payload['_token'] ?? null) ? $payload['_token'] : ''))) {
             return new JsonResponse(['message' => 'Jeton de sécurité invalide.'], Response::HTTP_FORBIDDEN, ['Cache-Control' => 'no-store']);
         }
-        $product = $productRepository->findOneByChannelAndCode($channelContext->getChannel(), $productCode);
+        $channel = $channelContext->getChannel();
+        if (!$channel instanceof \Sylius\Component\Core\Model\ChannelInterface) {
+            throw new \LogicException('The configured channel must be a Sylius core channel.');
+        }
+        $product = $productRepository->findOneByChannelAndCode($channel, $productCode);
         if (!$product instanceof Product || !$product->isEnabled() || FulfillmentType::Print !== $product->getFulfillmentType()) {
             throw $this->createNotFoundException();
         }

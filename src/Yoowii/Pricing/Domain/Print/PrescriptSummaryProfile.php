@@ -30,6 +30,7 @@ final readonly class PrescriptSummaryProfile
         }
 
         try {
+            /** @var array<string, mixed> $profile */
             return self::fromArray($profile);
         } catch (\InvalidArgumentException) {
             // Storefront availability must not depend on an optional UI profile.

@@ -18,16 +18,19 @@ final class RealisaprintAvailabilityFallback
     {
         $schemas = [];
         foreach ($definition->options() as $code => $option) {
-            if (is_string($code) && is_array($option)) {
-                $schemas[] = ['code' => $code] + $option;
-            }
+            $schemas[] = ['code' => $code] + $option;
         }
 
         return $this->applyToSchema($values, $state, $schemas, $definition->pricingAxes());
     }
 
-    /** @param array<string, string|int|float> $values @param array{availability: array<string, list<string>>, current: array<string, string>} $state @param list<array<string, mixed>> $schemas @param list<string> $axes
-     * @return array<string, string|int|float> */
+    /**
+     * @param array<string, string|int|float> $values
+     * @param array{availability: array<string, list<string>>, current: array<string, string>} $state
+     * @param list<array<string, mixed>> $schemas
+     * @param list<string> $axes
+     * @return array<string, string|int|float>
+     */
     public function applyToSchema(array $values, array $state, array $schemas, array $axes): array
     {
         $options = [];
@@ -58,7 +61,8 @@ final class RealisaprintAvailabilityFallback
                 $values[$axis] = $providerCurrent;
                 continue;
             }
-            foreach (($option['allowed_values'] ?? []) as $candidate) {
+            $allowed = $option['allowed_values'] ?? null;
+            foreach (is_array($allowed) ? $allowed : [] as $candidate) {
                 if (is_scalar($candidate) && in_array((string) $candidate, $available, true)) {
                     $values[$axis] = (string) $candidate;
                     continue 2;

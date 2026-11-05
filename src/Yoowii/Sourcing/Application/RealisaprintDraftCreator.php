@@ -359,6 +359,7 @@ final readonly class RealisaprintDraftCreator
         $providerVariables = [];
         foreach ($variables as $code => $variable) {
             if (is_string($code) && is_array($variable)) {
+                /** @var array<string, mixed> $variable */
                 $providerVariables[$code] = $variable;
             }
         }

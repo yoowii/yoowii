@@ -100,14 +100,20 @@ final class RealisaprintPublicationController extends AbstractController
         $validation = $entityManager->getRepository(RealisaprintMappingValidation::class)->findOneBy(['mapping' => $mapping], ['checkedAt' => 'DESC']);
         $definition = $this->definition($mapping, $entityManager);
         $sample = $this->withFixedValues($validator->sample($definition), $mapping);
+        $validatedConfiguration = [];
         if ($validation instanceof RealisaprintMappingValidation) {
-            $sample = array_replace($sample, $validation->testConfiguration());
+            foreach ($validation->testConfiguration() as $key => $value) {
+                if (is_string($value) || is_int($value) || is_float($value)) {
+                    $sample[$key] = $value;
+                    $validatedConfiguration[$key] = $value;
+                }
+            }
         }
         $preview = $previewBuilder->build($definition, $mapping, $catalog instanceof RealisaprintCatalogProduct ? ($catalog->configuration() ?? []) : [], $sample);
         $validUntil = $validation instanceof RealisaprintMappingValidation ? $validation->checkedAt()->modify('+30 minutes') : null;
         $canPublish = $validation instanceof RealisaprintMappingValidation &&
             $validation->coverageComplete() && $validation->quotePassed() && $preview['covered'] &&
-            hash_equals($validation->testFingerprint(), $validator->fingerprint($mapping, $validation->testConfiguration())) &&
+            hash_equals($validation->testFingerprint(), $validator->fingerprint($mapping, $validatedConfiguration)) &&
             $validUntil >= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $initialState = $mapping->initialDisplayState();
         $showVariablesRequest = is_array($initialState) && is_array($initialState['show_variables_request'] ?? null)

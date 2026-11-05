@@ -19,7 +19,8 @@ final class RealisaprintPrescriptPublicationPolicyTest extends TestCase
     {
         [$catalog, $route, $mapping] = $this->fixtures(['product' => '42', 'stock' => '837', 'configurator' => 'prescript']);
 
-        self::assertNull((new RealisaprintPrescriptPublicationPolicy())->assertPublishable($mapping, $route, $catalog));
+        (new RealisaprintPrescriptPublicationPolicy())->assertPublishable($mapping, $route, $catalog);
+        self::addToAssertionCount(1);
     }
 
     public function testItDoesNotTreatClassicAsPrescriptAfterAnError(): void

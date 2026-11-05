@@ -30,7 +30,6 @@ final class RealisaprintMappingController extends AbstractController
         if (!$route instanceof SupplierRoute || 'realisaprint' !== $route->supplierProduct()->supplier()->code()) {
             throw $this->createNotFoundException();
         }
-        /** @var PersistedPrintProductDefinition|null $definition */
         /** @var RealisaprintCatalogProduct|null $catalogProduct */
         $catalogProduct = $entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
 
@@ -47,7 +46,7 @@ final class RealisaprintMappingController extends AbstractController
         if (!$definition instanceof PersistedPrintProductDefinition) {
             throw $this->createNotFoundException('Définition de configurateur introuvable.');
         }
-        $this->prefill($data, $definition, $catalogProduct->configuration(), $previous instanceof SupplierProductMappingVersion ? $previous : null);
+        $this->prefill($data, $definition, $catalogProduct->configuration(), $previous);
         $choices = array_combine(array_keys($definition->options()), array_keys($definition->options())) ?: [];
         $form = $this->createForm(RealisaprintMappingType::class, $data, ['yoowii_options' => $choices]);
         $form->handleRequest($request);
@@ -103,6 +102,10 @@ final class RealisaprintMappingController extends AbstractController
     {
         $provider = $previous?->configurationMapping()['realisaprint'] ?? [];
         $stocks = $configuration['stocks'] ?? [];
+        $configurationVariables = $configuration['variables'] ?? null;
+        $configurationVariables = is_array($configurationVariables) ? $configurationVariables : [];
+        $providerRules = is_array($provider) ? ($provider['variables'] ?? null) : null;
+        $providerRules = is_array($providerRules) ? $providerRules : [];
         $previousStock = is_array($provider) ? ($provider['stock'] ?? null) : null;
         if (is_scalar($previousStock) && is_array($stocks) && array_key_exists((string) $previousStock, $stocks)) {
             $data->stock = (string) $previousStock;
@@ -113,23 +116,21 @@ final class RealisaprintMappingController extends AbstractController
         // Existing canonical codes are authoritative. Never slug provider labels again:
         // "-----" is "sans" in the product definition, not "option".
         foreach ($definition->options() as $option => $definitionOption) {
-            if (!is_string($option) || !is_array($definitionOption)) {
-                continue;
-            }
             $id = $definitionOption['provider_variable'] ?? null;
-            if (!is_string($id) || !isset($configuration['variables'][$id])) {
+            if (!is_string($id) || !isset($configurationVariables[$id])) {
                 continue;
             }
-            $previousRule = is_array($provider) ? ($provider['variables'][$id] ?? null) : null;
+            $previousRule = $providerRules[$id] ?? null;
             $values = $definitionOption['provider_values'] ?? [];
             if (is_array($previousRule) && ($previousRule['option'] ?? null) === $option && is_array($previousRule['values'] ?? null)) {
                 $candidate = $previousRule['values'];
                 $allowed = $definitionOption['allowed_values'] ?? [];
-                $providerValues = $configuration['variables'][$id]['values'] ?? false;
+                $configurationVariable = $configurationVariables[$id] ?? null;
+                $providerValues = is_array($configurationVariable) ? ($configurationVariable['values'] ?? false) : false;
                 if (is_array($allowed) && is_array($providerValues) &&
-                    array_diff(array_map('strval', $allowed), array_keys($candidate)) === [] &&
-                    array_diff(array_keys($candidate), array_map('strval', $allowed)) === [] &&
-                    array_diff(array_map('strval', array_values($candidate)), array_map('strval', array_keys($providerValues))) === []) {
+                    array_diff(array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', $allowed), array_keys($candidate)) === [] &&
+                    array_diff(array_keys($candidate), array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', $allowed)) === [] &&
+                    array_diff(array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', array_values($candidate)), array_map(static fn (int|string $value): string => (string) $value, array_keys($providerValues))) === []) {
                     $values = $candidate;
                 }
             }
@@ -152,7 +153,7 @@ final class RealisaprintMappingController extends AbstractController
         }
         $variables = [];
         foreach ($data->variables as $row) {
-            if (!$row instanceof RealisaprintMappingVariableData || '' === trim($row->providerVariable) || '' === trim($row->option)) {
+            if ('' === trim($row->providerVariable) || '' === trim($row->option)) {
                 throw new \InvalidArgumentException('Chaque ligne doit désigner une variable fournisseur et une option Yoowii.');
             }
             $values = json_decode($row->values, true, 512, \JSON_THROW_ON_ERROR);
@@ -164,9 +165,12 @@ final class RealisaprintMappingController extends AbstractController
                     throw new \InvalidArgumentException(sprintf('Les valeurs de %s sont invalides.', $row->providerVariable));
                 }
             }
+            /** @var array<string, bool|float|int|string> $values */
             $providerVariable = trim($row->providerVariable);
             $rule = ['option' => trim($row->option), 'values' => $values];
-            if (true === ($configuration['variables'][$providerVariable]['quantity'] ?? false)) {
+            $configurationVariables = $configuration['variables'] ?? null;
+            $variable = is_array($configurationVariables) ? ($configurationVariables[$providerVariable] ?? null) : null;
+            if (is_array($variable) && true === ($variable['quantity'] ?? false)) {
                 $rule['quantity'] = true;
             }
             $variables[$providerVariable] = $rule;

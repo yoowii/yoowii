@@ -94,10 +94,10 @@ final readonly class PrintOptionDefinition
 
     private function normalizeCheckbox(mixed $value): string
     {
-        if (true === $value || 'oui' === strtolower(trim((string) $value))) {
+        if (true === $value || (is_scalar($value) && 'oui' === strtolower(trim((string) $value)))) {
             return 'oui';
         }
-        if (false === $value || 'non' === strtolower(trim((string) $value))) {
+        if (false === $value || (is_scalar($value) && 'non' === strtolower(trim((string) $value)))) {
             return 'non';
         }
 

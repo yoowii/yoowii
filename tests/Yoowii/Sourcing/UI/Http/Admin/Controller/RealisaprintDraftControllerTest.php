@@ -30,8 +30,7 @@ final class RealisaprintDraftControllerTest extends TestCase
         (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))
             ->invoke(new RealisaprintDraftController(), $data, $catalogProduct);
 
-        /** @var array<string, array{type: string, allowed_values: list<string|int>, provider_variable: string, provider_values: array<string, string>, default: string|int|null}> $options */
-        $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+        $options = $this->decodeOptions($data->options);
         /** @var non-empty-list<string> $axes */
         $axes = json_decode($data->pricingAxes, true, 512, \JSON_THROW_ON_ERROR);
         self::assertSame(['value_25', 'value_50'], $options['quantite_par_lot_specifique']['allowed_values']);
@@ -44,7 +43,11 @@ final class RealisaprintDraftControllerTest extends TestCase
         $definition->definition();
         $rules = [];
         foreach ($options as $code => $option) {
-            $rules[$option['provider_variable']] = ['option' => $code, 'values' => $option['provider_values']];
+            $variable = $option['provider_variable'] ?? null;
+            $mapped = $option['provider_values'] ?? null;
+            self::assertIsString($variable);
+            self::assertIsArray($mapped);
+            $rules[$variable] = ['option' => $code, 'values' => $mapped];
         }
         (new RealisaprintMappingCompleteness())->assertComplete($definition, $configuration, ['stock' => '1073', 'variables' => $rules]);
     }
@@ -58,7 +61,7 @@ final class RealisaprintDraftControllerTest extends TestCase
         ]], new \DateTimeImmutable());
         $data = new RealisaprintDraftData();
         (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), $data, $catalog);
-        $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+        $options = $this->decodeOptions($data->options);
 
         self::assertSame(['Recto'], $options['face_imprimee']['allowed_values']);
         self::assertSame(['Recto' => 'Recto'], $options['face_imprimee']['provider_values']);
@@ -83,7 +86,7 @@ final class RealisaprintDraftControllerTest extends TestCase
         ]], new \DateTimeImmutable());
         $data = new RealisaprintDraftData();
         (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), $data, $catalog);
-        $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+        $options = $this->decodeOptions($data->options);
 
         self::assertFalse($options['hauteur_cm']['required']);
         self::assertTrue($options['quantite']['required']);
@@ -99,7 +102,7 @@ final class RealisaprintDraftControllerTest extends TestCase
         $catalog->refreshConfiguration($configuration, new \DateTimeImmutable());
         $data = new RealisaprintDraftData();
         (new \ReflectionMethod(RealisaprintDraftController::class, 'prefillConfiguration'))->invoke(new RealisaprintDraftController(), $data, $catalog);
-        $options = json_decode($data->options, true, 512, \JSON_THROW_ON_ERROR);
+        $options = $this->decodeOptions($data->options);
 
         self::assertArrayNotHasKey('marque', $options);
         $definition = new PersistedPrintProductDefinition('PRINT_PRODUIT', 'v1', $options, ['format']);
@@ -107,4 +110,18 @@ final class RealisaprintDraftControllerTest extends TestCase
             'FORMAT' => ['option' => 'format', 'values' => ['a4' => 'a4']],
         ]]);
     }
+    /** @return array<string, array<string, mixed>> */
+    private function decodeOptions(string $json): array
+    {
+        $decoded = json_decode($json, true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        foreach ($decoded as $code => $option) {
+            self::assertIsString($code);
+            self::assertIsArray($option);
+        }
+
+        /** @var array<string, array<string, mixed>> $decoded */
+        return $decoded;
+    }
+
 }

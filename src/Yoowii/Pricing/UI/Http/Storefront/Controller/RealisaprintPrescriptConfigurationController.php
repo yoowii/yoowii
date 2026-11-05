@@ -36,19 +36,22 @@ final class RealisaprintPrescriptConfigurationController extends AbstractControl
 
         $variables = $request->request->all('variables');
         $sanitized = [];
-        if (is_array($variables)) {
-            foreach ($variables as $name => $value) {
-                if (is_string($name) && is_scalar($value) && '' !== trim((string) $value)) {
-                    $sanitized[$name] = (string) $value;
-                }
+        foreach ($variables as $name => $value) {
+            if (is_string($name) && is_scalar($value) && '' !== trim((string) $value)) {
+                $sanitized[$name] = (string) $value;
             }
         }
 
         try {
             // Do not forward client-provided credentials, product, stock or callback URL.
+            $product = $provider['product'] ?? null;
+            $stock = $provider['stock'] ?? null;
+            if (!is_scalar($product) || !is_scalar($stock)) {
+                throw new \DomainException('Invalid Prescript supplier identifiers.');
+            }
             $response = $client->post('save_configuration', [
-                'product' => (string) ($provider['product'] ?? ''),
-                'stock' => (string) ($provider['stock'] ?? ''),
+                'product' => (string) $product,
+                'stock' => (string) $stock,
                 'variables' => $sanitized,
             ]);
 
@@ -58,7 +61,7 @@ final class RealisaprintPrescriptConfigurationController extends AbstractControl
             $status = $response['_http_status'] ?? Response::HTTP_OK;
             $code = $response['code'] ?? null;
             if (!is_int($status) || $status < 200 || $status >= 300
-                || (isset($response['error']) && false !== $response['error'] && null !== $response['error'] && '' !== $response['error'])
+                || (isset($response['error']) && false !== $response['error'] && '' !== $response['error'])
                 || !is_scalar($code) || !preg_match('/^[0-9]+$/D', trim((string) $code))) {
                 return new JsonResponse(
                     ['error' => 'Realisaprint a refusé la configuration. Veuillez vérifier vos choix et réessayer.'],
@@ -76,7 +79,7 @@ final class RealisaprintPrescriptConfigurationController extends AbstractControl
     private function mapping(string $productCode, EntityManagerInterface $entityManager): ?SupplierProductMappingVersion
     {
         foreach ($entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]) as $mapping) {
-            if (!$mapping instanceof SupplierProductMappingVersion || 'realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
+            if ('realisaprint' !== $mapping->supplierProduct()->supplier()->code()) {
                 continue;
             }
             if (ConfiguratorKind::Prescript === ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping())) {
