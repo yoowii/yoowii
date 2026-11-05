@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Pricing\UI\Http\Storefront\Controller;
 
-use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
+use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -60,9 +60,9 @@ final class RealisaprintPrescriptConfigurationController extends AbstractControl
             // stop immediately on a business error or a missing configuration code.
             $status = $response['_http_status'] ?? Response::HTTP_OK;
             $code = $response['code'] ?? null;
-            if (!is_int($status) || $status < 200 || $status >= 300
-                || (isset($response['error']) && false !== $response['error'] && '' !== $response['error'])
-                || !is_scalar($code) || !preg_match('/^[0-9]+$/D', trim((string) $code))) {
+            if (!is_int($status) || $status < 200 || $status >= 300 ||
+                (isset($response['error']) && false !== $response['error'] && '' !== $response['error']) ||
+                !is_scalar($code) || !preg_match('/^[0-9]+$/D', trim((string) $code))) {
                 return new JsonResponse(
                     ['error' => 'Realisaprint a refusé la configuration. Veuillez vérifier vos choix et réessayer.'],
                     Response::HTTP_BAD_GATEWAY,
