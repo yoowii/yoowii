@@ -221,6 +221,9 @@ class PersistedPrintProductDefinition
         if ([] === $matches['oui'] && [] === $matches['non']) {
             $allowed = $parentDefinition['allowed_values'] ?? null;
             foreach (is_array($allowed) ? $allowed : [] as $canonical) {
+                if (!is_string($canonical) && !is_int($canonical)) {
+                    continue;
+                }
                 $meaning = mb_strtolower(trim((string) $canonical));
                 if (isset($matches[$meaning])) {
                     $matches[$meaning][] = (string) $canonical;
