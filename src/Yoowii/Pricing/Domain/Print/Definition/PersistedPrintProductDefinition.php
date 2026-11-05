@@ -100,7 +100,7 @@ class PersistedPrintProductDefinition
             $valueLabels = [];
             $labels = $option['value_labels'] ?? null;
             foreach (is_array($labels) ? $labels : [] as $value => $label) {
-                if ((is_string($value) || is_int($value)) && is_string($label)) {
+                if (is_string($label)) {
                     $valueLabels[(string) $value] = $label;
                 }
             }
@@ -208,7 +208,7 @@ class PersistedPrintProductDefinition
         $matches = ['oui' => [], 'non' => []];
         $labels = $parentDefinition['value_labels'] ?? null;
         foreach (is_array($labels) ? $labels : [] as $canonical => $label) {
-            if (!is_string($label) || (!is_string($canonical) && !is_int($canonical))) {
+            if (!is_string($label)) {
                 continue;
             }
             $meaning = mb_strtolower(trim($label));
@@ -220,9 +220,6 @@ class PersistedPrintProductDefinition
         if ([] === $matches['oui'] && [] === $matches['non']) {
             $allowed = $parentDefinition['allowed_values'] ?? null;
             foreach (is_array($allowed) ? $allowed : [] as $canonical) {
-                if (!is_string($canonical) && !is_int($canonical)) {
-                    continue;
-                }
                 $meaning = mb_strtolower(trim((string) $canonical));
                 if (isset($matches[$meaning])) {
                     $matches[$meaning][] = (string) $canonical;
