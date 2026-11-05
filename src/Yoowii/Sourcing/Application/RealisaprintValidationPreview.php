@@ -12,7 +12,7 @@ final class RealisaprintValidationPreview
 {
     /**
      * @param array<string, mixed> $catalog
-     * @param array<string, string|int> $sampleConfiguration
+     * @param array<string, string|int|float> $sampleConfiguration
      *
      * @return array{stock: string, stock_label: string, stock_valid: bool, rows: list<array{label: string, option: string, default: string, default_value: string, provider_default: string, provider_default_value: string, sample: string, variable: string, provider_label: string, provider_value: string, mapped: int, total: int, covered: bool}>, covered: bool}
      */
