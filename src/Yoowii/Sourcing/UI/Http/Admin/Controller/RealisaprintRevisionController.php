@@ -27,6 +27,7 @@ final class RealisaprintRevisionController extends AbstractController
         if (!$csrf->isTokenValid(new CsrfToken('create_realisaprint_revision_' . $routeId, (string) $request->request->get('_token')))) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
+
         try {
             $mapping = $revisions->create($route);
             $this->addFlash('success', 'La révision brouillon a été créée. La version publiée reste en service jusqu’à la prochaine publication.');
