@@ -34,9 +34,6 @@ final class RealisaprintValidationPreview
         $rows = [];
         $covered = $stockValid && count($rules) === count($variables);
         foreach ($definition->options() as $code => $option) {
-            if (!is_string($code) || !is_array($option)) {
-                continue;
-            }
             $entry = $byOption[$code] ?? [];
             $id = $entry['id'] ?? '';
             $rule = $entry['rule'] ?? [];
@@ -49,8 +46,11 @@ final class RealisaprintValidationPreview
             $mapped = 0;
             $fixed = 'text' === ($source['type'] ?? null) && true === ($source['readonly'] ?? false) &&
                 false === $sourceValues && is_string($source['default'] ?? null) && '' !== trim($source['default']) &&
-                1 === count($allowed) && ($values[(string) $allowed[0]] ?? null) === (string) $source['default'];
+                1 === count($allowed) && is_scalar($allowed[0]) && ($values[(string) $allowed[0]] ?? null) === (string) $source['default'];
             foreach ($allowed as $value) {
+                if (!is_scalar($value)) {
+                    continue;
+                }
                 $providerValue = $values[(string) $value] ?? null;
                 if ($fixed || (is_scalar($providerValue) && is_array($sourceValues) && array_key_exists((string) $providerValue, $sourceValues))) {
                     ++$mapped;
@@ -61,7 +61,7 @@ final class RealisaprintValidationPreview
                 ($option['provider_variable'] ?? null) === $id &&
                 ($free || $fixed || ([] !== $allowed && $mapped === count($allowed) && count($values) === count($allowed)));
             $covered = $covered && $rowCovered;
-            $providerValue = $free ? $sample : ($values[(string) $sample] ?? null);
+            $providerValue = $free ? $sample : (is_scalar($sample) ? ($values[(string) $sample] ?? null) : null);
             $labels = is_array($option['value_labels'] ?? null) ? $option['value_labels'] : [];
             $default = is_scalar($option['default'] ?? null) ? (string) $option['default'] : '';
             $providerDefault = is_scalar($source['default'] ?? null) ? (string) $source['default'] : '';
@@ -73,14 +73,18 @@ final class RealisaprintValidationPreview
                     break;
                 }
             }
+            $sourceValueLabels = is_array($sourceValues) ? $sourceValues : [];
+            $displayDefault = $labels[$default] ?? $default;
+            $displayProviderDefault = $sourceValueLabels[$providerDefault] ?? $providerDefault;
+            $displaySample = is_scalar($sample) ? ($labels[(string) $sample] ?? $sample) : null;
             $rows[] = [
                 'label' => is_string($option['label'] ?? null) ? $option['label'] : $code,
                 'option' => $code,
-                'default' => '' === $default ? '—' : (string) ($labels[$default] ?? $default),
+                'default' => '' === $default ? '—' : (is_scalar($displayDefault) ? (string) $displayDefault : $default),
                 'default_value' => '' === $default ? '' : $default,
-                'provider_default' => '' === $providerDefault ? '—' : (string) ($sourceValues[$providerDefault] ?? $providerDefault),
+                'provider_default' => '' === $providerDefault ? '—' : (is_scalar($displayProviderDefault) ? (string) $displayProviderDefault : $providerDefault),
                 'provider_default_value' => '' === $providerDefault ? '' : $providerDefault,
-                'sample' => null === $sample ? '—' : (string) ($labels[(string) $sample] ?? $sample),
+                'sample' => null === $displaySample ? '—' : (is_scalar($displaySample) ? (string) $displaySample : '—'),
                 'variable' => $id,
                 'provider_label' => is_string($source['name'] ?? null) ? $source['name'] : '',
                 'provider_value' => is_scalar($providerValue) ? (string) $providerValue : '—',
