@@ -54,13 +54,13 @@ final class SynchronizeLinkedRealisaprintConfigurationsCommand extends Command
                 $output->writeln(sprintf('<info>%s: configuration refreshed.</info>', $providerId));
                 foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['supplierProduct' => $route->supplierProduct(), 'active' => true]) as $mapping) {
                     $definition = $mapping->printProductDefinition();
+                    /** @var array<string, mixed>|null $provider */
                     $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
 
                     try {
                         if (!$definition instanceof PersistedPrintProductDefinition || !is_array($provider)) {
                             throw new \InvalidArgumentException('Missing product definition or supplier mapping.');
                         }
-                        /** @var array<string, mixed> $provider */
                         $this->completeness->assertComplete($definition, $product->configuration() ?? [], $provider);
                     } catch (\InvalidArgumentException $exception) {
                         $output->writeln(sprintf('<error>%s / %s: intervention required: %s</error>', $providerId, $mapping->yoowiiProductCode(), $exception->getMessage()));
