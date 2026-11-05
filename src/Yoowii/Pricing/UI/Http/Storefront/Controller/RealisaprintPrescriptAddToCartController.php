@@ -67,9 +67,9 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         $quantity = $input['quantity'] ?? null;
         $delivery = $input['delivery'] ?? null;
         $key = $input['idempotency_key'] ?? null;
-        if (!is_scalar($quantity) || !ctype_digit((string) $quantity) || (int) $quantity < 1 || (int) $quantity > 1000000
-            || !is_string($delivery) || !in_array($delivery, ['standard', 'urgence', 'express'], true)
-            || !is_string($key) || !preg_match('/^[a-zA-Z0-9_-]{16,100}$/D', $key)) {
+        if (!is_scalar($quantity) || !ctype_digit((string) $quantity) || (int) $quantity < 1 || (int) $quantity > 1000000 ||
+            !is_string($delivery) || !in_array($delivery, ['standard', 'urgence', 'express'], true) ||
+            !is_string($key) || !preg_match('/^[a-zA-Z0-9_-]{16,100}$/D', $key)) {
             return $this->failure('Quantité, délai ou identifiant de demande invalide.', 422);
         }
         $session = $request->getSession();
@@ -112,8 +112,8 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         }
         $variables = [];
         foreach ($raw as $name => $value) {
-            if (!is_string($name) || !preg_match('/^VARTICLE_\d+_$/D', $name)
-                || !is_scalar($value) || strlen((string) $value) > 500) {
+            if (!is_string($name) || !preg_match('/^VARTICLE_\d+_$/D', $name) ||
+                !is_scalar($value) || strlen((string) $value) > 500) {
                 return $this->failure('Variable fournisseur invalide.', 422);
             }
             if ('' !== trim((string) $value)) {
@@ -127,8 +127,8 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         $quantityVariable = is_array($diagnostic) && is_string($diagnostic['quantity'] ?? null) ? $diagnostic['quantity'] : null;
         $deliveryVariable = is_array($diagnostic) && is_string($diagnostic['delivery'] ?? null) ? $diagnostic['delivery'] : null;
         if (is_array($diagnostic)) {
-            if (null !== $quantityVariable && isset($variables[$quantityVariable])
-                && $variables[$quantityVariable] !== (string) $quantity) {
+            if (null !== $quantityVariable && isset($variables[$quantityVariable]) &&
+                $variables[$quantityVariable] !== (string) $quantity) {
                 return $this->failure('La quantité fournisseur ne correspond pas à votre sélection.', 422);
             }
             if (null !== $deliveryVariable && isset($variables[$deliveryVariable])) {
@@ -159,8 +159,8 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
             ]);
             $code = $saved['code'] ?? null;
             $status = $saved['_http_status'] ?? 200;
-            if (!is_int($status) || $status < 200 || $status >= 300 || RealisaprintResponseError::isPresent($saved)
-                || !is_scalar($code) || !preg_match('/^\d+$/D', (string) $code)) {
+            if (!is_int($status) || $status < 200 || $status >= 300 || RealisaprintResponseError::isPresent($saved) ||
+                !is_scalar($code) || !preg_match('/^\d+$/D', (string) $code)) {
                 $logger->warning('Realisaprint Prescript save_configuration was rejected.', [
                     'product_code' => $productCode,
                     'mapping_id' => $mapping->id(),
