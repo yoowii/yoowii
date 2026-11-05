@@ -94,11 +94,13 @@ final readonly class RealisaprintMappingValidator
             }
             if (!is_array($allowed)) {
                 $errors[] = sprintf('Les valeurs de l’axe « %s » sont invalides.', $option);
+
                 continue;
             }
             foreach ($allowed as $value) {
                 if (!is_scalar($value)) {
                     $errors[] = sprintf('Une valeur non valide de « %s » n’est pas couverte.', $option);
+
                     continue;
                 }
                 if (!array_key_exists((string) $value, $values)) {
