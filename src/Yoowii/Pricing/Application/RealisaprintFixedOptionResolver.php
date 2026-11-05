@@ -68,7 +68,7 @@ final readonly class RealisaprintFixedOptionResolver
     }
 
     /** @param array<mixed> $values */
-    private function canonicalValue(mixed $fixedValue, array $values): string|int|float|null
+    private function canonicalValue(mixed $fixedValue, array $values): string|int|null
     {
         foreach ($values as $canonical => $providerValue) {
             if (is_scalar($providerValue) && is_scalar($fixedValue) && (string) $providerValue === (string) $fixedValue) {
