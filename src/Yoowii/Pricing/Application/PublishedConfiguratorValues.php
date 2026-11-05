@@ -13,7 +13,12 @@ final class PublishedConfiguratorValues
     {
     }
 
-    /** @param list<array<string, mixed>> $schemas @param array<string, mixed> $values @param array<string, array{value: string|int|float, label: string}> $fixed */
+    /**
+     * @param list<array<string, mixed>> $schemas
+     * @param array<string, mixed> $values
+     * @param array<string, array{value: string|int|float, label: string}> $fixed
+     * @return array<string, mixed>
+     */
     public function resolve(PrintProductDefinition $definition, array $schemas, array $values, array $fixed = []): array
     {
         foreach ($fixed as $code => $field) {
@@ -73,10 +78,13 @@ final class PublishedConfiguratorValues
         return $default;
     }
 
-    /** @param array<string, mixed> $schema @param array<string, mixed> $values */
+    /**
+     * @param array<string, mixed> $schema
+     * @param array<string, mixed> $values
+     */
     public function isVisible(array $schema, array $values): bool
     {
-        if ((int) ($schema['position'] ?? 0) <= 0 || true === ($schema['fixed'] ?? false)) {
+        if (self::intOrDefault($schema['position'] ?? null, 0) <= 0 || true === ($schema['fixed'] ?? false)) {
             return false;
         }
         $dependency = $schema['depends_on'] ?? null;
@@ -84,24 +92,42 @@ final class PublishedConfiguratorValues
             return true;
         }
 
-        return array_key_exists($dependency['option'] ?? '', $values)
-            && (string) $values[$dependency['option']] === (string) ($dependency['value'] ?? '');
+        $option = $dependency['option'] ?? null;
+        if (!is_string($option) || !array_key_exists($option, $values)) {
+            return false;
+        }
+
+        return self::stringOrDefault($values[$option], '') === self::stringOrDefault($dependency['value'] ?? null, '');
     }
 
-    /** @param list<array<string, mixed>> $schemas @param array<string, mixed> $values */
+    /**
+     * @param list<array<string, mixed>> $schemas
+     * @param array<string, mixed> $values
+     * @return list<array<string, mixed>>
+     */
     public function visible(array $schemas, array $values): array
     {
         $visible = array_values(array_filter($schemas, fn (array $schema): bool => $this->isVisible($schema, $values)));
         usort($visible, static fn (array $left, array $right): int => [
-            (int) ($left['area'] ?? 1),
-            (int) ($left['position'] ?? 0),
-            (string) ($left['code'] ?? ''),
+            self::intOrDefault($left['area'] ?? null, 1),
+            self::intOrDefault($left['position'] ?? null, 0),
+            self::stringOrDefault($left['code'] ?? null, ''),
         ] <=> [
-            (int) ($right['area'] ?? 1),
-            (int) ($right['position'] ?? 0),
-            (string) ($right['code'] ?? ''),
+            self::intOrDefault($right['area'] ?? null, 1),
+            self::intOrDefault($right['position'] ?? null, 0),
+            self::stringOrDefault($right['code'] ?? null, ''),
         ]);
 
         return $visible;
+    }
+
+    private static function intOrDefault(mixed $value, int $default): int
+    {
+        return is_scalar($value) ? (int) $value : $default;
+    }
+
+    private static function stringOrDefault(mixed $value, string $default): string
+    {
+        return is_scalar($value) ? (string) $value : $default;
     }
 }
