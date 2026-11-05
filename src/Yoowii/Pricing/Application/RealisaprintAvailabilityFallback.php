@@ -61,7 +61,8 @@ final class RealisaprintAvailabilityFallback
                 $values[$axis] = $providerCurrent;
                 continue;
             }
-            foreach (($option['allowed_values'] ?? []) as $candidate) {
+            $allowed = $option['allowed_values'] ?? null;
+            foreach (is_array($allowed) ? $allowed : [] as $candidate) {
                 if (is_scalar($candidate) && in_array((string) $candidate, $available, true)) {
                     $values[$axis] = (string) $candidate;
                     continue 2;
