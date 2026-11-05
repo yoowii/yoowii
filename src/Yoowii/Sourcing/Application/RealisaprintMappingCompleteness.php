@@ -31,11 +31,12 @@ final class RealisaprintMappingCompleteness
         $expectedIds = [];
         foreach ($providerVariables as $id => $variable) {
             if (is_string($id) && is_array($variable)) {
-                /** @var array<string, mixed> $variable */
-                if ($this->isSupplierOwnedReadonlyText($variable)) {
+                /** @var array<string, mixed> $typedVariable */
+                $typedVariable = $variable;
+                if ($this->isSupplierOwnedReadonlyText($typedVariable)) {
                     continue;
                 }
-                $expectedIds[$id] = $variable;
+                $expectedIds[$id] = $typedVariable;
             }
         }
         if ([] === $expectedIds) {
