@@ -165,9 +165,10 @@ final class RealisaprintMappingController extends AbstractController
                     throw new \InvalidArgumentException(sprintf('Les valeurs de %s sont invalides.', $row->providerVariable));
                 }
             }
-            /** @var array<string, bool|float|int|string> $values */
+            /** @var array<string, bool|float|int|string> $typedValues */
+            $typedValues = $values;
             $providerVariable = trim($row->providerVariable);
-            $rule = ['option' => trim($row->option), 'values' => $values];
+            $rule = ['option' => trim($row->option), 'values' => $typedValues];
             $configurationVariables = $configuration['variables'] ?? null;
             $variable = is_array($configurationVariables) ? ($configurationVariables[$providerVariable] ?? null) : null;
             if (is_array($variable) && true === ($variable['quantity'] ?? false)) {
