@@ -53,7 +53,8 @@ jobs:
       group: deploy-yoowii-preprod
       cancel-in-progress: false
     steps:
-      - name: Deploy immutable image tag through restricted SSH
+      - uses: actions/checkout@v4
+      - name: Deploy immutable images and matching Compose through restricted SSH
         env:
           SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
           SSH_HOST_KEY: ${{ secrets.PREPROD_SSH_HOST_KEY }}
@@ -69,5 +70,6 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          test -s compose.preprod.yml
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15 \
-            "$USER@$HOST" "sudo -n /usr/local/sbin/yoowii-deploy-preprod $IMAGE_SHA"
+            "$USER@$HOST" "sudo -n /usr/local/sbin/yoowii-deploy-preprod $IMAGE_SHA" < compose.preprod.yml
