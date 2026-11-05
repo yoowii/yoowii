@@ -173,6 +173,7 @@ class PersistedPrintProductDefinition
             if (!$type instanceof PrintOptionType) {
                 throw new \DomainException(sprintf('Invalid type for print option "%s".', $code));
             }
+            /** @var list<string|int>|mixed $allowed */
             $allowed = $item['allowed_values'] ?? [];
             if (!is_array($allowed) || !array_is_list($allowed)) {
                 throw new \DomainException('Invalid allowed values.');
@@ -182,7 +183,6 @@ class PersistedPrintProductDefinition
                     throw new \DomainException(sprintf('Invalid allowed value for print option "%s".', $code));
                 }
             }
-            /** @var list<string|int> $allowed */
             $min = $item['minimum'] ?? null;
             $max = $item['maximum'] ?? null;
             if (null !== $min && !is_numeric($min)) {
