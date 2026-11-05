@@ -48,6 +48,7 @@ final readonly class RealisaprintDraftPicturePreview
 
     /**
      * @param array<string, mixed>|null $configuration
+     *
      * @return array<string, bool|float|int|string>
      */
     private function defaultVariables(?array $configuration): array
@@ -64,6 +65,7 @@ final readonly class RealisaprintDraftPicturePreview
             $default = $variable['default'] ?? null;
             if (is_scalar($default) && '' !== trim((string) $default)) {
                 $defaults[$id] = $default;
+
                 continue;
             }
             if (is_array($variable['values'] ?? null) && [] !== $variable['values']) {
