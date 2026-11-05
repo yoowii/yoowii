@@ -36,7 +36,8 @@ final readonly class RealisaprintDraftPicturePreview
         }
 
         $pictures = [];
-        foreach ($response['pictures'] ?? [] as $picture) {
+        $providerPictures = $response['pictures'] ?? null;
+        foreach (is_array($providerPictures) ? $providerPictures : [] as $picture) {
             if (is_string($picture) && RealisaprintClient::isPictureUrl($picture)) {
                 $pictures[$picture] = $picture;
             }
@@ -45,7 +46,10 @@ final readonly class RealisaprintDraftPicturePreview
         return array_values($pictures);
     }
 
-    /** @param array<string, mixed>|null $configuration @return array<string, bool|float|int|string> */
+    /**
+     * @param array<string, mixed>|null $configuration
+     * @return array<string, bool|float|int|string>
+     */
     private function defaultVariables(?array $configuration): array
     {
         $variables = is_array($configuration) ? ($configuration['variables'] ?? []) : [];
@@ -64,7 +68,7 @@ final readonly class RealisaprintDraftPicturePreview
             }
             if (is_array($variable['values'] ?? null) && [] !== $variable['values']) {
                 $first = array_key_first($variable['values']);
-                if (is_string($first) || is_int($first)) {
+                if (null !== $first) {
                     $defaults[$id] = $first;
                 }
             }
