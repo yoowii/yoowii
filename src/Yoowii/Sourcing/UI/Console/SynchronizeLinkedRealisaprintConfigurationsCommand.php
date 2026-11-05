@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Console;
 
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Sourcing\Application\RealisaprintCatalogSynchronizer;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingCompleteness;
-use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
-use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\RealisaprintCatalogProduct;
+use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -45,14 +45,17 @@ final class SynchronizeLinkedRealisaprintConfigurationsCommand extends Command
             if (!$product instanceof RealisaprintCatalogProduct) {
                 $output->writeln(sprintf('<error>%s: missing catalogue entry.</error>', $providerId));
                 $failed = true;
+
                 continue;
             }
+
             try {
                 $this->synchronizer->synchronizeConfiguration($product, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
                 $output->writeln(sprintf('<info>%s: configuration refreshed.</info>', $providerId));
                 foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['supplierProduct' => $route->supplierProduct(), 'active' => true]) as $mapping) {
                     $definition = $mapping->printProductDefinition();
                     $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
+
                     try {
                         if (!$definition instanceof PersistedPrintProductDefinition || !is_array($provider)) {
                             throw new \InvalidArgumentException('Missing product definition or supplier mapping.');
