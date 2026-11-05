@@ -42,6 +42,7 @@ final readonly class RealisaprintDraftTaxonResolver
 
     /**
      * @param list<Taxon> $taxons
+     *
      * @return list<Taxon>
      */
     private function matchingTaxons(array $taxons, string $candidate): array
