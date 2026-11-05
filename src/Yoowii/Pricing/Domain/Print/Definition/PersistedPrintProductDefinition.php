@@ -15,6 +15,7 @@ class PersistedPrintProductDefinition
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (assigned by Doctrine ORM hydration) */
     private ?int $id = null;
 
     #[ORM\Column(type: Types::BOOLEAN)]
