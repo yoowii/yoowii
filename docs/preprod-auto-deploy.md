@@ -11,7 +11,7 @@ This setup only redeploys `php` and `nginx`; it deliberately never runs migratio
    `deploy-yoowii ALL=(root) NOPASSWD: /usr/local/sbin/yoowii-deploy-preprod *`
    The executable validates its sole argument as a full SHA and is root-owned. Do not grant Docker group access or general sudo.
 3. Root must have read access to GHCR images via its existing Docker login.
-4. Install the reviewed `compose.preprod.yml` initially; after bootstrap, **every deployment transfers the Compose file from the same Git commit as the image pair**, validates it against the existing VPS `.env`, and atomically swaps it with the application images. Never commit or transmit `.env`.
+4. Install the reviewed `compose.preprod.yml` initially; after bootstrap, **every deployment transfers the Compose file from the same Git commit as the image pair**, validates it against the existing VPS `.env`, rejects changes to protected infrastructure (MySQL/Redis services, top-level networks/volumes, PHP/Nginx mounts and networking), and atomically swaps it with the application images. Never commit or transmit `.env`.
 5. **Before enabling this workflow**, upgrade `/usr/local/sbin/yoowii-deploy-preprod` using the reviewed `scripts/preprod/deploy-vps.sh` on this branch. The new script requires the pinned Compose via stdin. Do not merge until the server-side script is installed, or the existing workflow will fail.
 6. Place Realisaprint credentials only in `/opt/yoowii/preprod/.env` (mode 600); never in GitHub logs or files. Check that Compose passes the variables through to PHP.
 7. Confirm `YOOWII_IMAGE_TAG` points to an already-deployed immutable `sha-...` image.
@@ -28,7 +28,9 @@ The workflow checks out the GitHub commit (or fetches the exact requested commit
 
 1. Review the new script in the PR. Save an independent backup of the currently installed executable: `cp -p /usr/local/sbin/yoowii-deploy-preprod /usr/local/sbin/yoowii-deploy-preprod.bak-issue3`.
 2. Transfer the **reviewed** `scripts/preprod/deploy-vps.sh` from the feature branch to a temporary file on the VPS (do not pipe directly into a shell), check it with `bash -n`, then install with `install -o root -g root -m 0755 ... /usr/local/sbin/yoowii-deploy-preprod`.
-3. Confirm existing `.env`, live Compose, backup and application health before merging. Run a single manual staging deployment using the new protocol and check that both image tag and Compose match the selected SHA.
+3. Confirm Python 3 is available on the VPS (`python3 --version`); the infrastructure-drift guard uses only the Python standard library.
+4. Confirm existing `.env`, live Compose, backup and application health before merging. Run a single manual staging deployment using the new protocol and check that both image tag and Compose match the selected SHA.
+5. Test both rejection of an invalid Compose file and rejection of a valid Compose with a protected MySQL/Redis/network/volume change; ensure the site remains healthy.
 4. To back out before any deployment, restore the saved executable. If a new workflow is active, revert the workflow change before restoring the older single-argument script.
 
 ## Manual recovery
