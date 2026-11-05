@@ -28,7 +28,7 @@ final class StorefrontProductSearch
 
         $products = [];
         foreach ($this->productRepository->findBy(['enabled' => true]) as $product) {
-            if (!$product instanceof Product || !$product->hasChannel($this->channelContext->getChannel())) {
+            if (!$product->hasChannel($this->channelContext->getChannel())) {
                 continue;
             }
 
