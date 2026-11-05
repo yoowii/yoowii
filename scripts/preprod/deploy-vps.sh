@@ -19,13 +19,25 @@ old_tag="$(sed -n 's/^YOOWII_IMAGE_TAG=//p' .env | tail -1)"
 
 staged="$(mktemp "$dir/.compose.preprod.staged.XXXXXXXX")"
 backup="$(mktemp "$dir/.compose.preprod.previous.XXXXXXXX")"
+pinned="$(mktemp "$dir/.compose.preprod.pinned.XXXXXXXX")"
 env_tmp=""
-cleanup() { rm -f "$staged" "$backup"; [[ -z "$env_tmp" ]] || rm -f "$env_tmp"; }
+cleanup() { rm -f "$staged" "$backup" "$pinned"; [[ -z "$env_tmp" ]] || rm -f "$env_tmp"; }
 trap cleanup EXIT
 
 # CI sends the committed Compose via SSH stdin; never read untrusted server paths.
 cat > "$staged"
 [[ -s "$staged" && "$(wc -c < "$staged")" -le 131072 ]] || { echo "Invalid or oversized Compose payload" >&2; exit 6; }
+# A SHA argument alone is not proof that stdin belongs to the commit.
+# Never run a caller-supplied Compose as root without checking its provenance.
+curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+  --connect-timeout 8 --max-time 40 \
+  --output "$pinned" \
+  "https://raw.githubusercontent.com/yoowii/yoowii/$1/compose.preprod.yml"
+if ! cmp -s "$staged" "$pinned"; then
+  echo "Compose payload differs from the immutable GitHub commit $1" >&2
+  exit 8
+fi
+echo "Pinned Compose verified against GitHub commit $1"
 cp -p compose.preprod.yml "$backup"
 chown --reference=compose.preprod.yml "$staged"
 chmod --reference=compose.preprod.yml "$staged"
@@ -44,7 +56,7 @@ done
 old_model="$(mktemp "$dir/.compose.preprod.old-json.XXXXXXXX")"
 new_model="$(mktemp "$dir/.compose.preprod.new-json.XXXXXXXX")"
 cleanup() {
-  rm -f "$staged" "$backup" "$old_model" "$new_model"
+  rm -f "$staged" "$backup" "$pinned" "$old_model" "$new_model"
   [[ -z "$env_tmp" ]] || rm -f "$env_tmp"
 }
 YOOWII_IMAGE_TAG="$tag" docker compose --env-file "$dir/.env" -f "$dir/compose.preprod.yml" config --format json > "$old_model"
