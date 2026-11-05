@@ -130,7 +130,7 @@ final class RealisaprintMappingController extends AbstractController
                 if (is_array($allowed) && is_array($providerValues) &&
                     array_diff(array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', $allowed), array_keys($candidate)) === [] &&
                     array_diff(array_keys($candidate), array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', $allowed)) === [] &&
-                    array_diff(array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', array_values($candidate)), array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', array_keys($providerValues))) === []) {
+                    array_diff(array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', array_values($candidate)), array_map(static fn (int|string $value): string => (string) $value, array_keys($providerValues))) === []) {
                     $values = $candidate;
                 }
             }
