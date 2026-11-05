@@ -35,9 +35,15 @@ final class SourcingProductOverviewBuilderTest extends TestCase
 
         $overview = (new SourcingProductOverviewBuilder())->build([$route], [$mapping], [], new \DateTimeImmutable('2026-10-14T00:00:00+00:00'));
 
-        self::assertContains('Le fournisseur API principal n’a pas de mapping applicable.', $overview['PRINT_FLYER']['errors']);
-        self::assertSame([$mapping], $overview['PRINT_FLYER']['future']['mappings']);
-        self::assertContains('Des changements sont planifiés.', $overview['PRINT_FLYER']['recommendations']);
+        $errors = $overview['PRINT_FLYER']['errors'];
+        self::assertIsArray($errors);
+        self::assertContains('Le fournisseur API principal n’a pas de mapping applicable.', $errors);
+        $future = $overview['PRINT_FLYER']['future'];
+        self::assertIsArray($future);
+        self::assertSame([$mapping], $future['mappings']);
+        $recommendations = $overview['PRINT_FLYER']['recommendations'];
+        self::assertIsArray($recommendations);
+        self::assertContains('Des changements sont planifiés.', $recommendations);
     }
 
     public function testAnUnpublishedCurrentApiMappingDoesNotMakeTheRouteStorefrontReady(): void
