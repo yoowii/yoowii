@@ -119,8 +119,17 @@ final class RealisaprintClientTest extends TestCase
 
         self::assertSame('warning', $logger->records[0]['level']);
         self::assertSame('Realisaprint API rejected a request.', $logger->records[0]['message']);
-        self::assertSame('Variable requise', $logger->records[0]['context']['supplier_error']['message']);
-        self::assertSame('252', $logger->records[0]['context']['request']['product']);
-        self::assertArrayNotHasKey('value', $logger->records[0]['context']['request']['variables']['VARTICLE_1_']);
+        $context = $logger->records[0]['context'];
+        $supplierError = $context['supplier_error'] ?? null;
+        $request = $context['request'] ?? null;
+        self::assertIsArray($supplierError);
+        self::assertIsArray($request);
+        self::assertSame('Variable requise', $supplierError['message']);
+        self::assertSame('252', $request['product']);
+        $variables = $request['variables'] ?? null;
+        self::assertIsArray($variables);
+        $variable = $variables['VARTICLE_1_'] ?? null;
+        self::assertIsArray($variable);
+        self::assertArrayNotHasKey('value', $variable);
     }
 }
