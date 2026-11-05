@@ -18,16 +18,19 @@ final class RealisaprintAvailabilityFallback
     {
         $schemas = [];
         foreach ($definition->options() as $code => $option) {
-            if (is_string($code) && is_array($option)) {
-                $schemas[] = ['code' => $code] + $option;
-            }
+            $schemas[] = ['code' => $code] + $option;
         }
 
         return $this->applyToSchema($values, $state, $schemas, $definition->pricingAxes());
     }
 
-    /** @param array<string, string|int|float> $values @param array{availability: array<string, list<string>>, current: array<string, string>} $state @param list<array<string, mixed>> $schemas @param list<string> $axes
-     * @return array<string, string|int|float> */
+    /**
+     * @param array<string, string|int|float> $values
+     * @param array{availability: array<string, list<string>>, current: array<string, string>} $state
+     * @param list<array<string, mixed>> $schemas
+     * @param list<string> $axes
+     * @return array<string, string|int|float>
+     */
     public function applyToSchema(array $values, array $state, array $schemas, array $axes): array
     {
         $options = [];
