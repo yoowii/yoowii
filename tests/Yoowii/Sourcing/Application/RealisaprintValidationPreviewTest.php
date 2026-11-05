@@ -42,7 +42,9 @@ final class RealisaprintValidationPreviewTest extends TestCase
         $values = $delay['values'] ?? null;
         self::assertIsArray($values);
         unset($values[2]);
-        $catalog['variables']['VARTICLE_28524_']['values'] = $values;
+        $delay['values'] = $values;
+        $variables['VARTICLE_28524_'] = $delay;
+        $catalog['variables'] = $variables;
         $preview = (new RealisaprintValidationPreview())->build(
             $this->definition(),
             $this->mapping(['standard' => '0', 'express' => '2']),
