@@ -36,7 +36,7 @@ final class WarmRealisaprintDisplayStatesCommand extends Command
         $failed = false;
 
         foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['active' => true]) as $mapping) {
-            if (!$mapping instanceof SupplierProductMappingVersion || 'realisaprint' !== $mapping->supplierProduct()->supplier()->code() || !$mapping->isEffectiveAt($now)) {
+            if ('realisaprint' !== $mapping->supplierProduct()->supplier()->code() || !$mapping->isEffectiveAt($now)) {
                 continue;
             }
 
