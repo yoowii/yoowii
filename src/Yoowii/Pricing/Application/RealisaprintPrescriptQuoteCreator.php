@@ -94,6 +94,7 @@ final readonly class RealisaprintPrescriptQuoteCreator
         if (!is_scalar($value) || !ctype_digit((string) $value)) {
             throw new \DomainException('Realisaprint a retourné un délai invalide.');
         }
+
         return (int) $value;
     }
 
