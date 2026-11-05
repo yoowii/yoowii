@@ -97,7 +97,11 @@ final readonly class RealisaprintMappingValidator
                 continue;
             }
             foreach ($allowed as $value) {
-                if (!is_scalar($value) || !array_key_exists((string) $value, $values)) {
+                if (!is_scalar($value)) {
+                    $errors[] = sprintf('Une valeur non valide de « %s » n’est pas couverte.', $option);
+                    continue;
+                }
+                if (!array_key_exists((string) $value, $values)) {
                     $errors[] = sprintf('La valeur « %s » de « %s » n’est pas couverte.', (string) $value, $option);
                 }
             }
