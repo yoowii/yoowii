@@ -49,7 +49,7 @@ cleanup() {
 }
 YOOWII_IMAGE_TAG="$tag" docker compose --env-file "$dir/.env" -f "$dir/compose.preprod.yml" config --format json > "$old_model"
 YOOWII_IMAGE_TAG="$tag" docker compose --env-file "$dir/.env" -f "$staged" config --format json > "$new_model"
-python3 - "$old_model" "$new_model" <<'PY'
+python3 - "$old_model" "$new_model" "$tag" <<'PY'
 import json
 import sys
 
@@ -73,6 +73,9 @@ for name in ("networks", "volumes", "secrets", "configs"):
 for name in ("php", "nginx"):
     before = old["services"].get(name, {})
     after = new["services"][name]
+    expected_image = f"ghcr.io/yoowii/yoowii-{name}:{sys.argv[3]}"
+    if after.get("image") != expected_image:
+        sys.exit(f"Unsafe Compose: {name} image must be {expected_image}.")
     for field in ("volumes", "networks", "ports", "expose", "network_mode",
                   "privileged", "devices", "cap_add", "pid", "ipc",
                   "userns_mode", "secrets", "configs"):
