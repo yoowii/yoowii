@@ -54,14 +54,20 @@ final class StorefrontInitialConfiguratorValues
         return $values;
     }
 
-    /** @param array<string, mixed> $schema @param list<string|int|float> $allowed */
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string|int|float> $allowed
+     */
     private function nonValue(array $schema, array $allowed): string|int|float|null
     {
         if ('checkbox' !== ($schema['type'] ?? null)) {
             return null;
         }
+        $labels = $schema['values'] ?? null;
+        $labels = is_array($labels) ? $labels : [];
         foreach ($allowed as $value) {
-            $label = is_string($schema['values'][(string) $value] ?? null) ? $schema['values'][(string) $value] : $value;
+            $candidate = $labels[(string) $value] ?? null;
+            $label = is_string($candidate) ? $candidate : $value;
             if ('non' === mb_strtolower(trim((string) $label))) {
                 return $value;
             }
