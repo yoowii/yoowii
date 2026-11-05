@@ -129,7 +129,10 @@ final readonly class RealisaprintLiveQuoteCalculator
             throw new RealisaprintQuoteException($reason, 'Realisaprint API transport failed.');
         }
 
-        $priceResponse = $response['price'];
+        $priceResponse = $response['price'] ?? null;
+        if (!is_array($priceResponse)) {
+            throw new RealisaprintQuoteException(QuoteFallbackReason::ApiResponseInvalid, 'Realisaprint returned an invalid price response.');
+        }
 
         try {
             $productionCost = $this->cents($priceResponse['price'] ?? null, 'price');
@@ -150,6 +153,10 @@ final readonly class RealisaprintLiveQuoteCalculator
         $this->popularity->record($mapped['fingerprint'], $mapped['version']);
         $margin = $pricingPolicy->calculateMargin($supplierCost);
         $total = $supplierCost + $margin + $pricingPolicy->handlingFee();
+        $providerConfiguration = $response['configuration'] ?? null;
+        $providerCode = is_array($providerConfiguration) && is_scalar($providerConfiguration['code'] ?? null)
+            ? (string) $providerConfiguration['code']
+            : null;
         $snapshot = new PricingSnapshot(
             'print.realisaprint_api',
             sprintf('%s@%s', $pricingPolicy->version(), $mapped['version']),
@@ -158,7 +165,7 @@ final readonly class RealisaprintLiveQuoteCalculator
                 'supplier_product_code' => $route->supplierProduct()->code(),
                 'mapping_version' => $mapped['version'],
                 'configuration_fingerprint' => $mapped['fingerprint'],
-                'provider_configuration_code' => is_scalar($response['configuration']['code'] ?? null) ? (string) $response['configuration']['code'] : '',
+                'provider_configuration_code' => $providerCode ?? '',
                 'provider_price' => $productionCost,
                 'provider_options_cost' => $optionsCost,
                 'quote_cache_ttl' => $this->cacheTtl,
@@ -168,14 +175,14 @@ final readonly class RealisaprintLiveQuoteCalculator
             $total,
             $currencyCode,
             $at,
-            new QuoteTrace($cacheMiss ? QuoteSource::RealisaprintApi : QuoteSource::RealisaprintCache, $route->supplierProduct()->supplier()->code(), $route->supplierProduct()->code(), $mapped['version'], is_scalar($response['configuration']['code'] ?? null) ? (string) $response['configuration']['code'] : null, $correlationId, $at),
+            new QuoteTrace($cacheMiss ? QuoteSource::RealisaprintApi : QuoteSource::RealisaprintCache, $route->supplierProduct()->supplier()->code(), $route->supplierProduct()->code(), $mapped['version'], $providerCode, $correlationId, $at),
         );
 
         return new PrintQuote($snapshot, 'realisaprint', $route->supplierProduct()->code(), 'api:' . $mapped['version'], $mapped['fingerprint'], $productionCost, $optionsCost, $margin, $pricingPolicy->handlingFee());
     }
 
     /**
-     * @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string} $mapped
+     * @param array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string, quote_quantity: int} $mapped
      * @param callable(string, array<string, mixed>, array<string, mixed>|null): void|null $onApiCall
      *
      * @return array{configuration: array<string, mixed>, price: array<string, mixed>}
@@ -196,11 +203,15 @@ final readonly class RealisaprintLiveQuoteCalculator
         try {
             $price = $this->client->post('get_price', $priceRequest);
         } catch (\Throwable $exception) {
-            $onApiCall?->__invoke('get_price', $priceRequest, null);
+            if (null !== $onApiCall) {
+                $onApiCall('get_price', $priceRequest, null);
+            }
 
             throw $exception;
         }
-        $onApiCall?->__invoke('get_price', $priceRequest, $price);
+        if (null !== $onApiCall) {
+            $onApiCall('get_price', $priceRequest, $price);
+        }
         if (isset($price['error'])) {
             throw new RealisaprintQuoteException(QuoteFallbackReason::ApiPriceMissing, 'Realisaprint did not return a price.');
         }
@@ -234,17 +245,25 @@ final readonly class RealisaprintLiveQuoteCalculator
         }, 0.0);
     }
 
-    /** @param array{product: string, stock: string, variables: array<string, bool|float|int|string>} $saveRequest */
+    /**
+     * @param array{product: string, stock: string, variables: array<string, bool|float|int|string>} $saveRequest
+     * @param callable(string, array<string, mixed>, array<string, mixed>|null): void|null $onApiCall
+     * @return array<string, mixed>
+     */
     private function saveConfiguration(array $saveRequest, ?callable $onApiCall = null): array
     {
         try {
             $saved = $this->client->post('save_configuration', $saveRequest);
         } catch (\Throwable $exception) {
-            $onApiCall?->__invoke('save_configuration', $saveRequest, null);
+            if (null !== $onApiCall) {
+                $onApiCall('save_configuration', $saveRequest, null);
+            }
 
             throw $exception;
         }
-        $onApiCall?->__invoke('save_configuration', $saveRequest, $saved);
+        if (null !== $onApiCall) {
+            $onApiCall('save_configuration', $saveRequest, $saved);
+        }
 
         return $saved;
     }
