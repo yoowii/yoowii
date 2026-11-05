@@ -27,22 +27,22 @@ final readonly class RealisaprintDraftRepair
         if (!is_array($variables)) {
             throw new \DomainException('Actualise d’abord la configuration fournisseur.');
         }
-        $mappingRules = $this->latestMapping($route)->configurationMapping()['realisaprint']['variables'] ?? [];
+        $provider = $this->latestMapping($route)->configurationMapping()['realisaprint'] ?? null;
+        $mappingRules = is_array($provider) ? ($provider['variables'] ?? null) : null;
         $mappingRules = is_array($mappingRules) ? $mappingRules : [];
         $changes = [];
         foreach ($definition->options() as $code => $option) {
-            if (!is_string($code) || !is_array($option)) {
-                continue;
-            }
             $id = $option['provider_variable'] ?? null;
             $source = is_string($id) ? ($variables[$id] ?? null) : null;
             if (!is_array($source) || 'text' !== ($source['type'] ?? null) || false !== ($source['values'] ?? null)) {
                 continue;
             }
+            $mappingRule = $mappingRules[$id] ?? null;
+            $mappingValues = is_array($mappingRule) ? ($mappingRule['values'] ?? null) : null;
             if (true !== ($source['readonly'] ?? false)) {
                 $default = is_string($source['default'] ?? null) ? $source['default'] : '';
                 if ('text' !== ($option['type'] ?? null) || !is_string($option['default'] ?? null) || '' === trim($option['default']) ||
-                    [] !== ($mappingRules[$id]['values'] ?? [])) {
+                    [] !== ($mappingValues ?? [])) {
                     $changes[] = [
                         'label' => is_string($option['label'] ?? null) ? $option['label'] : $code,
                         'variable' => $id,
@@ -58,10 +58,11 @@ final readonly class RealisaprintDraftRepair
             if (!is_string($default) || '' === trim($default)) {
                 throw new \DomainException(sprintf('La variable %s est en lecture seule mais n’a pas de valeur par défaut exploitable.', $id));
             }
+            $providerValues = $option['provider_values'] ?? null;
             if (($option['allowed_values'] ?? null) === [$default] &&
-                ($option['provider_values'][$default] ?? null) === $default &&
+                (is_array($providerValues) ? ($providerValues[$default] ?? null) : null) === $default &&
                 ($option['provider_type'] ?? null) === 'select' &&
-                ($mappingRules[$id]['values'] ?? null) === [$default => $default]) {
+                $mappingValues === [$default => $default]) {
                 continue;
             }
             $changes[] = [
@@ -88,11 +89,9 @@ final readonly class RealisaprintDraftRepair
         $this->assertDraft($definition, $this->latestMapping($route));
         $fields = [];
         foreach ($definition->options() as $code => $option) {
-            if (!is_string($code) || !is_array($option)) {
-                continue;
-            }
             $choices = [];
-            foreach ($option['value_labels'] ?? [] as $value => $label) {
+            $labels = $option['value_labels'] ?? null;
+            foreach (is_array($labels) ? $labels : [] as $value => $label) {
                 if (is_string($value) && is_string($label)) {
                     $choices[$value] = $label;
                 }
@@ -114,7 +113,10 @@ final readonly class RealisaprintDraftRepair
         return $fields;
     }
 
-    /** @param array<string, mixed> $samples */
+    /**
+     * @param array<string, mixed> $samples
+     * @param array<string, mixed> $defaults
+     */
     public function repair(SupplierRoute $route, RealisaprintCatalogProduct $catalog, PersistedPrintProductDefinition $definition, array $samples = [], array $defaults = []): SupplierProductMappingVersion
     {
         $changes = $this->preview($route, $catalog, $definition);
@@ -131,7 +133,7 @@ final readonly class RealisaprintDraftRepair
             $code = is_array($rule) && is_string($rule['option'] ?? null) && isset($options[$rule['option']]) ? $rule['option'] : null;
             if (null === $code) {
                 foreach ($options as $candidate => $option) {
-                    if (is_array($option) && ($option['provider_variable'] ?? null) === $id) {
+                    if (($option['provider_variable'] ?? null) === $id) {
                         $code = $candidate;
 
                         break;
@@ -139,7 +141,7 @@ final readonly class RealisaprintDraftRepair
                 }
             }
             if (!is_string($code)) {
-                throw new DomainException(sprintf('La correspondance de %s est introuvable.', $id));
+                throw new \DomainException(sprintf('La correspondance de %s est introuvable.', $id));
             }
             if ('sample' === $change['kind']) {
                 $sample = $samples[$id] ?? $change['new'];
@@ -189,7 +191,10 @@ final readonly class RealisaprintDraftRepair
         return $mapping;
     }
 
-    /** @param array<string, array<string, mixed>> $options @param array<string, mixed> $defaults */
+    /**
+     * @param array<string, array<string, mixed>> $options
+     * @param array<string, mixed> $defaults
+     */
     private function applyDefaults(SupplierRoute $route, PersistedPrintProductDefinition $definition, array &$options, array $defaults): void
     {
         $editable = [];
