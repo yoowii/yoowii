@@ -9,7 +9,10 @@ use PHPUnit\Framework\TestCase;
 
 final class RealisaprintResponseErrorTest extends TestCase
 {
-    /** @dataProvider successfulResponses */
+    /**
+     * @dataProvider successfulResponses
+     * @param array<string, mixed> $response
+     */
     public function testItDoesNotTreatAnExplicitFalseErrorAsAnError(array $response): void
     {
         self::assertFalse(RealisaprintResponseError::isPresent($response));
