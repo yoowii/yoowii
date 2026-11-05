@@ -63,6 +63,7 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
 
     /**
      * @param array<string, array<string, mixed>> $options
+     *
      * @return array<string, array{option: string, values: array<string, mixed>, quantity?: true, fixed_value?: bool|float|int|string}>
      */
     private function rules(array $options, RealisaprintCatalogProduct $catalog): array
