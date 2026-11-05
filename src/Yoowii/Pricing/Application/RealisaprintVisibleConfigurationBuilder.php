@@ -42,6 +42,10 @@ final class RealisaprintVisibleConfigurationBuilder
             $visibleAxes[] = $axis;
         }
 
+        if ([] === $visibleAxes) {
+            throw new \DomainException('Aucun axe de prix visible ne permet de calculer la configuration.');
+        }
+
         return new PrintConfiguration($configuration->productCode(), $configuration->schemaVersion(), $visible, $visibleAxes);
     }
 }
