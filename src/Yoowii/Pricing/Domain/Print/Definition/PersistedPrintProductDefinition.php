@@ -20,7 +20,10 @@ class PersistedPrintProductDefinition
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = false;
 
-    /** @param array<string, array{type: string, required?: bool, allowed_values?: list<string|int|float>, minimum?: int|float|null, maximum?: int|float|null}> $options @param non-empty-list<string> $pricingAxes */
+    /**
+     * @param array<string, array<string, mixed>> $options
+     * @param non-empty-list<string> $pricingAxes
+     */
     public function __construct(
         #[ORM\Column(name: 'product_code', type: Types::STRING, length: 64)]
         private readonly string $productCode,
