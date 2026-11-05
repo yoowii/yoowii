@@ -34,9 +34,7 @@ final readonly class BuiltInPrintProductDefinitionRegistry
             return $definitions;
         }
         foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy(['active' => true]) as $persisted) {
-            if ($persisted instanceof PersistedPrintProductDefinition) {
-                $definitions[$persisted->productCode()] = $persisted->definition();
-            }
+            $definitions[$persisted->productCode()] = $persisted->definition();
         }
 
         return $definitions;
@@ -63,9 +61,7 @@ final readonly class BuiltInPrintProductDefinitionRegistry
         }
 
         foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([], ['id' => 'ASC']) as $persisted) {
-            if ($persisted instanceof PersistedPrintProductDefinition) {
-                $codes[$persisted->productCode()] = true;
-            }
+            $codes[$persisted->productCode()] = true;
         }
 
         return array_keys($codes);
@@ -90,16 +86,11 @@ final readonly class BuiltInPrintProductDefinitionRegistry
 
         $available = [];
         foreach ($this->entityManager->getRepository(PersistedPrintProductDefinition::class)->findBy([], ['id' => 'ASC']) as $definition) {
-            if ($definition instanceof PersistedPrintProductDefinition) {
-                $available[$definition->productCode()] = true;
-            }
+            $available[$definition->productCode()] = true;
         }
 
         $catalogChoices = [];
         foreach ($this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findAll() as $catalogProduct) {
-            if (!$catalogProduct instanceof RealisaprintCatalogProduct) {
-                continue;
-            }
             $code = RealisaprintPrintDefinitionCode::fromProviderProductId($catalogProduct->providerProductId());
             if (isset($available[$code])) {
                 $catalogChoices[$code] = sprintf('%s — Realisaprint', $catalogProduct->name());
@@ -118,7 +109,7 @@ final readonly class BuiltInPrintProductDefinitionRegistry
             ?? throw new \InvalidArgumentException(sprintf('Unknown print product definition "%s".', $productCode));
     }
 
-    /** @return list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}> */
+    /** @return list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|float|null, depends_on: array{option: string, value: string}|null}> */
     public function storefrontSchema(string $productCode): array
     {
         if (null === $this->entityManager) {
