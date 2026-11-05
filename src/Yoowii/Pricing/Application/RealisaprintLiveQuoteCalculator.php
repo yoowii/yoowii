@@ -248,6 +248,7 @@ final readonly class RealisaprintLiveQuoteCalculator
     /**
      * @param array{product: string, stock: string, variables: array<string, bool|float|int|string>} $saveRequest
      * @param callable(string, array<string, mixed>, array<string, mixed>|null): void|null $onApiCall
+     *
      * @return array<string, mixed>
      */
     private function saveConfiguration(array $saveRequest, ?callable $onApiCall = null): array
