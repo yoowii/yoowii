@@ -35,7 +35,14 @@ final class RealisaprintValidationPreviewTest extends TestCase
     public function testItFlagsAProviderValueRemovedAfterSynchronization(): void
     {
         $catalog = $this->catalog();
-        unset($catalog['variables']['VARTICLE_28524_']['values'][2]);
+        $variables = $catalog['variables'] ?? null;
+        self::assertIsArray($variables);
+        $delay = $variables['VARTICLE_28524_'] ?? null;
+        self::assertIsArray($delay);
+        $values = $delay['values'] ?? null;
+        self::assertIsArray($values);
+        unset($values[2]);
+        $catalog['variables']['VARTICLE_28524_']['values'] = $values;
         $preview = (new RealisaprintValidationPreview())->build(
             $this->definition(),
             $this->mapping(['standard' => '0', 'express' => '2']),
