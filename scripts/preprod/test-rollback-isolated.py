@@ -76,12 +76,21 @@ if "ps" in args or "logs" in args:
 sys.exit("Unexpected docker action")
 '''
     (binpath / "docker").write_text(fake_docker)
-    (binpath / "curl").write_text("#!/bin/sh\nprintf '200'\n")
+    (binpath / "curl").write_text("""#!/usr/bin/env python3
+import os, sys
+from pathlib import Path
+args = sys.argv[1:]
+if "--output" in args:
+    Path(args[args.index("--output") + 1]).write_text(os.environ["FAKE_PINNED_COMPOSE"])
+else:
+    print("200", end="")
+""")
     (binpath / "sleep").write_text("#!/bin/sh\nexit 0\n")
     for name in ("docker", "curl", "sleep"):
         (binpath / name).chmod(0o755)
     env = dict(os.environ, PATH=str(binpath) + ":" + os.environ["PATH"],
-               FAKE_EVENTS=str(events), FAKE_ATTEMPTS=str(attempts))
+               FAKE_EVENTS=str(events), FAKE_ATTEMPTS=str(attempts),
+               FAKE_PINNED_COMPOSE=proposed_compose)
     outcome = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
                              input=proposed_compose, text=True, capture_output=True,
                              env=env, timeout=30)
