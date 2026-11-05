@@ -44,7 +44,11 @@ final class PrintConfiguratorStimulusTest extends TestCase
     public function testRefreshFailureDoesNotResetTheAppliedProviderVisibility(): void
     {
         $controller = $this->controller();
-        $refreshMethod = substr($controller, strpos($controller, 'async refreshProviderState()'), strpos($controller, 'applyProviderState(state') - strpos($controller, 'async refreshProviderState()'));
+        $start = strpos($controller, 'async refreshProviderState()');
+        $end = strpos($controller, 'applyProviderState(state');
+        self::assertIsInt($start);
+        self::assertIsInt($end);
+        $refreshMethod = substr($controller, $start, $end - $start);
 
         self::assertStringContainsString('this.applyProviderState(payload);', $refreshMethod);
         self::assertStringContainsString('this.showError(error.message);', $refreshMethod);
@@ -106,7 +110,11 @@ final class PrintConfiguratorStimulusTest extends TestCase
     public function testAutomaticCorrectionsDoNotTriggerASecondProviderRefresh(): void
     {
         $controller = $this->controller();
-        $refreshMethod = substr($controller, strpos($controller, 'async refreshProviderState()'), strpos($controller, 'applyProviderState(state') - strpos($controller, 'async refreshProviderState()'));
+        $start = strpos($controller, 'async refreshProviderState()');
+        $end = strpos($controller, 'applyProviderState(state');
+        self::assertIsInt($start);
+        self::assertIsInt($end);
+        $refreshMethod = substr($controller, $start, $end - $start);
 
         self::assertStringContainsString('this.applyProviderState(payload);', $refreshMethod);
         self::assertStringContainsString('Do not immediately call the supplier', $refreshMethod);
