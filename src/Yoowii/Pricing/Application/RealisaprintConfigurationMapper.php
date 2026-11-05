@@ -91,6 +91,7 @@ final readonly class RealisaprintConfigurationMapper
             throw new \DomainException('The Realisaprint mapping must define product, stock and variables.');
         }
 
+        /** @var array<string, mixed> $rules */
         $quoteQuantity = $this->quoteQuantity($rules, $configuration->toArray());
         $withoutQuantity = $this->withoutQuantityRules($rules);
         $mapped = $this->mapMapping($configuration, ['realisaprint' => array_merge($provider, ['variables' => $withoutQuantity])], $version, $selectedOptions);
