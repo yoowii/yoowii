@@ -204,7 +204,7 @@ final readonly class RealisaprintDraftRepair
             }
         }
         foreach ($defaults as $code => $value) {
-            if (!is_string($code) || !isset($editable[$code]) || !is_string($value)) {
+            if (!isset($editable[$code]) || !is_string($value)) {
                 continue;
             }
             $options[$code]['default'] = trim($value);
