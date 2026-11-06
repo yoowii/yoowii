@@ -1,0 +1,53 @@
+name: Validate opt-in Messenger worker Compose
+
+on:
+  pull_request:
+    paths:
+      - 'compose.preprod.yml'
+      - 'compose.preprod.worker.yml'
+      - '.github/workflows/validate-preprod-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-worker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose and worker isolation (no containers started)
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          env_file="$(mktemp)"
+          trap 'rm -f "$env_file"' EXIT
+          cat > "$env_file" <<'ENV'
+          YOOWII_IMAGE_TAG=sha-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          APP_SECRET=ci-only-dummy
+          DATABASE_URL=mysql://ci:ci@mysql:3306/ci
+          MYSQL_DATABASE=ci
+          MYSQL_USER=ci
+          MYSQL_PASSWORD=ci
+          MYSQL_ROOT_PASSWORD=ci
+          MESSENGER_TRANSPORT_DSN=doctrine://default?queue_name=async
+          ENV
+          docker compose --env-file "$env_file" -f compose.preprod.yml \
+            -f compose.preprod.worker.yml --profile messenger config --quiet
+          docker compose --env-file "$env_file" -f compose.preprod.yml \
+            -f compose.preprod.worker.yml --profile messenger config --format json |
+            python3 -c '
+          import json, sys
+          config = json.load(sys.stdin)
+          services = config["services"]
+          worker = services["worker"]
+          php = services["php"]
+          assert worker["image"] == php["image"], "Worker release differs from PHP"
+          assert not worker.get("ports"), "Worker may not expose a port"
+          assert set(worker.get("networks", [])) == {"internal"}, "Worker must stay on the internal network"
+          assert worker.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "").startswith("doctrine://")
+          command = worker.get("command", [])
+          assert "messenger:consume" in command and "async" in command
+          assert worker.get("profiles") == ["messenger"]
+          print("PASS: opt-in worker shares PHP image, uses Doctrine and has no exposed port")
+          '
