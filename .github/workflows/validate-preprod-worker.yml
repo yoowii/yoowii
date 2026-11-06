@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Check read-only monitor shell syntax
+        run: bash -n scripts/preprod/check-messenger-worker.sh
+      - name: Test monitor with mocked Docker (no live VPS access)
+        run: python3 scripts/preprod/test-messenger-monitor-isolated.py
       - name: Validate Compose and worker isolation (no containers started)
         shell: bash
         run: |
