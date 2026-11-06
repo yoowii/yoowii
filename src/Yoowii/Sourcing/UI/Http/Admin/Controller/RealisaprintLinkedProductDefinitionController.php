@@ -73,15 +73,17 @@ final class RealisaprintLinkedProductDefinitionController extends AbstractContro
                         throw new \InvalidArgumentException('Le profil Préscript contient une clé invalide.');
                     }
                 }
-                /** @var array<string, mixed> $summaryProfile */
-                $profile = PrescriptSummaryProfile::fromArray($summaryProfile);
+                /** @var array<string, mixed> $typedSummaryProfile */
+                $typedSummaryProfile = $summaryProfile;
+                $profile = PrescriptSummaryProfile::fromArray($typedSummaryProfile);
                 foreach ($options as $code => $option) {
                     if (!is_string($code) || !is_array($option)) {
                         throw new \InvalidArgumentException('Les options doivent contenir des codes et objets valides.');
                     }
                 }
-                /** @var array<string, array<string, mixed>> $options */
-                $newMapping = $editor->update($route, $catalogProduct, $definition, $data->configuratorMode, $options, $axes, $profile->toArray());
+                /** @var array<string, array<string, mixed>> $typedOptions */
+                $typedOptions = $options;
+                $newMapping = $editor->update($route, $catalogProduct, $definition, $data->configuratorMode, $typedOptions, $axes, $profile->toArray());
                 $this->addFlash('success', 'La définition liée a été mise à jour. Relance le contrôle de couverture et de prix avant publication.');
 
                 return $this->redirectToRoute('yoowii_admin_realisaprint_mapping_validation', ['id' => $newMapping->id()]);

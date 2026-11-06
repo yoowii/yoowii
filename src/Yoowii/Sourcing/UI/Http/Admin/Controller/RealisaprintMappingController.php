@@ -19,7 +19,6 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\String\Slugger\AsciiSlugger;
 
 final class RealisaprintMappingController extends AbstractController
 {
@@ -144,6 +143,7 @@ final class RealisaprintMappingController extends AbstractController
 
     /**
      * @param array<string, mixed> $configuration
+     *
      * @return array<string, array{option: string, values: array<string, bool|float|int|string>, quantity?: true}>
      */
     private function variables(RealisaprintMappingData $data, array $configuration): array
@@ -165,9 +165,10 @@ final class RealisaprintMappingController extends AbstractController
                     throw new \InvalidArgumentException(sprintf('Les valeurs de %s sont invalides.', $row->providerVariable));
                 }
             }
-            /** @var array<string, bool|float|int|string> $values */
+            /** @var array<string, bool|float|int|string> $typedValues */
+            $typedValues = $values;
             $providerVariable = trim($row->providerVariable);
-            $rule = ['option' => trim($row->option), 'values' => $values];
+            $rule = ['option' => trim($row->option), 'values' => $typedValues];
             $configurationVariables = $configuration['variables'] ?? null;
             $variable = is_array($configurationVariables) ? ($configurationVariables[$providerVariable] ?? null) : null;
             if (is_array($variable) && true === ($variable['quantity'] ?? false)) {

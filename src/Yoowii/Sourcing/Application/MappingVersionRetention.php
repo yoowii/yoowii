@@ -24,6 +24,7 @@ final readonly class MappingVersionRetention
                 if (!$dryRun) {
                     $mapping->archive($now);
                 }
+
                 continue;
             }
             if ($this->policy->canDelete($mapping, $now)) {

@@ -7,7 +7,6 @@ namespace App\Yoowii\Sourcing\Application;
 use App\Yoowii\Sourcing\Domain\Model\SupplierPricingMatrixVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
 use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
-use App\Yoowii\Sourcing\Domain\PricingMatrixStatus;
 use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
 
 /** Builds a read-only operational view; it deliberately does not change sourcing state. */
@@ -95,6 +94,7 @@ final class SourcingProductOverviewBuilder
                 foreach ($currentMappings as $mapping) {
                     if ($mapping->supplierProduct() === $primary->supplierProduct()) {
                         $hasMapping = true;
+
                         break;
                     }
                 }
@@ -113,6 +113,7 @@ final class SourcingProductOverviewBuilder
         foreach ($activePriorities as $samePriorityRoutes) {
             if (count($samePriorityRoutes) > 1) {
                 $errors[] = 'Deux routes actives partagent la même priorité.';
+
                 break;
             }
         }
@@ -125,6 +126,7 @@ final class SourcingProductOverviewBuilder
         foreach ($mappings as $mapping) {
             if ($mapping->isActive() && null === $mapping->publishedAt()) {
                 $recommendations[] = 'Un mapping brouillon attend une publication.';
+
                 break;
             }
         }

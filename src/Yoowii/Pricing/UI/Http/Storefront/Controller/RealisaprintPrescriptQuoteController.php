@@ -64,6 +64,7 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         if (!$variant instanceof ProductVariant || null === $variant->getCode()) {
             return new JsonResponse(['message' => 'La variante commerciale est indisponible.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
+
         try {
             $snapshot = $creator->create($definitionCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now, $delivery, $sourcing->route());
             $token = $quoteStore->issue($variant->getCode(), $definitionCode, $snapshot, $now);
@@ -73,5 +74,4 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
 
         return new JsonResponse(['quote_token' => $token, 'quote_html' => $this->renderView('shop/product/show/_print_quote.html.twig', ['pricing_snapshot' => $snapshot, 'quote_token' => $token])], Response::HTTP_CREATED, ['Cache-Control' => 'no-store']);
     }
-
 }

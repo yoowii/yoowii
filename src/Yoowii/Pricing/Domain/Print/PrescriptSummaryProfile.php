@@ -24,13 +24,13 @@ final readonly class PrescriptSummaryProfile
             return null;
         }
 
+        /** @var array<string, mixed>|null $profile */
         $profile = $provider['prescript_summary_profile'] ?? null;
         if (!is_array($profile)) {
             return null;
         }
 
         try {
-            /** @var array<string, mixed> $profile */
             return self::fromArray($profile);
         } catch (\InvalidArgumentException) {
             // Storefront availability must not depend on an optional UI profile.

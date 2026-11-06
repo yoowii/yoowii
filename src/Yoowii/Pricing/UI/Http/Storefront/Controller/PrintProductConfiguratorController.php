@@ -336,6 +336,7 @@ final class PrintProductConfiguratorController extends AbstractController
     /**
      * @param list<array<string, mixed>> $schemas
      * @param array<string, array{value: string|int|float, label: string}> $fixed
+     *
      * @return list<array<string, mixed>>
      */
     private function withFixedSchema(array $schemas, array $fixed): array
@@ -362,57 +363,57 @@ final class PrintProductConfiguratorController extends AbstractController
         if (!$definition instanceof \App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition) {
             return ['state' => null, 'stale' => false];
         }
-            $state = $mapping->initialDisplayState();
-            if (!is_array($state)) {
-                $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
-                    'definition_code' => $definitionCode,
-                    'mapping_id' => $mapping->id(),
-                    'reason' => 'state_not_array',
-                ]);
-                if ('dev' === $kernel->getEnvironment()) {
-                    $logger->debug('Realisaprint initial display state diagnostic.', [
-                        'definition_code' => $definitionCode,
-                        'mapping_id' => $mapping->id(),
-                        'raw_initial_display_state' => $state,
-                        'checks' => ['json_shape' => false, 'reason' => 'state_not_array'],
-                        'initial_provider_state' => null,
-                        'initial_provider_state_stale' => false,
-                    ]);
-                }
-
-                return ['state' => null, 'stale' => false];
-            }
-
-            $compatibilityReason = $displayStateBuilder->compatibilityReason($state, $mapping, $definition);
-            $freshnessReason = $displayStateBuilder->freshnessReason($state, $now);
-            $compatible = null === $compatibilityReason;
-            $fresh = null === $freshnessReason;
+        $state = $mapping->initialDisplayState();
+        if (!is_array($state)) {
+            $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
+                'definition_code' => $definitionCode,
+                'mapping_id' => $mapping->id(),
+                'reason' => 'state_not_array',
+            ]);
             if ('dev' === $kernel->getEnvironment()) {
-                $checks = $displayStateBuilder->compatibilityChecks($state, $mapping, $definition);
                 $logger->debug('Realisaprint initial display state diagnostic.', [
                     'definition_code' => $definitionCode,
                     'mapping_id' => $mapping->id(),
                     'raw_initial_display_state' => $state,
-                    'checks' => [
-                        ...$checks,
-                        'expiration' => $fresh,
-                        'compatibility_reason' => $compatibilityReason,
-                        'freshness_reason' => $freshnessReason,
-                    ],
-                    'initial_provider_state' => $compatible ? $state : null,
-                    'initial_provider_state_stale' => $compatible && !$fresh,
+                    'checks' => ['json_shape' => false, 'reason' => 'state_not_array'],
+                    'initial_provider_state' => null,
+                    'initial_provider_state_stale' => false,
                 ]);
             }
-            if (!$compatible) {
-                $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
-                    'definition_code' => $definitionCode,
-                    'mapping_id' => $mapping->id(),
-                    'reason' => $compatibilityReason,
-                ]);
-            }
-            if ($compatible) {
-                return ['state' => $state, 'stale' => !$fresh];
-            }
+
+            return ['state' => null, 'stale' => false];
+        }
+
+        $compatibilityReason = $displayStateBuilder->compatibilityReason($state, $mapping, $definition);
+        $freshnessReason = $displayStateBuilder->freshnessReason($state, $now);
+        $compatible = null === $compatibilityReason;
+        $fresh = null === $freshnessReason;
+        if ('dev' === $kernel->getEnvironment()) {
+            $checks = $displayStateBuilder->compatibilityChecks($state, $mapping, $definition);
+            $logger->debug('Realisaprint initial display state diagnostic.', [
+                'definition_code' => $definitionCode,
+                'mapping_id' => $mapping->id(),
+                'raw_initial_display_state' => $state,
+                'checks' => [
+                    ...$checks,
+                    'expiration' => $fresh,
+                    'compatibility_reason' => $compatibilityReason,
+                    'freshness_reason' => $freshnessReason,
+                ],
+                'initial_provider_state' => $compatible ? $state : null,
+                'initial_provider_state_stale' => $compatible && !$fresh,
+            ]);
+        }
+        if (!$compatible) {
+            $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
+                'definition_code' => $definitionCode,
+                'mapping_id' => $mapping->id(),
+                'reason' => $compatibilityReason,
+            ]);
+        }
+        if ($compatible) {
+            return ['state' => $state, 'stale' => !$fresh];
+        }
 
         return ['state' => null, 'stale' => false];
     }
@@ -481,6 +482,7 @@ final class PrintProductConfiguratorController extends AbstractController
 
     /**
      * @param array<array-key, mixed> $options
+     *
      * @return array<string, mixed>
      */
     private static function stringKeyedOptions(array $options): array

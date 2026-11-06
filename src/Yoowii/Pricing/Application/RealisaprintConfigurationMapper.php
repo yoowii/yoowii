@@ -18,11 +18,13 @@ final readonly class RealisaprintConfigurationMapper
 
     /**
      * @param array<string, mixed>|null $selectedOptions Canonical storefront choices explicitly supplied by the customer.
+     *
      * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string}
      */
     public function map(PrintConfiguration $configuration, SupplierProduct $supplierProduct, \DateTimeImmutable $at, ?array $selectedOptions = null): array
     {
         $mapping = $this->mapping($configuration->productCode(), $supplierProduct, $at);
+
         return $this->mapMapping($configuration, $mapping->configurationMapping(), $mapping->version(), $selectedOptions);
     }
 
@@ -47,6 +49,7 @@ final readonly class RealisaprintConfigurationMapper
      *
      * @param array<string, mixed> $configurationMapping
      * @param array<string, mixed>|null $selectedOptions
+     *
      * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string}
      */
     public function mapMapping(PrintConfiguration $configuration, array $configurationMapping, string $version, ?array $selectedOptions = null): array
@@ -78,7 +81,6 @@ final readonly class RealisaprintConfigurationMapper
 
     /**
      * @param array<string, mixed> $configurationMapping
-     *
      * @param array<string, mixed>|null $selectedOptions
      *
      * @return array{product: string, stock: string, variables: array<string, bool|float|int|string>, version: string, fingerprint: string, quote_quantity: int}
@@ -86,12 +88,12 @@ final readonly class RealisaprintConfigurationMapper
     public function mapMappingForQuote(PrintConfiguration $configuration, array $configurationMapping, string $version, ?array $selectedOptions = null): array
     {
         $provider = $configurationMapping['realisaprint'] ?? null;
+        /** @var array<string, mixed>|null $rules */
         $rules = is_array($provider) ? ($provider['variables'] ?? null) : null;
-        if (!is_array($rules)) {
+        if (!is_array($provider) || !is_array($rules)) {
             throw new \DomainException('The Realisaprint mapping must define product, stock and variables.');
         }
 
-        /** @var array<string, mixed> $rules */
         $quoteQuantity = $this->quoteQuantity($rules, $configuration->toArray());
         $withoutQuantity = $this->withoutQuantityRules($rules);
         $mapped = $this->mapMapping($configuration, ['realisaprint' => array_merge($provider, ['variables' => $withoutQuantity])], $version, $selectedOptions);
@@ -116,6 +118,7 @@ final readonly class RealisaprintConfigurationMapper
             }
             if (is_string($rule['fixed_value'] ?? null)) {
                 $options[$rule['option']]['string:' . $rule['fixed_value']] = $rule['fixed_value'];
+
                 continue;
             }
             $values = $rule['catalog_values'] ?? ($rule['values'] ?? null);
@@ -157,8 +160,8 @@ final readonly class RealisaprintConfigurationMapper
     /**
      * @param array<string, mixed>      $rules
      * @param array<string, mixed> $options
-     *
      * @param array<string, mixed>|null $selectedOptions
+     *
      * @return array<string, bool|float|int|string>
      */
     private function variables(array $rules, array $options, ?array $selectedOptions = null): array

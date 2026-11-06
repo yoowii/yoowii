@@ -20,7 +20,19 @@ jobs:
     runs-on: ubuntu-24.04
     environment: preprod
     steps:
-      - name: Deploy immutable tag over restricted SSH
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch Compose from the exact image commit
+        env:
+          IMAGE_SHA: ${{ inputs.image_sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$IMAGE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          git fetch --no-tags --depth=1 origin "$IMAGE_SHA"
+          git show "$IMAGE_SHA:compose.preprod.yml" > compose.preprod.pinned.yml
+          test -s compose.preprod.pinned.yml
+      - name: Deploy immutable tag and matching Compose over restricted SSH
         env:
           SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
           SSH_HOST_KEY: ${{ secrets.PREPROD_SSH_HOST_KEY }}
@@ -36,5 +48,6 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          test -s compose.preprod.pinned.yml
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15 \
-            "$USER@$HOST" "sudo -n /usr/local/sbin/yoowii-deploy-preprod $IMAGE_SHA"
+            "$USER@$HOST" "sudo -n /usr/local/sbin/yoowii-deploy-preprod $IMAGE_SHA" < compose.preprod.pinned.yml

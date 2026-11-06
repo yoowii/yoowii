@@ -42,6 +42,7 @@ final readonly class StorefrontPrintSourcingResolver
             }
 
             $kind = ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping());
+
             try {
                 $driverCode = $this->driverCode($mapping, $kind);
                 $this->driverRegistry->get($driverCode);

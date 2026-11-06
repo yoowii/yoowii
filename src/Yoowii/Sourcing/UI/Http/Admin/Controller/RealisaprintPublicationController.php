@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Sourcing\UI\Http\Admin\Controller;
 
-use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder;
 use App\Yoowii\Sourcing\Application\RealisaprintMappingValidator;

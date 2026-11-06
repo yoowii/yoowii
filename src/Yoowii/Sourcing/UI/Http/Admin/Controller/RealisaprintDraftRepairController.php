@@ -41,6 +41,7 @@ final class RealisaprintDraftRepairController extends AbstractController
             if (!$csrf->isTokenValid(new CsrfToken('repair_realisaprint_draft_' . $routeId, $token))) {
                 throw $this->createAccessDeniedException('Jeton CSRF invalide.');
             }
+
             try {
                 $mapping = $repair->repair(
                     $route,
@@ -56,6 +57,7 @@ final class RealisaprintDraftRepairController extends AbstractController
                 $this->addFlash('error', $exception->getMessage());
             }
         }
+
         try {
             $changes = $repair->preview($route, $catalog, $definition);
             $defaultFields = $repair->defaultFields($route, $definition);

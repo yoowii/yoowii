@@ -38,6 +38,7 @@ final class SourcingProductController extends AbstractController
         $product = $entityManager->getRepository(Product::class)->findOneBy(['code' => $code]);
         $resolvedSourcing = null;
         $resolutionError = null;
+
         try {
             $resolvedSourcing = $sourcingResolver->resolve($code, $now);
         } catch (\DomainException $exception) {
@@ -75,14 +76,17 @@ final class SourcingProductController extends AbstractController
 
             if (!$route->isEligibleFor($route->yoowiiProductCode(), $now)) {
                 $states[] = ['route' => $route, 'mode' => $mode, 'status' => 'ignored', 'reason' => 'Route, fournisseur, référence ou période inactive.'];
+
                 continue;
             }
             if ($requiresMapping && !$mapping instanceof SupplierProductMappingVersion) {
                 $states[] = ['route' => $route, 'mode' => $mode, 'status' => 'ignored', 'reason' => 'Aucun mapping publié et non archivé applicable.'];
+
                 continue;
             }
             if ($resolved instanceof ResolvedPrintSourcing && $resolved->route() === $route) {
                 $states[] = ['route' => $route, 'mode' => $mode, 'status' => 'selected', 'reason' => 'Utilisé pour les nouvelles configurations storefront.'];
+
                 continue;
             }
             $states[] = ['route' => $route, 'mode' => $mode, 'status' => 'fallback', 'reason' => 'Sourcing de secours si les routes précédentes deviennent inéligibles.'];
@@ -95,10 +99,10 @@ final class SourcingProductController extends AbstractController
     private function publishedMapping(SupplierRoute $route, array $mappings, \DateTimeImmutable $now): ?SupplierProductMappingVersion
     {
         foreach ($mappings as $mapping) {
-            if ($mapping->supplierProduct() === $route->supplierProduct()
-                && $mapping->isEffectiveAt($now)
-                && null !== $mapping->publishedAt()
-                && null === $mapping->archivedAt()) {
+            if ($mapping->supplierProduct() === $route->supplierProduct() &&
+                $mapping->isEffectiveAt($now) &&
+                null !== $mapping->publishedAt() &&
+                null === $mapping->archivedAt()) {
                 return $mapping;
             }
         }

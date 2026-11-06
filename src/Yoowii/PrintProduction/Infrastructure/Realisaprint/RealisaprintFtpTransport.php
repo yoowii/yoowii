@@ -30,7 +30,7 @@ final readonly class RealisaprintFtpTransport
             ftp_pasv($connection, true);
             $destination = trim($this->baseDirectory . '/' . ltrim($remotePath, '/'), '/');
             $this->createDirectories($connection, dirname($destination));
-            if (!ftp_fput($connection, $destination, $stream, FTP_BINARY)) {
+            if (!ftp_fput($connection, $destination, $stream, \FTP_BINARY)) {
                 throw new \RuntimeException('Unable to upload the artwork to Realisaprint FTP.');
             }
         } finally {

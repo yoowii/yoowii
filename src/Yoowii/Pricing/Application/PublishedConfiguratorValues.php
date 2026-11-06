@@ -17,6 +17,7 @@ final class PublishedConfiguratorValues
      * @param list<array<string, mixed>> $schemas
      * @param array<string, mixed> $values
      * @param array<string, array{value: string|int|float, label: string}> $fixed
+     *
      * @return array<string, mixed>
      */
     public function resolve(PrintProductDefinition $definition, array $schemas, array $values, array $fixed = []): array
@@ -38,6 +39,7 @@ final class PublishedConfiguratorValues
             }
             if ('checkbox' === ($schema['type'] ?? null)) {
                 $values[$code] = $this->choiceDefault($schema, $code);
+
                 continue;
             }
             if ('code' === ($schema['type'] ?? null)) {
@@ -45,6 +47,7 @@ final class PublishedConfiguratorValues
                 // An omitted select (disabled/hidden by show_variables) is always
                 // resolved from its published canonical default on the server.
                 $values[$code] = $this->choiceDefault($schema, $code);
+
                 continue;
             }
             if (!array_key_exists($code, $values)) {
@@ -103,6 +106,7 @@ final class PublishedConfiguratorValues
     /**
      * @param list<array<string, mixed>> $schemas
      * @param array<string, mixed> $values
+     *
      * @return list<array<string, mixed>>
      */
     public function visible(array $schemas, array $values): array

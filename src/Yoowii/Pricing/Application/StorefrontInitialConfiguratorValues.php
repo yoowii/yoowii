@@ -13,6 +13,7 @@ final class StorefrontInitialConfiguratorValues
      * @param list<array<string, mixed>> $schemas
      * @param array<string, array{value: string|int|float, label: string}> $fixedValues
      * @param array<string, mixed>|null $initialDisplayState
+     *
      * @return array<string, string|int|float>
      */
     public function resolve(PrintProductDefinition $definition, array $schemas, array $fixedValues, ?array $initialDisplayState): array
@@ -44,6 +45,7 @@ final class StorefrontInitialConfiguratorValues
             $non = $this->nonValue($schema, $allowed);
             if (null !== $non) {
                 $values[$code] = $non;
+
                 continue;
             }
             if (1 === count($allowed)) {

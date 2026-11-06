@@ -185,8 +185,8 @@ final readonly class RealisaprintClient
             return false;
         }
 
-        return in_array(strtolower($parts['host']), ['www.realisaprint.com', 'realisaprint.com'], true)
-            && str_starts_with($parts['path'], '/api_img/');
+        return in_array(strtolower($parts['host']), ['www.realisaprint.com', 'realisaprint.com'], true) &&
+            str_starts_with($parts['path'], '/api_img/');
     }
 
     /**

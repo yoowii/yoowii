@@ -25,6 +25,7 @@ final readonly class RealisaprintConfiguratorRefresh
 
     /**
      * @param array<string, mixed>|null $selectedOptions Canonical choices explicitly submitted by the storefront.
+     *
      * @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}
      */
     public function refresh(PrintConfiguration $configuration, \DateTimeImmutable $at, ?array $selectedOptions = null): array
@@ -38,6 +39,7 @@ final readonly class RealisaprintConfiguratorRefresh
                 continue;
             }
             $mapped = $this->mapper->mapForQuote($configuration, $route->supplierProduct(), $at, $selectedOptions);
+
             return $this->variableStateCache->get($configuration, $mapped, function () use ($mapped, $mapping): array {
                 $response = $this->client->post('show_variables', [
                     'product' => $mapped['product'],
@@ -57,6 +59,7 @@ final readonly class RealisaprintConfiguratorRefresh
      * Refreshes one already-resolved mapping and never searches a fallback route.
      *
      * @param array<string, mixed>|null $selectedOptions
+     *
      * @return array{visibility: array<string, bool>, availability: array<string, list<string>>, current: array<string, string>, alerts: list<string>, infos: list<string>}
      */
     public function refreshForMapping(PrintConfiguration $configuration, SupplierProductMappingVersion $mapping, ?array $selectedOptions = null): array
@@ -242,10 +245,10 @@ final readonly class RealisaprintConfiguratorRefresh
             }
             $option = $rule['option'] ?? null;
             if (
-                array_key_exists($providerVariable, $response)
-                || (is_string($option) && array_key_exists($option, $response))
-                || (is_array($visibility) && (array_key_exists($providerVariable, $visibility) || (is_string($option) && array_key_exists($option, $visibility))))
-                || (is_array($values) && array_key_exists($providerVariable, $values))
+                array_key_exists($providerVariable, $response) ||
+                (is_string($option) && array_key_exists($option, $response)) ||
+                (is_array($visibility) && (array_key_exists($providerVariable, $visibility) || (is_string($option) && array_key_exists($option, $visibility)))) ||
+                (is_array($values) && array_key_exists($providerVariable, $values))
             ) {
                 return;
             }

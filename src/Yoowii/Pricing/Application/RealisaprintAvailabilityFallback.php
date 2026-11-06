@@ -12,6 +12,7 @@ final class RealisaprintAvailabilityFallback
     /**
      * @param array<string, string|int|float> $values
      * @param array{availability: array<string, list<string>>, current: array<string, string>} $state
+     *
      * @return array<string, string|int|float>
      */
     public function apply(array $values, array $state, PersistedPrintProductDefinition $definition): array
@@ -29,6 +30,7 @@ final class RealisaprintAvailabilityFallback
      * @param array{availability: array<string, list<string>>, current: array<string, string>} $state
      * @param list<array<string, mixed>> $schemas
      * @param list<string> $axes
+     *
      * @return array<string, string|int|float>
      */
     public function applyToSchema(array $values, array $state, array $schemas, array $axes): array
@@ -54,20 +56,24 @@ final class RealisaprintAvailabilityFallback
             $default = $option['default'] ?? null;
             if (is_scalar($default) && in_array((string) $default, $available, true)) {
                 $values[$axis] = (string) $default;
+
                 continue;
             }
             $providerCurrent = $state['current'][$axis] ?? null;
             if (is_string($providerCurrent) && in_array($providerCurrent, $available, true)) {
                 $values[$axis] = $providerCurrent;
+
                 continue;
             }
             $allowed = $option['allowed_values'] ?? null;
             foreach (is_array($allowed) ? $allowed : [] as $candidate) {
                 if (is_scalar($candidate) && in_array((string) $candidate, $available, true)) {
                     $values[$axis] = (string) $candidate;
+
                     continue 2;
                 }
             }
+
             throw new \DomainException(sprintf('La configuration a changé chez le fournisseur ; choisissez une nouvelle valeur pour « %s ».', $this->label($options, $axis)));
         }
 
