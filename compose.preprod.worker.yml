@@ -1,0 +1,25 @@
+# Opt-in worker for issue #4. Never include this file in the automatic deployment.
+# Usage (AFTER checklist approval only):
+# docker compose --env-file .env -f compose.preprod.yml -f compose.preprod.worker.yml --profile messenger up -d --no-deps worker
+services:
+  worker:
+    extends:
+      service: php
+    profiles:
+      - messenger
+    # No public network or published ports. Keep PHP's private media mount and
+    # environment so message handlers use the same DB and files as the shop.
+    networks:
+      - internal
+    init: true
+    stop_grace_period: 90s
+    command:
+      - php
+      - bin/console
+      - messenger:consume
+      - async
+      - --env=prod
+      - --no-debug
+      - --time-limit=3600
+      - --memory-limit=256M
+      - --limit=100
