@@ -25,7 +25,7 @@ final class MessengerRetryIntegrationTest extends KernelTestCase
 
         try {
             /** @var MessageBusInterface $bus */
-            $bus = static::getContainer()->get('messenger.bus.default');
+            $bus = static::getContainer()->get(MessageBusInterface::class);
             $bus->dispatch(new AlwaysFailMessage('isolated-ci-failure'));
 
             self::assertSame(1, $this->countMessages($connection, 'yoowii_ci_async'));
