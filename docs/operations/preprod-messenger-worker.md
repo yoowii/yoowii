@@ -6,7 +6,7 @@
 
 - `config/packages/messenger.yaml` route `PreflightPrintAsset` et `SynchronizeRealisaprintCatalogConfigurations` vers le transport `async`.
 - Le DSN Messenger versionné utilise le **transport Doctrine**. Le Redis du Compose principal est un cache LRU volatile (`appendonly no`), non adapté à une file durable.
-- Le service `worker` hérite de la même image PHP que le storefront, du même `DATABASE_URL` et du volume privé des fichiers d'impression, mais n'expose aucun port et reste sur le réseau interne.
+- Le service `worker` utilise la même image PHP et la même base de données que le storefront, et monte le volume privé des fichiers d'impression. Il est défini explicitement (sans héritage du réseau `web`), n'expose aucun port et reste sur le réseau `internal`. Les variables liées aux emails, FTP et quick publication sont désactivées dans cet overlay.
 - Le worker est défini uniquement dans `compose.preprod.worker.yml`, avec le profil explicite `messenger`. **Le pipeline automatique ne charge jamais cet overlay** ; il n'est pas démarré par une fusion.
 - `MESSENGER_TRANSPORT_DSN` doit être explicitement configuré sur le VPS, dans le `.env` protégé, et est injecté dans le worker sans être affiché. Les transporteurs Sylius éventuels restent ceux résolus par l'application.
 - Un worker peut consommer des messages préexistants, dont certains réalisent des opérations métier chez Realisaprint. **Ne pas démarrer avant revue des messages en file et accord explicite.**
