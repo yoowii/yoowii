@@ -1,23 +1,36 @@
-# Opt-in worker for issue #4. Never include this file in the automatic deployment.
-# Usage (AFTER checklist approval only):
-# docker compose --env-file .env -f compose.preprod.yml -f compose.preprod.worker.yml --profile messenger up -d --no-deps worker
+# Opt-in worker. NOT loaded by the automatic deployment pipeline.
+# This overlay is for manual infrastructure rollout only.
 services:
   worker:
-    extends:
-      file: compose.preprod.yml
-      service: php
+    image: ghcr.io/yoowii/yoowii-php:${YOOWII_IMAGE_TAG:?Set an immutable release image}
+    restart: unless-stopped
     profiles:
       - messenger
-    # The transport used by the web process must be explicitly provided to
-    # this independently managed worker. Do not silently fall back to sync://.
-    environment:
-      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:?Configure a durable Messenger transport on the VPS}
-    # No public network or published ports. Keep PHP's private media mount and
-    # environment so message handlers use the same DB and files as the shop.
-    networks:
-      - internal
     init: true
     stop_grace_period: 90s
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: '0'
+      PHP_DATE_TIMEZONE: Europe/Paris
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      DEFAULT_URI: https://preprod.yoowii.com
+      YOOWII_REDIS_DSN: redis://redis:6379
+      # Disable outgoing email from the independent worker until approved.
+      MAILER_DSN: 'null://null'
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:?Configure Doctrine transport on VPS}
+      # Same supplier configuration as storefront (VPS .env only).
+      YOOWII_REALISAPRINT_ENABLED: ${YOOWII_REALISAPRINT_ENABLED:-0}
+      YOOWII_REALISAPRINT_BASE_URL: ${YOOWII_REALISAPRINT_BASE_URL:-https://www.realisaprint.com/api}
+      YOOWII_REALISAPRINT_SHOP_ID: ${YOOWII_REALISAPRINT_SHOP_ID:-}
+      YOOWII_REALISAPRINT_API_KEY: ${YOOWII_REALISAPRINT_API_KEY:-}
+      YOOWII_REALISAPRINT_FTP_ENABLED: '0'
+      YOOWII_REALISAPRINT_PRESCRIPT_QUICK_PUBLICATION_ENABLED: '0'
+      YOOWII_REALISAPRINT_QUOTE_ENABLED: '0'
+    volumes:
+      - private_assets:/srv/sylius/var/private/print
+    networks:
+      - internal
     command:
       - php
       - bin/console
