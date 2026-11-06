@@ -15,6 +15,8 @@ services:
       # Preserve the legacy default queue until the VPS explicitly opts in to
       # the dedicated Yoowii queue. No legacy messages are migrated/deleted.
       MESSENGER_TRANSPORT_DSN: ${YOOWII_MESSENGER_TRANSPORT_DSN:-doctrine://default}
+      # Supplier sync is enqueued separately; the artwork worker never consumes it.
+      YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN: ${YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN:-doctrine://default?queue_name=yoowii_supplier_async}
       DEFAULT_URI: https://preprod.yoowii.com
       YOOWII_REDIS_DSN: redis://redis:6379
       MAILER_DSN: ${MAILER_DSN:-null://null}
