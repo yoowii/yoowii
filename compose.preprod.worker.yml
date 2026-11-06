@@ -20,11 +20,9 @@ services:
       MAILER_DSN: 'null://null'
       # Dedicated queue; never consume the 19 legacy messages in queue_name=default.
       MESSENGER_TRANSPORT_DSN: ${YOOWII_MESSENGER_TRANSPORT_DSN:?Configure the dedicated Yoowii transport on VPS}
-      # Same supplier configuration as storefront (VPS .env only).
-      YOOWII_REALISAPRINT_ENABLED: ${YOOWII_REALISAPRINT_ENABLED:-0}
-      YOOWII_REALISAPRINT_BASE_URL: ${YOOWII_REALISAPRINT_BASE_URL:-https://www.realisaprint.com/api}
-      YOOWII_REALISAPRINT_SHOP_ID: ${YOOWII_REALISAPRINT_SHOP_ID:-}
-      YOOWII_REALISAPRINT_API_KEY: ${YOOWII_REALISAPRINT_API_KEY:-}
+      # Fail closed: supplier integrations are not authorized for this worker.
+      # A sync message would require a separate, reviewed activation phase.
+      YOOWII_REALISAPRINT_ENABLED: '0'
       YOOWII_REALISAPRINT_FTP_ENABLED: '0'
       YOOWII_REALISAPRINT_PRESCRIPT_QUICK_PUBLICATION_ENABLED: '0'
       YOOWII_REALISAPRINT_QUOTE_ENABLED: '0'
