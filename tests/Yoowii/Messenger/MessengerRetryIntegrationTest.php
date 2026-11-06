@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Yoowii\Messenger;
 
 use App\Tests\Yoowii\Messenger\Fixture\AlwaysFailMessage;
+use App\Yoowii\Sourcing\Application\Message\SynchronizeRealisaprintCatalogConfigurations;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -55,6 +56,33 @@ final class MessengerRetryIntegrationTest extends KernelTestCase
             // CI-only queues: cleanup never touches default or any real VPS.
             $connection->executeStatement(
                 "DELETE FROM messenger_messages WHERE queue_name IN ('yoowii_ci_async', 'yoowii_ci_failed')",
+            );
+        }
+    }
+
+
+    public function testSupplierSyncIsQueuedSeparatelyAndNeverConsumedByArtworkWorker(): void
+    {
+        self::bootKernel();
+
+        /** @var Connection $connection */
+        $connection = static::getContainer()->get('doctrine.dbal.default_connection');
+        $legacyCountBefore = $this->countMessages($connection, 'default');
+        $connection->executeStatement(
+            "DELETE FROM messenger_messages WHERE queue_name = 'yoowii_ci_supplier_async'",
+        );
+
+        try {
+            /** @var MessageBusInterface $bus */
+            $bus = static::getContainer()->get(MessageBusInterface::class);
+            $bus->dispatch(new SynchronizeRealisaprintCatalogConfigurations(-1));
+
+            self::assertSame(1, $this->countMessages($connection, 'yoowii_ci_supplier_async'));
+            self::assertSame(0, $this->countMessages($connection, 'yoowii_ci_async'));
+            self::assertSame($legacyCountBefore, $this->countMessages($connection, 'default'));
+        } finally {
+            $connection->executeStatement(
+                "DELETE FROM messenger_messages WHERE queue_name = 'yoowii_ci_supplier_async'",
             );
         }
     }
