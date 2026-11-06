@@ -30,8 +30,11 @@ jobs:
           MYSQL_USER=ci
           MYSQL_PASSWORD=ci
           MYSQL_ROOT_PASSWORD=ci
-          YOOWII_MESSENGER_TRANSPORT_DSN=doctrine://default?queue_name=yoowii_async
           ENV
+          # Without the opt-in, the storefront must keep the legacy queue.
+          docker compose --env-file "$env_file" -f compose.preprod.yml config --format json |
+            python3 -c 'import json,sys; c=json.load(sys.stdin); assert c["services"]["php"]["environment"]["MESSENGER_TRANSPORT_DSN"] == "doctrine://default", "Legacy queue fallback changed"'
+          printf '%s\n' 'YOOWII_MESSENGER_TRANSPORT_DSN=doctrine://default?queue_name=yoowii_async' >> "$env_file"
           docker compose --env-file "$env_file" -f compose.preprod.yml \
             -f compose.preprod.worker.yml --profile messenger config --quiet
           docker compose --env-file "$env_file" -f compose.preprod.yml \
