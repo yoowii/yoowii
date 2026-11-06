@@ -90,7 +90,7 @@ final readonly class RealisaprintConfigurationMapper
         $provider = $configurationMapping['realisaprint'] ?? null;
         /** @var array<string, mixed>|null $rules */
         $rules = is_array($provider) ? ($provider['variables'] ?? null) : null;
-        if (!is_array($rules)) {
+        if (!is_array($provider) || !is_array($rules)) {
             throw new \DomainException('The Realisaprint mapping must define product, stock and variables.');
         }
 
