@@ -18,6 +18,7 @@ final class MessengerRetryIntegrationTest extends KernelTestCase
 
         /** @var Connection $connection */
         $connection = static::getContainer()->get('doctrine.dbal.default_connection');
+        $legacyCountBefore = $this->countMessages($connection, 'default');
         $connection->executeStatement(
             "DELETE FROM messenger_messages WHERE queue_name IN ('yoowii_ci_async', 'yoowii_ci_failed')",
         );
@@ -49,7 +50,7 @@ final class MessengerRetryIntegrationTest extends KernelTestCase
             self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
             self::assertSame(0, $this->countMessages($connection, 'yoowii_ci_async'));
             self::assertSame(1, $this->countMessages($connection, 'yoowii_ci_failed'));
-            self::assertSame(0, $this->countMessages($connection, 'default'));
+            self::assertSame($legacyCountBefore, $this->countMessages($connection, 'default'));
         } finally {
             // CI-only queues: cleanup never touches default or any real VPS.
             $connection->executeStatement(
