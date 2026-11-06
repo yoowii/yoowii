@@ -18,7 +18,8 @@ services:
       YOOWII_REDIS_DSN: redis://redis:6379
       # Disable outgoing email from the independent worker until approved.
       MAILER_DSN: 'null://null'
-      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:?Configure Doctrine transport on VPS}
+      # Dedicated queue; never consume the 19 legacy messages in queue_name=default.
+      MESSENGER_TRANSPORT_DSN: ${YOOWII_MESSENGER_TRANSPORT_DSN:?Configure the dedicated Yoowii transport on VPS}
       # Same supplier configuration as storefront (VPS .env only).
       YOOWII_REALISAPRINT_ENABLED: ${YOOWII_REALISAPRINT_ENABLED:-0}
       YOOWII_REALISAPRINT_BASE_URL: ${YOOWII_REALISAPRINT_BASE_URL:-https://www.realisaprint.com/api}
