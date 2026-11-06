@@ -4,6 +4,7 @@
 services:
   worker:
     extends:
+      file: compose.preprod.yml
       service: php
     profiles:
       - messenger
