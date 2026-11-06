@@ -69,7 +69,8 @@ Si cette commande échoue, arrêter et corriger les prérequis sans utiliser `up
 - [x] Définir les retries applicatifs Yoowii : 3 réessais avec délais de 1, 2 et 4 secondes (plafond 60 secondes) ; transport d'échec dédié `yoowii_failed` (Doctrine). Aucune configuration globale `failure_transport` : ne pas changer les stratégies Sylius.
 - [ ] Valider en test isolé l'échec définitif, le routage vers `yoowii_failed`, le rejeu volontaire et le comportement d'un message poison ; ne jamais faire ce test sur la file historique `default`.
 - [ ] Définir le seuil d'alerte du backlog et son relevé sans exposer le contenu des messages.
-- [ ] Valider le budget mémoire/CPU, la supervision, l'arrêt SIGTERM et la non-concurrence ; démarrer à **une seule instance**.
+- [x] Ajouter un contrôle opérationnel en lecture seule et des tests Docker simulés (version PHP/worker, backlogs, échecs, restart).
+- [ ] Valider sur VPS le budget mémoire/CPU, la supervision, l'arrêt SIGTERM et la non-concurrence ; démarrer à **une seule instance**.
 - [x] Transport fournisseur isolé : seul le préflight est routé vers le transport consommé par le worker. Test isolé vérifiant que les messages de synchronisation sont déposés dans `yoowii_ci_supplier_async` et non dans la file du worker (résultat CI à confirmer).
 - [ ] Vérifier l'absence d'email client ou d'ordre fournisseur non désiré ; la séparation des files limite le risque mais ne remplace pas un audit des handlers.
 
@@ -85,6 +86,37 @@ docker compose --env-file .env -f compose.preprod.yml exec -T php \
 ```
 
 Ne pas utiliser `messenger:failed:retry`, `messenger:failed:remove` ou `messenger:consume` tant que les types, l'idempotence et les effets métier des messages ne sont pas approuvés. Le transport `yoowii_failed` est distinct de la file `default` et des transports d'échec Sylius. Le transport fournisseur `yoowii_supplier_async` et son échec `yoowii_supplier_failed` restent également distincts, sans consommateur prévu dans cette phase.
+
+## Supervision du worker et cycle de vie des versions
+
+Le script `scripts/preprod/check-messenger-worker.sh` effectue exclusivement des **lectures** : identité de l'image PHP, présence et version du worker, compteur de redémarrages, nombres de messages de `yoowii_async`, `yoowii_failed` et `yoowii_supplier_async`, ancienneté des messages prêts. Il ne lit pas les corps, n'affiche pas les DSN et ne démarre aucun conteneur. Il doit être installé depuis un **commit revu** dans `/opt/yoowii/preprod/scripts/preprod/` ; le pipeline actuel ne synchronise pas ce fichier sur le VPS.
+
+```bash
+# Contrôle informatif : le worker peut être arrêté intentionnellement.
+bash /opt/yoowii/preprod/scripts/preprod/check-messenger-worker.sh
+
+# À utiliser dans une surveillance seulement APRÈS activation volontaire.
+bash /opt/yoowii/preprod/scripts/preprod/check-messenger-worker.sh --require-running
+```
+
+Codes de sortie : 0 = nominal ; 1 = alerte (file échouée non vide, plus de 50 messages prêts, message prêt depuis plus de 15 minutes, worker manquant en mode strict, redémarrage ou image différente) ; 2 = incident (service PHP incorrect, base indisponible, réponse SQL invalide). La file fournisseur est comptabilisée mais n'est jamais consommée dans cette phase. Le seuil de backlog reste une valeur initiale à ajuster après observation.
+
+**Avant tout déploiement de `chore/ci-cd` une fois le worker activé**, arrêter proprement le worker et noter l'image déployée (sans afficher de variables secrètes). Le pipeline automatique ne met à jour que PHP et Nginx : il **ne remplace jamais** le conteneur worker ni son overlay.
+
+```bash
+cd /opt/yoowii/preprod
+
+# Arrêter le seul worker (aucun down / aucun prune)
+docker compose --env-file .env -f compose.preprod.yml \
+  -f compose.preprod.worker.yml --profile messenger stop -t 90 worker
+
+# Effectuer ensuite le déploiement applicatif standard via GitHub Actions.
+# Ne PAS redémarrer automatiquement le worker pendant la promotion.
+```
+
+Après réussite du déploiement applicatif : vérifier que la version PHP attendue est présente, installer **manuellement** l'overlay du même commit approuvé (fichier root-owned), valider le modèle Compose, puis refaire les contrôles de DSN, de backlog et de sécurité avant toute recréation du worker. Seule une activation explicitement approuvée autorise `up -d --no-deps --force-recreate worker`. Ne pas redémarrer un worker sur une image obsolète. En cas de rollback de l'application, maintenir le worker à l'arrêt jusqu'à vérification de l'image et des schémas correspondants.
+
+**Limitation volontaire :** cette procédure dépend d'une intervention manuelle avant chaque nouveau déploiement ; pour automatiser le renouvellement du worker, une évolution du script de déploiement root-owned et de ses garde-fous nécessitera une PR séparée avec rollback et contrôle d'une file non consommée.
 
 ## Étape D — Activation manuelle uniquement (après autorisation)
 
