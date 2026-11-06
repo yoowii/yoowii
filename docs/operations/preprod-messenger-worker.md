@@ -44,6 +44,16 @@ docker compose --env-file .env -f compose.preprod.yml exec -T php \
 
 **Important :** ne pas afficher `.env`, la DSN, le contenu des messages ou les identifiants fournisseur dans les logs/PR. Si la table manque, ne pas lancer de création/migration dans cette phase.
 
+## Étape A bis — Prévol d'activation (lecture seule, avant fusion)
+
+Le script `scripts/preprod/preflight-messenger-rollout.sh` **ne modifie pas** le VPS. Il contrôle le mode 600 du `.env`, le tag immuable, les deux fichiers Compose, la file `yoowii_async` explicitement configurée, l'absence d'un worker déjà actif et les compteurs agrégés des files.
+
+Le script peut être exécuté depuis une copie examinée d'un **commit GitHub épinglé**, sans installer de conteneur ou modifier les volumes. Depuis `/opt/yoowii/preprod`, ne pas le remplacer par une URL de branche mouvante. Ne pas afficher les valeurs du `.env`.
+
+**Sur l'installation actuelle**, les états `BLOCKED: worker overlay not installed` et `BLOCKED: dedicated artwork DSN in protected VPS .env` sont **attendus** : le déploiement du worker n'a pas été autorisé. Ce résultat ne constitue pas un incident. Tant que la bascule de production de messages n'est pas approuvée, **ne pas essayer de corriger ces blocages en ajoutant la DSN ni en recréant PHP**.
+
+Code retour : `0` = prérequis prêts **pour revue manuelle**, pas permission de lancer un worker ; `1` = activation bloquée ; `2` = fichier de configuration absent. Le script ne fait ni `up`, ni `down`, ni `consume`, ni migration SQL.
+
 ## Étape B — Validation de l'overlay (après revue/merge)
 
 Vérifier uniquement le modèle Compose, sans démarrer de conteneur :
