@@ -11,5 +11,7 @@ framework:
                     multiplier: 2
                     max_delay: 60000
             yoowii_failed: 'doctrine://default?queue_name=yoowii_ci_failed'
+            yoowii_supplier_async: 'doctrine://default?queue_name=yoowii_ci_supplier_async'
+            yoowii_supplier_failed: 'doctrine://default?queue_name=yoowii_ci_supplier_failed'
         routing:
             'App\Tests\Yoowii\Messenger\Fixture\AlwaysFailMessage': async
