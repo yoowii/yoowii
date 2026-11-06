@@ -12,6 +12,9 @@ services:
       PHP_DATE_TIMEZONE: Europe/Paris
       APP_SECRET: ${APP_SECRET:?Set APP_SECRET}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      # Preserve the legacy default queue until the VPS explicitly opts in to
+      # the dedicated Yoowii queue. No legacy messages are migrated/deleted.
+      MESSENGER_TRANSPORT_DSN: ${YOOWII_MESSENGER_TRANSPORT_DSN:-doctrine://default}
       DEFAULT_URI: https://preprod.yoowii.com
       YOOWII_REDIS_DSN: redis://redis:6379
       MAILER_DSN: ${MAILER_DSN:-null://null}
