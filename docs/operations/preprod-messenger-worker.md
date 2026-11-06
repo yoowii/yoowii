@@ -4,11 +4,12 @@
 
 ## Décisions techniques
 
-- `config/packages/messenger.yaml` route `PreflightPrintAsset` et `SynchronizeRealisaprintCatalogConfigurations` vers le transport `async`.
+- `config/packages/messenger.yaml` route **uniquement** `PreflightPrintAsset` vers `async`, la seule file consommée par le worker initial. `SynchronizeRealisaprintCatalogConfigurations` est routé vers un transport distinct `yoowii_supplier_async` (file Doctrine `yoowii_supplier_async`) **sans consommateur actif**. L'activation du fournisseur devra être traitée dans un lot séparé.
 - Le DSN Messenger versionné utilise le **transport Doctrine**. Le Redis du Compose principal est un cache LRU volatile (`appendonly no`), non adapté à une file durable.
 - Le service `worker` utilise la même image PHP et la même base de données que le storefront, et monte le volume privé des fichiers d'impression. Il est défini explicitement (sans héritage du réseau `web`), n'expose aucun port et reste sur le réseau `internal`. Les variables liées aux emails, à l'intégration fournisseur Realisaprint, au FTP et à la publication rapide sont désactivées dans cet overlay. Cette désactivation ne constitue pas une validation des handlers ; il faut confirmer leur comportement en environnement isolé avant activation.
 - Le worker est défini uniquement dans `compose.preprod.worker.yml`, avec le profil explicite `messenger`. **Le pipeline automatique ne charge jamais cet overlay** ; il n'est pas démarré par une fusion.
 - Le service PHP principal reçoit `MESSENGER_TRANSPORT_DSN: ${YOOWII_MESSENGER_TRANSPORT_DSN:-doctrine://default}` : **sans opt-in VPS, il conserve la file historique `default`**. Le service worker reçoit la variable dédiée **obligatoire** `YOOWII_MESSENGER_TRANSPORT_DSN` depuis le `.env` du VPS ; tous deux doivent utiliser exactement `doctrine://default?queue_name=yoowii_async` avant le lancement du worker. Il n'y a ni déplacement ni suppression des 19 messages `default`.
+- Le conteneur PHP reçoit `YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN=doctrine://default?queue_name=yoowii_supplier_async` par défaut, ce qui évite toute nouvelle synchronisation Realisaprint dans `default`. Le worker de cette PR n'écoute que `async` et ne peut donc pas vider cette file fournisseur.
 - Les transporteurs Sylius existants (`SYLIUS_MESSENGER_TRANSPORT_*`) restent séparés ; ne pas les retoucher ni consommer la file `default`.
 - Un worker peut consommer des messages préexistants, dont certains réalisent des opérations métier chez Realisaprint. **Ne pas démarrer avant revue des messages en file et accord explicite.**
 
@@ -69,7 +70,8 @@ Si cette commande échoue, arrêter et corriger les prérequis sans utiliser `up
 - [ ] Valider en test isolé l'échec définitif, le routage vers `yoowii_failed`, le rejeu volontaire et le comportement d'un message poison ; ne jamais faire ce test sur la file historique `default`.
 - [ ] Définir le seuil d'alerte du backlog et son relevé sans exposer le contenu des messages.
 - [ ] Valider le budget mémoire/CPU, la supervision, l'arrêt SIGTERM et la non-concurrence ; démarrer à **une seule instance**.
-- [ ] Vérifier l'absence d'email client ou d'ordre fournisseur non désiré.
+- [x] Transport fournisseur isolé : seul le préflight est routé vers le transport consommé par le worker. Test isolé vérifiant que les messages de synchronisation sont déposés dans `yoowii_ci_supplier_async` et non dans la file du worker (résultat CI à confirmer).
+- [ ] Vérifier l'absence d'email client ou d'ordre fournisseur non désiré ; la séparation des files limite le risque mais ne remplace pas un audit des handlers.
 
 ## Supervision et gestion des échecs (lecture seule)
 
@@ -82,7 +84,7 @@ docker compose --env-file .env -f compose.preprod.yml exec -T php \
   --env=prod --no-debug
 ```
 
-Ne pas utiliser `messenger:failed:retry`, `messenger:failed:remove` ou `messenger:consume` tant que les types, l'idempotence et les effets métier des messages ne sont pas approuvés. Le transport `yoowii_failed` est distinct de la file `default` et des transports d'échec Sylius.
+Ne pas utiliser `messenger:failed:retry`, `messenger:failed:remove` ou `messenger:consume` tant que les types, l'idempotence et les effets métier des messages ne sont pas approuvés. Le transport `yoowii_failed` est distinct de la file `default` et des transports d'échec Sylius. Le transport fournisseur `yoowii_supplier_async` et son échec `yoowii_supplier_failed` restent également distincts, sans consommateur prévu dans cette phase.
 
 ## Étape D — Activation manuelle uniquement (après autorisation)
 
@@ -114,5 +116,5 @@ Ne pas lancer `down`, `down -v`, `prune` ou `messenger:consume` dans le conteneu
 
 - La file Doctrine historique a été inspectée **en lecture seule** : 19 messages dans `default` (18 promotions Sylius, 1 preflight Yoowii). Aucun message n'a été consommé ; l'activation n'est pas approuvée.
 - Les emails et les tâches `cron` ne sont **pas inclus** dans cette PR.
-- Aucun déploiement ni test de consommation réelle n'a été fait.
+- Le test de consommation réelle a été effectué **en CI isolée**, avec message fictif en erreur et file d'échec dédiée ; pas de consommation du VPS. Aucun déploiement VPS ni test d'un vrai fichier client n'a eu lieu.
 - Ne pas considérer cette PR comme la clôture de l'issue #4 : la durabilité, le rejeu des échecs et la supervision restent à prouver.
