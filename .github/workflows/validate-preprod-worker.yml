@@ -5,6 +5,10 @@ on:
     paths:
       - 'compose.preprod.yml'
       - 'compose.preprod.worker.yml'
+      - 'scripts/preprod/check-messenger-worker.sh'
+      - 'scripts/preprod/preflight-messenger-rollout.sh'
+      - 'scripts/preprod/test-messenger-monitor-isolated.py'
+      - 'scripts/preprod/test-messenger-preflight-isolated.py'
       - '.github/workflows/validate-preprod-worker.yml'
   workflow_dispatch:
 
@@ -17,9 +21,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check read-only monitor shell syntax
-        run: bash -n scripts/preprod/check-messenger-worker.sh
+        run: |
+          bash -n scripts/preprod/check-messenger-worker.sh
+          bash -n scripts/preprod/preflight-messenger-rollout.sh
       - name: Test monitor with mocked Docker (no live VPS access)
-        run: python3 scripts/preprod/test-messenger-monitor-isolated.py
+        run: |
+          python3 scripts/preprod/test-messenger-monitor-isolated.py
+          python3 scripts/preprod/test-messenger-preflight-isolated.py
       - name: Validate Compose and worker isolation (no containers started)
         shell: bash
         run: |
