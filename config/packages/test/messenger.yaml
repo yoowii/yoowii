@@ -1,0 +1,17 @@
+# CI-only Messenger queues in the isolated sylius_test database.
+# Never activate these routes in preproduction or production.
+framework:
+    messenger:
+        transports:
+            async:
+                dsn: 'doctrine://default?queue_name=yoowii_ci_async'
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 60000
+            yoowii_failed: 'doctrine://default?queue_name=yoowii_ci_failed'
+            yoowii_supplier_async: 'doctrine://default?queue_name=yoowii_ci_supplier_async'
+            yoowii_supplier_failed: 'doctrine://default?queue_name=yoowii_ci_supplier_failed'
+        routing:
+            'App\Tests\Yoowii\Messenger\Fixture\AlwaysFailMessage': async

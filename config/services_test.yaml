@@ -3,3 +3,7 @@ imports:
 
 sylius_api:
     enabled: true
+
+services:
+    App\Tests\Yoowii\Messenger\Fixture\AlwaysFailHandler:
+        tags: ['messenger.message_handler']
