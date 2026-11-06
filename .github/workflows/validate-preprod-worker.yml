@@ -52,6 +52,8 @@ jobs:
           producer_dsn = php.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "")
           assert worker_dsn == producer_dsn, "Producer and worker must share the same queue"
           assert worker_dsn == "doctrine://default?queue_name=yoowii_async", "Worker must use dedicated Yoowii queue"
+          assert php["environment"]["YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN"] == "doctrine://default?queue_name=yoowii_supplier_async", "Supplier producer queue must remain isolated"
+          assert "YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN" not in worker["environment"], "Artwork worker must not be explicitly configured to consume supplier queue"
           command = worker.get("command", [])
           assert "messenger:consume" in command and "async" in command
           assert worker.get("profiles") == ["messenger"]
