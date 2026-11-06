@@ -30,7 +30,7 @@ jobs:
           MYSQL_USER=ci
           MYSQL_PASSWORD=ci
           MYSQL_ROOT_PASSWORD=ci
-          MESSENGER_TRANSPORT_DSN=doctrine://default?queue_name=async
+          YOOWII_MESSENGER_TRANSPORT_DSN=doctrine://default?queue_name=yoowii_async
           ENV
           docker compose --env-file "$env_file" -f compose.preprod.yml \
             -f compose.preprod.worker.yml --profile messenger config --quiet
@@ -45,7 +45,7 @@ jobs:
           assert worker["image"] == php["image"], "Worker release differs from PHP"
           assert not worker.get("ports"), "Worker may not expose a port"
           assert set(worker.get("networks", [])) == {"internal"}, "Worker must stay on the internal network"
-          assert worker.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "").startswith("doctrine://")
+          assert worker.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "").endswith("queue_name=yoowii_async"), "Worker must use dedicated Yoowii queue"
           command = worker.get("command", [])
           assert "messenger:consume" in command and "async" in command
           assert worker.get("profiles") == ["messenger"]
