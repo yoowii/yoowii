@@ -49,5 +49,8 @@ jobs:
           command = worker.get("command", [])
           assert "messenger:consume" in command and "async" in command
           assert worker.get("profiles") == ["messenger"]
+          assert worker.get("environment", {}).get("MAILER_DSN") == "null://null", "Outgoing mail must be disabled"
+          assert worker.get("environment", {}).get("YOOWII_REALISAPRINT_FTP_ENABLED") == "0", "Supplier FTP must be disabled"
+          assert any(v.get("target") == "/srv/sylius/var/private/print" for v in worker.get("volumes", [])), "Private files mount missing"
           print("PASS: opt-in worker shares PHP image, uses Doctrine and has no exposed port")
           '
