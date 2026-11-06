@@ -45,12 +45,15 @@ jobs:
           assert worker["image"] == php["image"], "Worker release differs from PHP"
           assert not worker.get("ports"), "Worker may not expose a port"
           assert set(worker.get("networks", [])) == {"internal"}, "Worker must stay on the internal network"
-          assert worker.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "").endswith("queue_name=yoowii_async"), "Worker must use dedicated Yoowii queue"
+          worker_dsn = worker.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "")
+          producer_dsn = php.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "")
+          assert worker_dsn == producer_dsn, "Producer and worker must share the same queue"
+          assert worker_dsn == "doctrine://default?queue_name=yoowii_async", "Worker must use dedicated Yoowii queue"
           command = worker.get("command", [])
           assert "messenger:consume" in command and "async" in command
           assert worker.get("profiles") == ["messenger"]
           assert worker.get("environment", {}).get("MAILER_DSN") == "null://null", "Outgoing mail must be disabled"
           assert worker.get("environment", {}).get("YOOWII_REALISAPRINT_FTP_ENABLED") == "0", "Supplier FTP must be disabled"
           assert any(v.get("target") == "/srv/sylius/var/private/print" for v in worker.get("volumes", [])), "Private files mount missing"
-          print("PASS: opt-in worker shares PHP image, uses Doctrine and has no exposed port")
+          print("PASS: PHP producer + worker use dedicated Doctrine queue; worker internal-only")
           '
