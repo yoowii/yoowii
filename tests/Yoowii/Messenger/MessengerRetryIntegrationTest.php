@@ -61,9 +61,12 @@ final class MessengerRetryIntegrationTest extends KernelTestCase
 
     private function countMessages(Connection $connection, string $queue): int
     {
-        return (int) $connection->fetchOne(
+        $count = $connection->fetchOne(
             'SELECT COUNT(*) FROM messenger_messages WHERE queue_name = ?',
             [$queue],
         );
+        self::assertTrue(is_int($count) || (is_string($count) && ctype_digit($count)));
+
+        return (int) $count;
     }
 }
