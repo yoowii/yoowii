@@ -8,7 +8,7 @@
 - Le DSN Messenger versionné utilise le **transport Doctrine**. Le Redis du Compose principal est un cache LRU volatile (`appendonly no`), non adapté à une file durable.
 - Le service `worker` utilise la même image PHP et la même base de données que le storefront, et monte le volume privé des fichiers d'impression. Il est défini explicitement (sans héritage du réseau `web`), n'expose aucun port et reste sur le réseau `internal`. Les variables liées aux emails, FTP et quick publication sont désactivées dans cet overlay.
 - Le worker est défini uniquement dans `compose.preprod.worker.yml`, avec le profil explicite `messenger`. **Le pipeline automatique ne charge jamais cet overlay** ; il n'est pas démarré par une fusion.
-- `MESSENGER_TRANSPORT_DSN` doit être explicitement configuré sur le VPS, dans le `.env` protégé, et est injecté dans le worker sans être affiché. Les transporteurs Sylius éventuels restent ceux résolus par l'application.
+- `YOOWII_MESSENGER_TRANSPORT_DSN` doit être explicitement configuré sur le VPS dans le `.env` protégé avec `queue_name=yoowii_async` ; cet overlay l'injecte au worker comme `MESSENGER_TRANSPORT_DSN` sans afficher sa valeur. **Attention : ceci n'adapte pas encore le producteur PHP storefront ; il faudra injecter la même file dédiée côté PHP avant tout envoi et activation.** Les transporteurs Sylius éventuels restent ceux résolus par l'application.
 - Un worker peut consommer des messages préexistants, dont certains réalisent des opérations métier chez Realisaprint. **Ne pas démarrer avant revue des messages en file et accord explicite.**
 
 ## Étape A — Diagnostic sans effet métier sur le VPS
@@ -58,6 +58,8 @@ Si cette commande échoue, arrêter et corriger les prérequis sans utiliser `up
 ## Étape C — Conditions obligatoires avant activation
 
 - [ ] Confirmer que la DSN Doctrine pointe vers la **bonne base**, que la table `messenger_messages` existe, et que le transport est **durable**.
+- [ ] Configurer le PHP storefront pour utiliser `queue_name=yoowii_async`, de manière cohérente avec le worker, par un déploiement contrôlé distinct ; ne pas basculer le worker seul.
+- [ ] Inventorier les 19 messages existants de `queue_name=default` (19–27/10/2026) sans consulter les corps ni consommer ; ne pas les déplacer sans analyse.
 - [ ] Examiner la quantité et les types de messages déjà en attente, sans divulguer les données personnelles. Si des tâches Realisaprint sont en file, obtenir l'accord métier avant toute consommation.
 - [ ] Vérifier que les services/handlers accèdent aux mêmes données et fichiers privés depuis le worker ; réaliser un essai sur une base isolée avec un message sans effet fournisseur.
 - [ ] Définir les retries, le transport `failed`, la politique de poison messages et les alertes de backlog.
