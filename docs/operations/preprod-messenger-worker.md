@@ -1,6 +1,6 @@
 # Issue #4 — Messenger worker en préproduction (activation progressive)
 
-**État : prêt pour revue, NON activé.** Cette branche ajoute un overlay Compose distinct, sans modifier `compose.preprod.yml` ni le script de déploiement automatique de l'issue #3.
+**État : prêt pour revue, NON activé.** Cette branche ajoute un overlay Compose distinct et une injection contrôlée du DSN dans le service PHP principal. **Fusionner cette PR peut redéployer PHP/Nginx automatiquement** avec le pipeline de l'issue #3 : ne pas fusionner avant validation des changements et du plan de bascule.
 
 ## Décisions techniques
 
@@ -8,7 +8,8 @@
 - Le DSN Messenger versionné utilise le **transport Doctrine**. Le Redis du Compose principal est un cache LRU volatile (`appendonly no`), non adapté à une file durable.
 - Le service `worker` utilise la même image PHP et la même base de données que le storefront, et monte le volume privé des fichiers d'impression. Il est défini explicitement (sans héritage du réseau `web`), n'expose aucun port et reste sur le réseau `internal`. Les variables liées aux emails, FTP et quick publication sont désactivées dans cet overlay.
 - Le worker est défini uniquement dans `compose.preprod.worker.yml`, avec le profil explicite `messenger`. **Le pipeline automatique ne charge jamais cet overlay** ; il n'est pas démarré par une fusion.
-- `YOOWII_MESSENGER_TRANSPORT_DSN` doit être explicitement configuré sur le VPS dans le `.env` protégé avec `queue_name=yoowii_async` ; cet overlay l'injecte au worker comme `MESSENGER_TRANSPORT_DSN` sans afficher sa valeur. **Attention : ceci n'adapte pas encore le producteur PHP storefront ; il faudra injecter la même file dédiée côté PHP avant tout envoi et activation.** Les transporteurs Sylius éventuels restent ceux résolus par l'application.
+- Le service PHP principal reçoit `MESSENGER_TRANSPORT_DSN: ${YOOWII_MESSENGER_TRANSPORT_DSN:-doctrine://default}` : **sans opt-in VPS, il conserve la file historique `default`**. Le service worker reçoit la variable dédiée **obligatoire** `YOOWII_MESSENGER_TRANSPORT_DSN` depuis le `.env` du VPS ; tous deux doivent utiliser exactement `doctrine://default?queue_name=yoowii_async` avant le lancement du worker. Il n'y a ni déplacement ni suppression des 19 messages `default`.
+- Les transporteurs Sylius existants (`SYLIUS_MESSENGER_TRANSPORT_*`) restent séparés ; ne pas les retoucher ni consommer la file `default`.
 - Un worker peut consommer des messages préexistants, dont certains réalisent des opérations métier chez Realisaprint. **Ne pas démarrer avant revue des messages en file et accord explicite.**
 
 ## Étape A — Diagnostic sans effet métier sur le VPS
@@ -58,8 +59,10 @@ Si cette commande échoue, arrêter et corriger les prérequis sans utiliser `up
 ## Étape C — Conditions obligatoires avant activation
 
 - [ ] Confirmer que la DSN Doctrine pointe vers la **bonne base**, que la table `messenger_messages` existe, et que le transport est **durable**.
-- [ ] Configurer le PHP storefront pour utiliser `queue_name=yoowii_async`, de manière cohérente avec le worker, par un déploiement contrôlé distinct ; ne pas basculer le worker seul.
-- [ ] Inventorier les 19 messages existants de `queue_name=default` (19–27/10/2026) sans consulter les corps ni consommer ; ne pas les déplacer sans analyse.
+- [ ] Une fois la PR fusionnée et PHP redéployé, ajouter `YOOWII_MESSENGER_TRANSPORT_DSN=doctrine://default?queue_name=yoowii_async` au `.env` VPS (mode 600, propriété root), puis effectuer un **redéploiement PHP/Nginx contrôlé** : la configuration des conteneurs est capturée à leur création. Ne pas toucher aux secrets préexistants.
+- [ ] Vérifier dans PHP que `MESSENGER_TRANSPORT_DSN` pointe vers `yoowii_async` sans afficher le DSN ; faire de même pour le worker avec `docker compose config` en évitant l'affichage complet de la configuration qui contiendrait des secrets.
+- [ ] Évaluer les messages émis entre la fusion et la bascule effective du PHP : ils peuvent encore aller dans `default`. Éviter de produire des messages Yoowii pendant cette fenêtre.
+- [x] Inventaire catégoriel de la file historique `default` : **18 messages Sylius/promotions catalogue, 1 message Yoowii/PreflightPrintAsset** (19–27/10/2026), classifiés par recherche de chaînes sans lecture des données. Ne pas les déplacer, traiter ou supprimer sans analyse métier.
 - [ ] Examiner la quantité et les types de messages déjà en attente, sans divulguer les données personnelles. Si des tâches Realisaprint sont en file, obtenir l'accord métier avant toute consommation.
 - [ ] Vérifier que les services/handlers accèdent aux mêmes données et fichiers privés depuis le worker ; réaliser un essai sur une base isolée avec un message sans effet fournisseur.
 - [ ] Définir les retries, le transport `failed`, la politique de poison messages et les alertes de backlog.
@@ -94,7 +97,7 @@ Ne pas lancer `down`, `down -v`, `prune` ou `messenger:consume` dans le conteneu
 
 ## Limites
 
-- La file Doctrine n'a pas encore été inspectée sur le VPS : l'activation n'est pas approuvée.
+- La file Doctrine historique a été inspectée **en lecture seule** : 19 messages dans `default` (18 promotions Sylius, 1 preflight Yoowii). Aucun message n'a été consommé ; l'activation n'est pas approuvée.
 - Les emails et les tâches `cron` ne sont **pas inclus** dans cette PR.
 - Aucun déploiement ni test de consommation réelle n'a été fait.
 - Ne pas considérer cette PR comme la clôture de l'issue #4 : la durabilité, le rejeu des échecs et la supervision restent à prouver.
