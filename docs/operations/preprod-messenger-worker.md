@@ -65,9 +65,24 @@ Si cette commande échoue, arrêter et corriger les prérequis sans utiliser `up
 - [x] Inventaire catégoriel de la file historique `default` : **18 messages Sylius/promotions catalogue, 1 message Yoowii/PreflightPrintAsset** (19–27/10/2026), classifiés par recherche de chaînes sans lecture des données. Ne pas les déplacer, traiter ou supprimer sans analyse métier.
 - [ ] Examiner la quantité et les types de messages déjà en attente, sans divulguer les données personnelles. Si des tâches Realisaprint sont en file, obtenir l'accord métier avant toute consommation.
 - [ ] Vérifier que les services/handlers accèdent aux mêmes données et fichiers privés depuis le worker ; réaliser un essai sur une base isolée avec un message sans effet fournisseur.
-- [ ] Définir les retries, le transport `failed`, la politique de poison messages et les alertes de backlog.
+- [x] Définir les retries applicatifs Yoowii : 3 réessais avec délais de 1, 2 et 4 secondes (plafond 60 secondes) ; transport d'échec dédié `yoowii_failed` (Doctrine). Aucune configuration globale `failure_transport` : ne pas changer les stratégies Sylius.
+- [ ] Valider en test isolé l'échec définitif, le routage vers `yoowii_failed`, le rejeu volontaire et le comportement d'un message poison ; ne jamais faire ce test sur la file historique `default`.
+- [ ] Définir le seuil d'alerte du backlog et son relevé sans exposer le contenu des messages.
 - [ ] Valider le budget mémoire/CPU, la supervision, l'arrêt SIGTERM et la non-concurrence ; démarrer à **une seule instance**.
 - [ ] Vérifier l'absence d'email client ou d'ordre fournisseur non désiré.
+
+## Supervision et gestion des échecs (lecture seule)
+
+Sur préproduction, une fois la nouvelle image et la variable producteur/worker cohérentes, relever les compteurs **sans lire les corps ni les en-têtes des messages** :
+
+```bash
+docker compose --env-file .env -f compose.preprod.yml exec -T php \
+  php bin/console doctrine:query:sql \
+  "SELECT queue_name, COUNT(*) AS total, SUM(delivered_at IS NOT NULL) AS reserves FROM messenger_messages GROUP BY queue_name" \
+  --env=prod --no-debug
+```
+
+Ne pas utiliser `messenger:failed:retry`, `messenger:failed:remove` ou `messenger:consume` tant que les types, l'idempotence et les effets métier des messages ne sont pas approuvés. Le transport `yoowii_failed` est distinct de la file `default` et des transports d'échec Sylius.
 
 ## Étape D — Activation manuelle uniquement (après autorisation)
 
