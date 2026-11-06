@@ -7,6 +7,10 @@ services:
       service: php
     profiles:
       - messenger
+    # The transport used by the web process must be explicitly provided to
+    # this independently managed worker. Do not silently fall back to sync://.
+    environment:
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:?Configure a durable Messenger transport on the VPS}
     # No public network or published ports. Keep PHP's private media mount and
     # environment so message handlers use the same DB and files as the shop.
     networks:
