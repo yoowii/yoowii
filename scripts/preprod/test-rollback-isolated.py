@@ -101,6 +101,8 @@ if "config" in args:
     sys.exit(0)
 if "create" in args:
     runtime.write_text("created")
+    if os.environ.get("FAKE_FAIL_WORKER_CREATE") == "1" and os.environ.get("YOOWII_IMAGE_TAG", "").endswith("b"*40):
+        sys.exit(43)
     sys.exit(0)
 if "up" in args:
     p = Path(os.environ["FAKE_ATTEMPTS"])
@@ -213,3 +215,43 @@ fi
     check(worker_runtime.read_text() == "running",
           "Worker rollback did not restore running state")
     print("PASS: post-swap failure restores worker, Compose and image tag")
+
+    # Failure during container creation is a partial mutation: attempt a
+    # full old-image worker recreation, never just start a possibly removed ID.
+    env["FAKE_FAIL_FIRST_UP"] = "0"
+    env["FAKE_FAIL_WORKER_CREATE"] = "1"
+    worker_runtime.write_text("running")
+    events.write_text("")
+    attempts.write_text("0")
+    (site / "compose.preprod.yml").write_text(original_compose)
+    (site / ".env").write_text(original_env)
+    broken_create = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
+                                   input=proposed_compose, text=True, capture_output=True,
+                                   env=env, timeout=30)
+    check(broken_create.returncode != 0, "Partial worker create failure reported success")
+    check((site / "compose.preprod.yml").read_text() == original_compose,
+          "Partial worker create failure left new Compose")
+    check((site / ".env").read_text() == original_env,
+          "Partial worker create failure updated release tag")
+    check(worker_runtime.read_text() == "running",
+          f"Partial worker create rollback did not restart worker: {broken_create.stderr}")
+    check(any(" create " in " " + row + " " and row.endswith(OLD)
+              for row in events.read_text().splitlines()),
+          "Partial worker create failure did not rebuild previous image")
+    print("PASS: partial worker creation failure restores previous image and running state")
+
+    # Refuse a pre-existing worker with an image that does not match PHP.
+    env["FAKE_FAIL_WORKER_CREATE"] = "0"
+    env["FAKE_WORKER_IMAGE_TAG"] = NEW
+    worker_runtime.write_text("running")
+    events.write_text("")
+    attempts.write_text("0")
+    invalid = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
+                             input=proposed_compose, text=True, capture_output=True,
+                             env=env, timeout=30)
+    check(invalid.returncode == 9, f"Wrong-image worker must block: {invalid.stderr}")
+    check("Worker image differs" in invalid.stderr, "Missing mismatch explanation")
+    check((site / "compose.preprod.yml").read_text() == original_compose,
+          "Wrong-image worker changed Compose")
+    check(attempts.read_text() == "0", "Wrong-image worker recreated PHP")
+    print("PASS: worker image mismatch blocks deployment before mutation")
