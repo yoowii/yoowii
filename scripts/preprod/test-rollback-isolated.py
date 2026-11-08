@@ -126,12 +126,26 @@ else:
     print("200", end="")
 """)
     (binpath / "sleep").write_text("#!/bin/sh\nexit 0\n")
-    for name in ("docker", "curl", "sleep"):
+    # Isolated CI has no root-owned files. Emulate the approved overlay
+    # metadata without relaxing ownership checks in the production script.
+    (binpath / "stat").write_text("""#!/bin/sh
+if [ "$1" = "-c" ] && [ "$3" = "$FAKE_OVERLAY" ]; then
+  case "$2" in
+    %u) printf '0\\n' ;;
+    %a) printf '644\\n' ;;
+    *) exit 1 ;;
+  esac
+else
+  exec /usr/bin/stat "$@"
+fi
+""")
+    for name in ("docker", "curl", "sleep", "stat"):
         (binpath / name).chmod(0o755)
     env = dict(os.environ, PATH=str(binpath) + ":" + os.environ["PATH"],
                FAKE_EVENTS=str(events), FAKE_ATTEMPTS=str(attempts),
                FAKE_PINNED_COMPOSE=proposed_compose,
-               FAKE_WORKER_RUNTIME=str(worker_runtime), FAKE_FAIL_FIRST_UP="1")
+               FAKE_WORKER_RUNTIME=str(worker_runtime), FAKE_FAIL_FIRST_UP="1",
+               FAKE_OVERLAY=str(site / "compose.preprod.worker.yml"))
     outcome = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
                              input=proposed_compose, text=True, capture_output=True,
                              env=env, timeout=30)
