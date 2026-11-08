@@ -53,9 +53,9 @@ if args[0] == "ps" and "-a" in args:
         print("worker-456")
     sys.exit(0)
 if args[0] == "inspect":
-    if ".Config.Image" in args:
+    if any(".Config.Image" in arg for arg in args):
         print("ghcr.io/yoowii/yoowii-php:" + os.environ.get("FAKE_WORKER_IMAGE_TAG", "sha-" + "a"*40))
-    elif ".State.Status" in args:
+    elif any(".State.Status" in arg for arg in args):
         print(runtime.read_text().strip())
     sys.exit(0)
 if args[0] == "stop":
