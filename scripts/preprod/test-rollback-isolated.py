@@ -38,14 +38,14 @@ with tempfile.TemporaryDirectory(prefix="yoowii-rollback-") as tmp:
     worker_runtime = root / "worker-runtime"
     worker_runtime.write_text("running")
     events = root / "events"
-    (site / "compose.preprod.worker.yml").write_text("services:\\n  worker:\\n    image: fixed\\n")
+    (site / "compose.preprod.worker.yml").write_text("services:\n  worker:\n    image: fixed\n")
 
     fake_docker = r'''#!/usr/bin/env python3
 import json, os, sys
 from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_EVENTS"], "a") as f:
-    f.write(" ".join(args) + " | " + os.environ.get("YOOWII_IMAGE_TAG", "") + "\\n")
+    f.write(" ".join(args) + " | " + os.environ.get("YOOWII_IMAGE_TAG", "") + "\n")
 state = os.environ.get("FAKE_WORKER_STATE", "")
 runtime = Path(os.environ["FAKE_WORKER_RUNTIME"])
 if args[0] == "ps" and "-a" in args:
@@ -68,7 +68,7 @@ if args[0] == "pull":
     sys.exit(0)
 if "config" in args:
     if "--services" in args:
-        print("php\\nnginx\\nmysql\\nredis")
+        print("php\nnginx\nmysql\nredis")
     if "--format" in args:
         tag = os.environ["YOOWII_IMAGE_TAG"]
         path = Path(args[args.index("-f") + 1])
@@ -111,7 +111,7 @@ if "ps" in args or "logs" in args:
     if "-q" in args:
         print("worker-456")
     elif "--status" in args:
-        print("php\\nnginx")
+        print("php\nnginx")
     sys.exit(0)
 sys.exit("Unexpected docker action: " + " ".join(args))
 '''
