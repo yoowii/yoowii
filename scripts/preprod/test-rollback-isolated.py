@@ -64,7 +64,8 @@ if args[0] == "inspect":
 if args[0] == "stop":
     if os.environ.get("FAKE_FAIL_WORKER_STOP") == "1":
         sys.exit(44)
-    runtime.write_text("exited")
+    if os.environ.get("FAKE_STOP_STAYS_RUNNING") != "1":
+        runtime.write_text("exited")
     sys.exit(0)
 if args[0] == "start":
     failure_marker = Path(os.environ["FAKE_FAIL_START_ONCE_FILE"])
@@ -338,3 +339,27 @@ fi
               for row in events.read_text().splitlines()),
           "Failed worker start did not restore old worker image")
     print("PASS: worker start failure restores previous release and state")
+
+    # Docker stop may return success but inspect may still indicate running.
+    # The deployment must fail before changing the active Compose or PHP.
+    env["FAKE_WORKER_STATE"] = "running"
+    env["FAKE_STOP_STAYS_RUNNING"] = "1"
+    worker_runtime.write_text("running")
+    worker_image.write_text(OLD)
+    events.write_text("")
+    attempts.write_text("0")
+    (site / "compose.preprod.yml").write_text(original_compose)
+    (site / ".env").write_text(original_env)
+    lingering = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
+                               input=proposed_compose, text=True, capture_output=True,
+                               env=env, timeout=30)
+    check(lingering.returncode != 0, "Still-running worker allowed deployment")
+    check("Worker failed to stop cleanly" in lingering.stderr,
+          f"Missing stop-state failure reason: {lingering.stderr}")
+    check((site / "compose.preprod.yml").read_text() == original_compose,
+          "Still-running worker changed Compose")
+    check((site / ".env").read_text() == original_env,
+          "Still-running worker changed .env")
+    check(attempts.read_text() == "0", "Still-running worker recreated PHP")
+    print("PASS: successful stop command without stopped state cannot promote PHP")
+    env.pop("FAKE_STOP_STAYS_RUNNING")
