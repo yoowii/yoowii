@@ -64,11 +64,11 @@ if args[0] == "stop":
     runtime.write_text("exited")
     sys.exit(0)
 if args[0] == "start":
-    if os.environ.get("FAKE_FAIL_WORKER_START") == "1" and os.environ.get("FAKE_FAIL_START_ONCE", "0") == "1":
-        Path(os.environ["FAKE_FAIL_START_ONCE_FILE"]).write_text("1")
-        sys.exit(45)
-    if os.environ.get("FAKE_FAIL_WORKER_START") == "1" and os.environ.get("FAKE_FAIL_START_ONCE", "0") != "1":
-        sys.exit(45)
+    failure_marker = Path(os.environ["FAKE_FAIL_START_ONCE_FILE"])
+    if os.environ.get("FAKE_FAIL_WORKER_START") == "1":
+        if os.environ.get("FAKE_FAIL_START_ONCE") != "1" or not failure_marker.exists():
+            failure_marker.write_text("1")
+            sys.exit(45)
     runtime.write_text("running")
     sys.exit(0)
 if args[0] == "pull":
@@ -306,3 +306,28 @@ fi
     check(attempts.read_text() == "0", "Failed image pull recreated PHP/Nginx")
     print("PASS: image pull failure restores worker before Compose swap")
     env.pop("FAKE_FAIL_PULL")
+
+    # Worker start fails after the new container has been created; rollback
+    # must recreate the previous image and restore its former running state.
+    env["FAKE_FAIL_WORKER_START"] = "1"
+    env["FAKE_FAIL_START_ONCE"] = "1"
+    Path(env["FAKE_FAIL_START_ONCE_FILE"]).unlink(missing_ok=True)
+    worker_runtime.write_text("running")
+    events.write_text("")
+    attempts.write_text("0")
+    (site / "compose.preprod.yml").write_text(original_compose)
+    (site / ".env").write_text(original_env)
+    start_failed = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
+                                  input=proposed_compose, text=True, capture_output=True,
+                                  env=env, timeout=30)
+    check(start_failed.returncode != 0, "Failed worker start reported success")
+    check((site / "compose.preprod.yml").read_text() == original_compose,
+          "Failed worker start left new Compose")
+    check((site / ".env").read_text() == original_env,
+          "Failed worker start changed image tag")
+    check(worker_runtime.read_text() == "running",
+          f"Failed worker start rollback did not restore worker: {start_failed.stderr}")
+    check(any(" create " in " " + row + " " and row.endswith(OLD)
+              for row in events.read_text().splitlines()),
+          "Failed worker start did not restore old worker image")
+    print("PASS: worker start failure restores previous release and state")
