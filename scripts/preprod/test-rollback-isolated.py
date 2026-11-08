@@ -43,7 +43,7 @@ from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_EVENTS"], "a") as f:
     f.write(" ".join(args) + " | " + os.environ.get("YOOWII_IMAGE_TAG", "") + "\n")
-if args[0] == "pull":
+if args[0] == "ps" and "-a" in args:\n    if os.environ.get("FAKE_WORKER_PRESENT") == "1":\n        print("worker-456")\n    sys.exit(0)\nif args[0] == "pull":
     sys.exit(0)
 if "config" in args:
     if "--services" in args:
@@ -107,3 +107,20 @@ else:
     print("PASS: post-swap error triggers rollback with nonzero result")
     print("PASS: previous Compose, image tag and .env preserved")
     print("PASS: no real Docker daemon or HTTP requests used")
+
+    # A running OR stopped worker is unsafe during a PHP-only image promotion.
+    # Must fail BEFORE pulls, Compose replacement or any container recreation.
+    events.write_text("")
+    attempts.write_text("0")
+    env["FAKE_WORKER_PRESENT"] = "1"
+    blocked = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
+                             input=proposed_compose, text=True, capture_output=True,
+                             env=env, timeout=30)
+    check(blocked.returncode == 9, f"Worker guard exit mismatch: {blocked.stderr}")
+    check("Messenger worker container exists" in blocked.stderr, "Worker guard did not explain blocker")
+    check((site / "compose.preprod.yml").read_text() == original_compose, "Guard changed current Compose")
+    check((site / ".env").read_text() == original_env, "Guard changed .env")
+    check(attempts.read_text() == "0", "Guard recreated application containers")
+    check(not any(" pull " in " " + row + " " or " up -d " in row for row in events.read_text().splitlines()),
+          "Guard performed container image pull or recreation")
+    print("PASS: active/stopped Messenger worker prevents PHP promotion before mutation")
