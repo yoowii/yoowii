@@ -44,7 +44,8 @@ args = sys.argv[1:]
 with open(os.environ["FAKE_EVENTS"], "a") as f:
     f.write(" ".join(args) + " | " + os.environ.get("YOOWII_IMAGE_TAG", "") + "\n")
 if args[0] == "ps" and "-a" in args:
-    if os.environ.get("FAKE_WORKER_PRESENT") == "1":
+    # Docker ps -a must return both running and stopped containers.
+    if os.environ.get("FAKE_WORKER_STATE") in ("running", "stopped"):
         print("worker-456")
     sys.exit(0)
 if args[0] == "pull":
@@ -99,7 +100,8 @@ else:
                              input=proposed_compose, text=True, capture_output=True,
                              env=env, timeout=30)
     check(outcome.returncode != 0, "Failure reported as success")
-    check("Infrastructure guard passed" in outcome.stdout, "Guard not tested")
+    check("Infrastructure guard passed" in outcome.stdout,
+          f"Guard not tested: stdout={outcome.stdout!r}, stderr={outcome.stderr!r}")
     check("reverting Compose and images" in outcome.stderr, "Rollback not triggered")
     check("Rollback healthcheck passed" in outcome.stderr, "Rollback healthcheck failed")
     check((site / "compose.preprod.yml").read_text() == original_compose, "Compose not restored")
@@ -112,19 +114,28 @@ else:
     print("PASS: previous Compose, image tag and .env preserved")
     print("PASS: no real Docker daemon or HTTP requests used")
 
-    # A running OR stopped worker is unsafe during a PHP-only image promotion.
-    # Must fail BEFORE pulls, Compose replacement or any container recreation.
-    events.write_text("")
-    attempts.write_text("0")
-    env["FAKE_WORKER_PRESENT"] = "1"
-    blocked = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
-                             input=proposed_compose, text=True, capture_output=True,
-                             env=env, timeout=30)
-    check(blocked.returncode == 9, f"Worker guard exit mismatch: {blocked.stderr}")
-    check("Messenger worker container exists" in blocked.stderr, "Worker guard did not explain blocker")
-    check((site / "compose.preprod.yml").read_text() == original_compose, "Guard changed current Compose")
-    check((site / ".env").read_text() == original_env, "Guard changed .env")
-    check(attempts.read_text() == "0", "Guard recreated application containers")
-    check(not any(" pull " in " " + row + " " or " up -d " in row for row in events.read_text().splitlines()),
-          "Guard performed container image pull or recreation")
-    print("PASS: active/stopped Messenger worker prevents PHP promotion before mutation")
+    # A running OR stopped worker must block a PHP-only image promotion.
+    # Neither state may be silently bypassed. Check both independently.
+    for state in ("running", "stopped"):
+        events.write_text("")
+        attempts.write_text("0")
+        env["FAKE_WORKER_STATE"] = state
+        blocked = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
+                                 input=proposed_compose, text=True, capture_output=True,
+                                 env=env, timeout=30)
+        check(blocked.returncode == 9,
+              f"{state} worker guard exit mismatch: stdout={blocked.stdout!r}, stderr={blocked.stderr!r}")
+        check("Infrastructure guard passed" in blocked.stdout,
+              f"{state} worker guard did not run after Compose validation")
+        check("Messenger worker container exists" in blocked.stderr,
+              f"{state} worker guard did not explain blocker")
+        check((site / "compose.preprod.yml").read_text() == original_compose,
+              f"{state} worker guard changed current Compose")
+        check((site / ".env").read_text() == original_env,
+              f"{state} worker guard changed .env")
+        check(attempts.read_text() == "0",
+              f"{state} worker guard recreated application containers")
+        check(not any(" pull " in " " + row + " " or " up -d " in row
+                      for row in events.read_text().splitlines()),
+              f"{state} worker guard pulled images or recreated containers")
+        print(f"PASS: {state} Messenger worker prevents PHP promotion before mutation")
