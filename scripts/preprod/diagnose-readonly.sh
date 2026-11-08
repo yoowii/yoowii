@@ -8,8 +8,8 @@ warn() { printf 'WARN  %s\n' "$1"; warnings=$((warnings+1)); }
 fail() { printf 'FAIL  %s\n' "$1"; failures=$((failures+1)); }
 check_file() {
   local file="$1" name="$2" owner mode
-  if [[ ! -e "$file" ]]; then warn "$name absent"; return 1; fi
   if [[ -L "$file" ]]; then fail "$name is symlinked"; return 1; fi
+  if [[ ! -e "$file" ]]; then warn "$name absent"; return 1; fi
   owner="$(stat -c %u "$file")" || { fail "$name owner unavailable"; return 1; }
   mode="$(stat -c %a "$file")" || { fail "$name mode unavailable"; return 1; }
   printf 'INFO  %s uid=%s mode=%s\n' "$name" "$owner" "$mode"
@@ -57,6 +57,9 @@ else
   printf 'INFO  worker_count=%s\n' "$count"
   (( count <= 1 )) || fail 'Multiple workers detected'
   if (( count == 0 )); then ok 'No worker to reconcile'; fi
+  if (( count > 0 )) && [[ ! -f "$overlay" || -L "$overlay" ]]; then
+    fail 'Existing worker requires a safe regular overlay file'
+  fi
   while IFS= read -r id; do
     [[ -n "$id" ]] || continue
     if ! info="$(docker inspect --format '{{.Config.Image}} {{.State.Status}}' "$id")"; then
