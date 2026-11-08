@@ -9,6 +9,21 @@
 - Confirmer l'état initial des services avant de prévoir une recette supervisée. Le worker est **opt-in** et ne doit pas être démarré par défaut.
 - La préproduction partage un hôte Plesk avec d'autres sites : ne pas exécuter de commandes Docker globales destructrices ou `docker compose down`.
 
+## Diagnostic automatisé, sans modification du VPS
+
+Le script versionné [`scripts/preprod/diagnose-readonly.sh`](../scripts/preprod/diagnose-readonly.sh) réunit les contrôles purement consultatifs : fichiers et permissions, existence du tag immuable, présence **sans révéler la valeur** du transport Messenger dédié, nombre de workers, état et image Docker. Il n'exécute ni `docker compose up/down`, ni `docker exec`, ni `docker compose config` (qui pourrait exposer des secrets).
+
+Sur une **copie locale du dépôt à la version revue** (et non par exécution directe d'une URL non vérifiée), vérifier puis exécuter :
+
+```bash
+bash -n scripts/preprod/diagnose-readonly.sh
+sudo bash scripts/preprod/diagnose-readonly.sh
+```
+
+Codes de retour : `0` = aucun blocage ni avertissement remonté par ce script ; `1` = avertissements ; `2` = défaut détecté. **Le code 0 n'autorise pas à lui seul le déploiement** : la valeur réelle de la DSN, le contenu de l'overlay, les sauvegardes et l'idempotence restent à contrôler séparément. Le script n'affiche pas les valeurs de `.env`, les variables des conteneurs, ni la configuration Compose résolue.
+
+Ne partager que les lignes `PASS/WARN/FAIL/INFO/RESULT` après vérification de l'absence de données sensibles. Ne pas lancer le script via `curl | bash` et ne pas communiquer le fichier `.env`.
+
 ## 2. Diagnostic sans secrets
 
 Exécuter les commandes suivantes sur le VPS dans un terminal administrateur autorisé. Elles affichent des métadonnées de déploiement, pas le contenu de `.env` :
