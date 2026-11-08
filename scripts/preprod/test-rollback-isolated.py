@@ -59,12 +59,21 @@ if args[0] == "inspect":
         print(runtime.read_text().strip())
     sys.exit(0)
 if args[0] == "stop":
+    if os.environ.get("FAKE_FAIL_WORKER_STOP") == "1":
+        sys.exit(44)
     runtime.write_text("exited")
     sys.exit(0)
 if args[0] == "start":
+    if os.environ.get("FAKE_FAIL_WORKER_START") == "1" and os.environ.get("FAKE_FAIL_START_ONCE", "0") == "1":
+        Path(os.environ["FAKE_FAIL_START_ONCE_FILE"]).write_text("1")
+        sys.exit(45)
+    if os.environ.get("FAKE_FAIL_WORKER_START") == "1" and os.environ.get("FAKE_FAIL_START_ONCE", "0") != "1":
+        sys.exit(45)
     runtime.write_text("running")
     sys.exit(0)
 if args[0] == "pull":
+    if os.environ.get("FAKE_FAIL_PULL") == "1":
+        sys.exit(46)
     sys.exit(0)
 if "config" in args:
     if "--services" in args:
@@ -147,7 +156,8 @@ fi
                FAKE_EVENTS=str(events), FAKE_ATTEMPTS=str(attempts),
                FAKE_PINNED_COMPOSE=proposed_compose,
                FAKE_WORKER_RUNTIME=str(worker_runtime), FAKE_FAIL_FIRST_UP="1",
-               FAKE_OVERLAY=str(site / "compose.preprod.worker.yml"))
+               FAKE_OVERLAY=str(site / "compose.preprod.worker.yml"),
+               FAKE_FAIL_START_ONCE_FILE=str(root / "worker-failed-start"))
     outcome = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
                              input=proposed_compose, text=True, capture_output=True,
                              env=env, timeout=30)
@@ -255,3 +265,44 @@ fi
           "Wrong-image worker changed Compose")
     check(attempts.read_text() == "0", "Wrong-image worker recreated PHP")
     print("PASS: worker image mismatch blocks deployment before mutation")
+
+    # Guard: a stop failure must not replace Compose or application containers.
+    # The worker is still running, and the rollback must not kill it.
+    env.pop("FAKE_WORKER_IMAGE_TAG", None)
+    env["FAKE_FAIL_WORKER_STOP"] = "1"
+    env["FAKE_WORKER_STATE"] = "running"
+    worker_runtime.write_text("running")
+    events.write_text("")
+    attempts.write_text("0")
+    stop_failed = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
+                                 input=proposed_compose, text=True, capture_output=True,
+                                 env=env, timeout=30)
+    check(stop_failed.returncode != 0, "Failed worker stop reported success")
+    check((site / "compose.preprod.yml").read_text() == original_compose,
+          "Failed worker stop swapped Compose")
+    check((site / ".env").read_text() == original_env,
+          "Failed worker stop changed .env")
+    check(attempts.read_text() == "0", "Failed worker stop recreated PHP/Nginx")
+    check(worker_runtime.read_text() == "running", "Stop failure left worker stopped")
+    print("PASS: worker stop failure aborts before app mutation")
+    env.pop("FAKE_FAIL_WORKER_STOP")
+
+    # Image pull fails after worker shutdown. Restore the worker without
+    # pointlessly recreating already healthy PHP/Nginx.
+    env["FAKE_FAIL_PULL"] = "1"
+    worker_runtime.write_text("running")
+    events.write_text("")
+    attempts.write_text("0")
+    pull_failed = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
+                                 input=proposed_compose, text=True, capture_output=True,
+                                 env=env, timeout=30)
+    check(pull_failed.returncode != 0, "Failed image pull reported success")
+    check((site / "compose.preprod.yml").read_text() == original_compose,
+          "Failed image pull swapped Compose")
+    check((site / ".env").read_text() == original_env,
+          "Failed image pull changed .env")
+    check(worker_runtime.read_text() == "running",
+          "Failed image pull did not restore running worker")
+    check(attempts.read_text() == "0", "Failed image pull recreated PHP/Nginx")
+    print("PASS: image pull failure restores worker before Compose swap")
+    env.pop("FAKE_FAIL_PULL")
