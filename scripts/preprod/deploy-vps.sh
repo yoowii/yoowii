@@ -212,6 +212,13 @@ trap rollback ERR
 if [[ "$worker_was_running" == true ]]; then
   worker_stopped=true
   docker stop --time 90 "$worker_id"
+  # A successful Docker CLI exit alone does not prove the process has stopped.
+  # Fail closed before touching PHP/Nginx if the worker remains active.
+  stopped_state="$(docker inspect --format '{{.State.Status}}' "$worker_id")"
+  [[ "$stopped_state" == exited ]] || {
+    echo "Worker failed to stop cleanly (state: $stopped_state)" >&2
+    false
+  }
 fi
 
 echo "Deploying $tag (previous $old_tag), matching committed Compose from stdin"
