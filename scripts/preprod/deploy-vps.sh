@@ -191,10 +191,25 @@ rollback() {
     if [[ -n "$worker_id" ]]; then
       if [[ "$worker_reconciled" == true ]]; then
         if YOOWII_IMAGE_TAG="$old_tag" "${worker_compose[@]}" create --no-deps --no-build --force-recreate worker; then
-          if [[ "$worker_was_running" == true ]]; then
-            docker start "$("${worker_compose[@]}" ps -a -q worker)" || echo "CRITICAL: worker rollback start failed" >&2
+          rollback_worker_id="$(YOOWII_IMAGE_TAG="$old_tag" "${worker_compose[@]}" ps -a -q worker)" || rollback_worker_id=""
+          rollback_worker_image=""
+          rollback_worker_state=""
+          if [[ -n "$rollback_worker_id" ]]; then
+            rollback_worker_image="$(docker inspect --format '{{.Config.Image}}' "$rollback_worker_id")" || true
+            if [[ "$worker_was_running" == true ]]; then
+              docker start "$rollback_worker_id" || echo "CRITICAL: worker rollback start failed" >&2
+            fi
+            rollback_worker_state="$(docker inspect --format '{{.State.Status}}' "$rollback_worker_id")" || true
           fi
-          echo "Worker restored to previous image and initial running state" >&2
+          if [[ "$rollback_worker_image" != "ghcr.io/yoowii/yoowii-php:$old_tag" ]]; then
+            echo "CRITICAL: worker rollback image mismatch or missing container" >&2
+          elif [[ "$worker_was_running" == true && "$rollback_worker_state" != running ]]; then
+            echo "CRITICAL: worker rollback did not restore running state" >&2
+          elif [[ "$worker_was_running" == false && "$rollback_worker_state" != created && "$rollback_worker_state" != exited ]]; then
+            echo "CRITICAL: worker rollback unexpectedly started stopped worker" >&2
+          else
+            echo "Worker restored to previous image and initial state" >&2
+          fi
         else
           echo "CRITICAL: worker rollback recreation failed" >&2
         fi
