@@ -163,7 +163,7 @@ required = {"MAILER_DSN": "null://null", "YOOWII_REALISAPRINT_ENABLED": "0",
             "YOOWII_REALISAPRINT_QUOTE_ENABLED": "0"}
 if any(str(env.get(k)) != v for k,v in required.items()):
     sys.exit("Worker supplier/mail isolation violated")
-if not env.get("MESSENGER_TRANSPORT_DSN") or "queue_name=default" in str(env["MESSENGER_TRANSPORT_DSN"]):
+if "queue_name=yoowii_async" not in str(env.get("MESSENGER_TRANSPORT_DSN", "")):
     sys.exit("Worker dedicated Messenger transport missing")
 PY
   echo "Existing worker verified (initial state: $worker_state); will reconcile with PHP"
@@ -181,10 +181,12 @@ rollback() {
       cp -p "$backup" "$dir/.compose.preprod.rollback.tmp"
       mv -f "$dir/.compose.preprod.rollback.tmp" "$dir/compose.preprod.yml"
     fi
-    if YOOWII_IMAGE_TAG="$old_tag" "${compose[@]}" up -d --no-deps --no-build --force-recreate php nginx; then
-      healthcheck && echo "Rollback healthcheck passed" >&2 || echo "CRITICAL: rollback healthcheck failed" >&2
-    else
-      echo "CRITICAL: rollback recreation failed" >&2
+    if [[ "$swapped" == true ]]; then
+      if YOOWII_IMAGE_TAG="$old_tag" "${compose[@]}" up -d --no-deps --no-build --force-recreate php nginx; then
+        healthcheck && echo "Rollback healthcheck passed" >&2 || echo "CRITICAL: rollback healthcheck failed" >&2
+      else
+        echo "CRITICAL: rollback recreation failed" >&2
+      fi
     fi
     if [[ -n "$worker_id" ]]; then
       if [[ "$worker_reconciled" == true ]]; then
@@ -208,8 +210,8 @@ trap rollback ERR
 # Stop a running worker before recreating PHP, respecting its 90s grace period.
 # On stop timeout/error, abort before swapping Compose or PHP containers.
 if [[ "$worker_was_running" == true ]]; then
-  docker stop --time 90 "$worker_id"
   worker_stopped=true
+  docker stop --time 90 "$worker_id"
 fi
 
 echo "Deploying $tag (previous $old_tag), matching committed Compose from stdin"
@@ -227,8 +229,9 @@ healthcheck || { echo "HTTP healthcheck failed" >&2; false; }
 # Reconcile the opted-in worker before publishing the new image tag.
 # 'create' preserves a previously stopped worker without starting it.
 if [[ -n "$worker_id" ]]; then
-  YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" create --no-deps --no-build --force-recreate worker
+  # Mark first: Compose may delete the old container before failing mid-create.
   worker_reconciled=true
+  YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" create --no-deps --no-build --force-recreate worker
   if [[ "$worker_was_running" == true ]]; then
     worker_new_id="$(YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" ps -a -q worker)"
     [[ -n "$worker_new_id" ]] || { echo "Worker recreation returned no container" >&2; false; }
