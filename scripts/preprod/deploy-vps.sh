@@ -135,6 +135,19 @@ rollback() {
 }
 trap rollback ERR
 
+# Issue #5: fail closed rather than leave an old/auto-restarting worker beside
+# a newly deployed PHP image. A stopped "unless-stopped" container must also
+# be reconciled; Docker may restart it after a reboot or manual intervention.
+# This check is before image pulls / Compose swaps / container recreation.
+worker_ids="$(docker ps -a --filter 'label=com.docker.compose.project=yoowii-preprod' \
+  --filter 'label=com.docker.compose.service=worker' --format '{{.ID}}')"
+if [[ -n "$worker_ids" ]]; then
+  echo "DEPLOYMENT BLOCKED: Messenger worker container exists (running or stopped)." >&2
+  echo "Do not update PHP while its worker may retain the old image." >&2
+  echo "Follow the reviewed worker lifecycle runbook; never use --remove-orphans." >&2
+  exit 9
+fi
+
 echo "Deploying $tag (previous $old_tag), matching committed Compose from stdin"
 docker pull "ghcr.io/yoowii/yoowii-php:$tag"
 docker pull "ghcr.io/yoowii/yoowii-nginx:$tag"
