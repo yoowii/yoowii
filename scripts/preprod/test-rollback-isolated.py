@@ -43,7 +43,11 @@ from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_EVENTS"], "a") as f:
     f.write(" ".join(args) + " | " + os.environ.get("YOOWII_IMAGE_TAG", "") + "\n")
-if args[0] == "ps" and "-a" in args:\n    if os.environ.get("FAKE_WORKER_PRESENT") == "1":\n        print("worker-456")\n    sys.exit(0)\nif args[0] == "pull":
+if args[0] == "ps" and "-a" in args:
+    if os.environ.get("FAKE_WORKER_PRESENT") == "1":
+        print("worker-456")
+    sys.exit(0)
+if args[0] == "pull":
     sys.exit(0)
 if "config" in args:
     if "--services" in args:
