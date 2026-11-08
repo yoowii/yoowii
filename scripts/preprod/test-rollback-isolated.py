@@ -37,6 +37,8 @@ with tempfile.TemporaryDirectory(prefix="yoowii-rollback-") as tmp:
     attempts.write_text("0")
     worker_runtime = root / "worker-runtime"
     worker_runtime.write_text("running")
+    worker_image = root / "worker-image"
+    worker_image.write_text(OLD)
     events = root / "events"
     (site / "compose.preprod.worker.yml").write_text("services:\n  worker:\n    image: fixed\n")
 
@@ -48,13 +50,14 @@ with open(os.environ["FAKE_EVENTS"], "a") as f:
     f.write(" ".join(args) + " | " + os.environ.get("YOOWII_IMAGE_TAG", "") + "\n")
 state = os.environ.get("FAKE_WORKER_STATE", "")
 runtime = Path(os.environ["FAKE_WORKER_RUNTIME"])
+image = Path(os.environ["FAKE_WORKER_IMAGE_FILE"])
 if args[0] == "ps" and "-a" in args:
     if state in ("running", "stopped"):
         print("worker-456")
     sys.exit(0)
 if args[0] == "inspect":
     if any(".Config.Image" in arg for arg in args):
-        print("ghcr.io/yoowii/yoowii-php:" + os.environ.get("FAKE_WORKER_IMAGE_TAG", "sha-" + "a"*40))
+        print("ghcr.io/yoowii/yoowii-php:" + os.environ.get("FAKE_WORKER_IMAGE_TAG", image.read_text()))
     elif any(".State.Status" in arg for arg in args):
         print(runtime.read_text().strip())
     sys.exit(0)
@@ -110,6 +113,7 @@ if "config" in args:
     sys.exit(0)
 if "create" in args:
     runtime.write_text("created")
+    image.write_text(os.environ["YOOWII_IMAGE_TAG"])
     if os.environ.get("FAKE_FAIL_WORKER_CREATE") == "1" and os.environ.get("YOOWII_IMAGE_TAG", "").endswith("b"*40):
         sys.exit(43)
     sys.exit(0)
@@ -155,7 +159,8 @@ fi
     env = dict(os.environ, PATH=str(binpath) + ":" + os.environ["PATH"],
                FAKE_EVENTS=str(events), FAKE_ATTEMPTS=str(attempts),
                FAKE_PINNED_COMPOSE=proposed_compose,
-               FAKE_WORKER_RUNTIME=str(worker_runtime), FAKE_FAIL_FIRST_UP="1",
+               FAKE_WORKER_RUNTIME=str(worker_runtime), FAKE_WORKER_IMAGE_FILE=str(worker_image),
+               FAKE_FAIL_FIRST_UP="1",
                FAKE_OVERLAY=str(site / "compose.preprod.worker.yml"),
                FAKE_FAIL_START_ONCE_FILE=str(root / "worker-failed-start"))
     outcome = subprocess.run(["bash", str(root / "isolated.sh"), NEW[4:]],
@@ -182,6 +187,7 @@ fi
     for initial in ("running", "stopped"):
         env["FAKE_WORKER_STATE"] = initial
         worker_runtime.write_text("running" if initial == "running" else "exited")
+        worker_image.write_text(OLD)
         events.write_text("")
         attempts.write_text("0")
         (site / "compose.preprod.yml").write_text(original_compose)
@@ -208,6 +214,7 @@ fi
     env["FAKE_FAIL_FIRST_UP"] = "1"
     env["FAKE_WORKER_STATE"] = "running"
     worker_runtime.write_text("running")
+    worker_image.write_text(OLD)
     events.write_text("")
     attempts.write_text("0")
     (site / "compose.preprod.yml").write_text(original_compose)
