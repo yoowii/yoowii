@@ -239,12 +239,20 @@ if [[ -n "$worker_id" ]]; then
   # Mark first: Compose may delete the old container before failing mid-create.
   worker_reconciled=true
   YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" create --no-deps --no-build --force-recreate worker
+  worker_new_id="$(YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" ps -a -q worker)"
+  [[ -n "$worker_new_id" ]] || { echo "Worker recreation returned no container" >&2; false; }
+  [[ "$(docker inspect --format '{{.Config.Image}}' "$worker_new_id")" == "ghcr.io/yoowii/yoowii-php:$tag" ]] || {
+    echo "Worker recreated with unexpected image" >&2; false;
+  }
   if [[ "$worker_was_running" == true ]]; then
-    worker_new_id="$(YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" ps -a -q worker)"
-    [[ -n "$worker_new_id" ]] || { echo "Worker recreation returned no container" >&2; false; }
     docker start "$worker_new_id"
     [[ "$(docker inspect --format '{{.State.Status}}' "$worker_new_id")" == running ]] || {
       echo "Worker failed to start after recreation" >&2; false;
+    }
+  else
+    worker_new_state="$(docker inspect --format '{{.State.Status}}' "$worker_new_id")"
+    [[ "$worker_new_state" == created || "$worker_new_state" == exited ]] || {
+      echo "Previously stopped worker unexpectedly started" >&2; false;
     }
   fi
 fi
