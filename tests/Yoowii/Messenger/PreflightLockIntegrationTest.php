@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Yoowii\Messenger;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -17,6 +18,7 @@ final class PreflightLockIntegrationTest extends KernelTestCase
     {
         self::bootKernel();
 
+        /** @var Connection $primary */
         $primary = static::getContainer()->get('doctrine.dbal.default_connection');
         $params = $primary->getParams();
         self::assertSame('sylius_test', $params['dbname'] ?? null, 'Never run lock probe outside test DB');
