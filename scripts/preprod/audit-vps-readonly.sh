@@ -76,9 +76,22 @@ else
     fi
   done <<< "$ids"
 fi
-http_code="$(curl --silent --output /dev/null --connect-timeout 3 --max-time 10 --write-out '%{http_code}' -H 'Host: preprod.yoowii.com' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8086/fr_FR/ || true)"
-printf 'INFO local_http_status=%s\n' "$http_code"
-[[ "$http_code" == 200 ]] || warning 'local storefront healthcheck not HTTP 200 (may require Basic auth)'
+# Probe the local HTTP endpoint without following arbitrary redirects.
+# The /fr_FR/ route may redirect to /en_US/; this is a routing warning,
+# not an automatic healthcheck success.
+http_headers="$(curl --silent --show-error --head --connect-timeout 3 --max-time 10 \
+  -H 'Host: preprod.yoowii.com' -H 'X-Forwarded-Proto: https' \
+  http://127.0.0.1:8086/fr_FR/ 2>/dev/null || true)"
+http_code="$(printf '%s\n' "$http_headers" | sed -n 's/^HTTP\/[^ ]* \([0-9][0-9][0-9]\).*/\1/p' | tail -1)"
+redirect="$(printf '%s\n' "$http_headers" | sed -n 's/^[Ll]ocation:[[:space:]]*\([^[:cntrl:]]*\).*/\1/p' | tr -d '\r' | tail -1)"
+printf 'INFO local_http_status=%s\n' "${http_code:-unavailable}"
+if [[ "$http_code" == 200 ]]; then
+  ok 'local storefront responds HTTP 200'
+elif [[ "$http_code" == 302 && "$redirect" == "http://127.0.0.1:8086/en_US/" ]]; then
+  warning 'local /fr_FR/ redirects to /en_US/ on internal HTTP origin; locale and public URL generation need review'
+else
+  warning 'local storefront returned unexpected status or redirect; inspect reverse proxy and locale'
+fi
 printf 'RESULT failures=%d warnings=%d\n' "$FAIL" "$WARN"
 if (( FAIL > 0 )); then exit 2; fi
 if (( WARN > 0 )); then exit 1; fi
