@@ -137,7 +137,7 @@ def main():
         ], stdout=subprocess.DEVNULL)
         created = True
         mysql = [
-            "docker", "exec", "-e", f"MYSQL_PWD={password}", container,
+            "docker", "exec", "-i", "-e", f"MYSQL_PWD={password}", container,
             "mysql", "-uroot", "--protocol=socket", "yoowii_restore_test",
         ]
         for _ in range(90):
