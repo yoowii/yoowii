@@ -1,0 +1,62 @@
+name: Audit Yoowii VPS (read-only)
+
+on:
+  workflow_dispatch:
+
+# This workflow only invokes the fixed SSH authorized_keys forced command.
+# It must never run Docker directly or receive the deployment SSH key.
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Read-only preprod diagnostic
+    runs-on: ubuntu-24.04
+    environment: preprod-audit
+    timeout-minutes: 5
+    concurrency:
+      # Do not inspect the VPS during an image/Compose deployment.
+      group: deploy-yoowii-preprod
+      cancel-in-progress: false
+
+    steps:
+      - name: Connect to restricted audit account
+        shell: bash
+        env:
+          AUDIT_HOST: ${{ secrets.YOOWII_AUDIT_HOST }}
+          AUDIT_SSH_KEY: ${{ secrets.YOOWII_AUDIT_SSH_KEY }}
+          AUDIT_KNOWN_HOSTS: ${{ secrets.YOOWII_AUDIT_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+
+          # Fail closed on missing/invalid settings (especially known_hosts).
+          [[ -n "$AUDIT_HOST" && -n "$AUDIT_SSH_KEY" && -n "$AUDIT_KNOWN_HOSTS" ]] || {
+            echo "Missing audit SSH configuration. No connection attempted." >&2
+            exit 2
+          }
+          [[ "$AUDIT_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9._:-]*$ ]] || {
+            echo "Invalid audit host format." >&2
+            exit 2
+          }
+
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$AUDIT_SSH_KEY" > "$HOME/.ssh/yoowii_audit"
+          printf '%s\n' "$AUDIT_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/yoowii_audit" "$HOME/.ssh/known_hosts"
+          test -s "$HOME/.ssh/known_hosts"
+          ssh-keygen -lf "$HOME/.ssh/known_hosts" >/dev/null || {
+            echo "Invalid known_hosts: verify the VPS fingerprint before running." >&2
+            exit 2
+          }
+
+          # The server must enforce a single fixed command in authorized_keys.
+          # Do not accept or interpolate user-supplied shell commands here.
+          ssh -T -i "$HOME/.ssh/yoowii_audit" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=15 \
+            -o ConnectionAttempts=1 \
+            "yoowii-audit@$AUDIT_HOST"
