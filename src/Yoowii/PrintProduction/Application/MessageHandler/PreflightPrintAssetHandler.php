@@ -12,6 +12,7 @@ use App\Yoowii\PrintProduction\Domain\Model\PrintAsset;
 use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintPreflightStatus;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -24,35 +25,44 @@ final readonly class PreflightPrintAssetHandler
 
     public function __invoke(PreflightPrintAsset $message): void
     {
-        $asset = $this->entityManager->find(PrintAsset::class, $message->assetId);
-        if (!$asset instanceof PrintAsset || PrintAssetType::CustomerArtwork !== $asset->type() || !hash_equals($asset->checksum(), $message->assetChecksum)) {
-            return;
-        }
-        $report = $this->entityManager->getRepository(PrintPreflightReport::class)->findOneBy(['printAsset' => $asset]);
-        // A message can be redelivered after the first ACK is lost. Do not
-        // re-analyse a completed report or duplicate its activity entry.
-        // The report checksum also prevents a stale message from affecting
-        // a report restarted for a newer artwork version.
-        if (!$report instanceof PrintPreflightReport ||
-            !hash_equals($report->assetChecksum(), $message->assetChecksum) ||
-            PrintPreflightStatus::Pending !== $report->status()) {
-            return;
-        }
+        // Keep the report row locked until its status AND activity are flushed.
+        // A second delivery must wait, then observe the committed final status.
+        $this->entityManager->wrapInTransaction(function () use ($message): void {
+            $asset = $this->entityManager->find(PrintAsset::class, $message->assetId);
+            if (!$asset instanceof PrintAsset ||
+                PrintAssetType::CustomerArtwork !== $asset->type() ||
+                !hash_equals($asset->checksum(), $message->assetChecksum)) {
+                return;
+            }
 
-        try {
-            $stream = $this->storage->open($asset->storageKey());
+            $report = $this->entityManager->getRepository(PrintPreflightReport::class)->findOneBy(['printAsset' => $asset]);
+            if (!$report instanceof PrintPreflightReport) {
+                return;
+            }
+
+            // refresh() under a pessimistic write lock is essential: reading
+            // the status BEFORE acquiring the lock could use stale ORM state.
+            $this->entityManager->refresh($report, LockMode::PESSIMISTIC_WRITE);
+            if (!hash_equals($report->assetChecksum(), $message->assetChecksum) ||
+                PrintPreflightStatus::Pending !== $report->status()) {
+                return;
+            }
 
             try {
-                $result = ($this->inspect)($asset, $stream);
-            } finally {
-                fclose($stream);
+                $stream = $this->storage->open($asset->storageKey());
+
+                try {
+                    $result = ($this->inspect)($asset, $stream);
+                } finally {
+                    fclose($stream);
+                }
+
+                $report->complete($result['status'], $result['report'], new \DateTimeImmutable());
+                ($this->activity)($asset->printJob(), 'artwork_preflight_completed', 'system', ['asset_id' => $asset->id(), 'status' => $result['status']->value]);
+            } catch (\Throwable) {
+                $report->complete(PrintPreflightStatus::Failed, ['checks' => [['code' => 'technical_analysis', 'severity' => 'error', 'message' => 'L’analyse technique a échoué : contrôle opérateur requis.']], 'metadata' => []], new \DateTimeImmutable());
+                ($this->activity)($asset->printJob(), 'artwork_preflight_failed', 'system', ['asset_id' => $asset->id(), 'status' => PrintPreflightStatus::Failed->value]);
             }
-            $report->complete($result['status'], $result['report'], new \DateTimeImmutable());
-            ($this->activity)($asset->printJob(), 'artwork_preflight_completed', 'system', ['asset_id' => $asset->id(), 'status' => $result['status']->value]);
-        } catch (\Throwable) {
-            $report->complete(PrintPreflightStatus::Failed, ['checks' => [['code' => 'technical_analysis', 'severity' => 'error', 'message' => 'L’analyse technique a échoué : contrôle opérateur requis.']], 'metadata' => []], new \DateTimeImmutable());
-            ($this->activity)($asset->printJob(), 'artwork_preflight_failed', 'system', ['asset_id' => $asset->id(), 'status' => PrintPreflightStatus::Failed->value]);
-        }
-        $this->entityManager->flush();
+        });
     }
 }
