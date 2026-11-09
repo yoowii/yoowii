@@ -230,10 +230,23 @@ Le test `PreflightPrintAssetHandlerIdempotencyTest` vérifie le rejeu séquentie
 du même message après analyse, le statut final en échec et le rejet
 d'un message ancien ne correspondant plus à l'empreinte du rapport.
 
-**Limite importante :** il s'agit d'idempotence **séquentielle**. Deux
-consommateurs qui chargent simultanément le même rapport encore `pending`
-peuvent passer le garde tous deux. Un mécanisme d'exclusion transactionnelle
-(ou de claim atomique) serait nécessaire avant d'affirmer une sécurité
-concurrente complète. Le worker observé sur VPS est unique, mais une
-redélivrance/concurrence accidentelle doit rester traitée comme un risque.
-Aucun appel fournisseur n'est réalisé par cette analyse de préflight.
+**Protection concurrente en cours de validation :** le handler traite
+maintenant le rapport dans `EntityManagerInterface::wrapInTransaction()`
+et appelle `refresh($report, LockMode::PESSIMISTIC_WRITE)` **avant** de
+vérifier `pending` et l'empreinte. Le verrou MySQL InnoDB est conservé
+pendant l'analyse et jusqu'à la validation du statut et de l'activité dans
+la même transaction. Une redélivrance attend le verrou, recharge l'état
+persisté et doit ignorer un rapport déjà terminé. Les erreurs de transaction
+ne sont pas converties en échec métier silencieux : Messenger peut alors
+retenter le message. Le traitement long sous verrou peut cependant causer
+une attente ; il faut surveiller les délais/deadlocks.
+
+Le test unitaire simule une première transaction qui a terminé le rapport
+pendant l'attente d'un second consommateur. Un test MySQL isolé
+`PreflightLockIntegrationTest` vérifie également l'exclusion réelle de
+deux connexions InnoDB sur une ligne temporaire de `sylius_test`.
+**Limite** : la combinaison de ces preuves n'est pas un stress test
+bout-en-bout de deux handlers préflight réels et simultanés avec stockage
+partagé. Le worker observé sur VPS est unique, mais un audit de contention
+réelle reste conseillé avant montée en charge. Aucun appel fournisseur
+n'est réalisé par l'analyse de préflight.
