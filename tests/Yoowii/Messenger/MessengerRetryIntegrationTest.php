@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Yoowii\Messenger;
 
 use App\Tests\Yoowii\Messenger\Fixture\AlwaysFailMessage;
-use App\Tests\Yoowii\Messenger\Fixture\SafeProbeMessage;
 use App\Tests\Yoowii\Messenger\Fixture\GracefulStopProbeMessage;
+use App\Tests\Yoowii\Messenger\Fixture\SafeProbeMessage;
 use App\Yoowii\Sourcing\Application\Message\SynchronizeRealisaprintCatalogConfigurations;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
