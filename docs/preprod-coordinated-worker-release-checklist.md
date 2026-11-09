@@ -336,3 +336,43 @@ dans GitHub. Une extraction/import SQL réussie ne démontre pas encore le
 bon démarrage de Sylius ni la cohérence exhaustive des références entre
 base et médias. Cette vérification applicative devra être réalisée
 séparément, sous un environnement entièrement isolé.
+
+
+## 14. Dossier Go/No-Go actualisé — 09/11/2026 (PR #14)
+
+> Cette section actualise le statut des preuves de la section 13. **Aucune opération de déploiement ou de restauration n'a été effectuée sur les conteneurs actifs du VPS Plesk.** La PR reste **Draft / No-Go**.
+
+### Preuves acquises
+
+| Contrôle | Résultat et portée |
+| --- | --- |
+| Sauvegarde réelle hors site | Snapshot Restic Nextcloud `7e0fb8e7` du 09/11/2026, archive récupérée, intégrité SHA-256 vérifiée |
+| Restauration MySQL depuis la vraie sauvegarde | MySQL 8.4 jetable, 138 tables ; conteneurs temporaires détruits |
+| Médias restaurés | 253 fichiers publics extraits ; origine des médias manquants antérieure à la migration |
+| Démarrage Sylius | Kernel/Doctrine et `router:match /fr_FR/` réussis avec image PHP immuable `sha-a4972eaba9e4a40f9e1feb4bd32f34dc4d7480c7` |
+| Syntaxe Twig | 45 fichiers valides |
+| HTTP isolé, homepage et fiche produit | Réponse HTTP `302` sur les deux routes ; rendu HTML `200` **non démontré** |
+| Tests d'arrêt/rollback simulés | Workflow dédié du commit `47272c1` : [SUCCESS](https://github.com/yoowii/yoowii/actions/runs/42704826314) |
+| Qualité générale | CI du commit `47272c1` : [SUCCESS](https://github.com/yoowii/yoowii/actions/runs/42704826342) |
+| Déployeur corrigé | `cffe338` : rollback tolérant à un échec de restauration Compose, tentative de récupération du worker poursuivie, traps `SIGINT`/`SIGTERM` |
+| Tests complémentaires | `cf941ded` (échec copie rollback), `e3cce2d` (vrai SIGTERM sur processus Bash avec Docker simulé), `47272c1` (worker absent sans opt-in) |
+
+L'anomalie des images historiques affecte 79 produits `quote_only` désactivés et non publiés. Le contrôle futur des médias lors de la publication est **reporté en [issue #17](https://github.com/yoowii/yoowii/issues/17)**, hors périmètre de cette PR. Ne pas l'implémenter dans ce chantier.
+
+### Blocages Go/No-Go restants
+
+- [ ] **HTTP strict** : le déployeur exige `HTTP 200` sur `/fr_FR/`, alors que les essais HTTP isolés ont retourné `302`. Ne pas modifier la redirection ou assouplir le healthcheck dans cette PR. Sans validation d'un `200` sur le chemin exact du déployeur, la promotion échouera.
+- [ ] **Recette opérationnelle du cycle de vie** : vérifier en fenêtre dédiée les états absent/arrêté/actif, le stop gracieux de 90 s et l'absence de doublons, sans messages fournisseur. Les tests de faux Docker ne démontrent pas ce comportement en conditions réelles.
+- [ ] **Reprise après arrêt brutal** : qualifier l'interruption forcée, la non-atomicité potentielle entre les étapes et les procédures manuelles de reprise. Le signal `SIGTERM` simulé ne couvre ni `SIGKILL` ni une coupure machine.
+- [ ] **Rollback en conditions réelles** : disposer d'un point de retour documenté pour l'exécutable root-owned, le Compose et les images ; vérifier réellement l'état final php/nginx/worker, sans restauration automatique non autorisée sur le VPS.
+- [ ] **Cohérence des données restaurées** : SQL et médias sont restaurables mais 191 références orphelines historiques ont été identifiées (189 produits, 2 avatars). Cette incohérence est connue et documentée ; elle ne doit pas être présentée comme une restauration exhaustive des médias.
+- [ ] **Revue opérateur** : responsable identifié, sauvegarde récente, tags existants et autorisation expresse de la fenêtre de recette, avec possibilité d'arrêt de l'opération.
+
+### Ordre recommandé de reprise
+
+1. Maintenir la PR en brouillon et l'issue #17 différée.
+2. Documenter ou confirmer le résultat du healthcheck HTTP **exactement tel qu'exécuté par le déployeur**, en lecture seule ; aucun changement d'URL ni de politique HTTP dans cette PR.
+3. Préparer une fiche opérateur indiquant la sauvegarde, l'ancien script root-owned, les tags des images, les états initiaux, les commandes de contrôle **en lecture seule** et les critères d'arrêt.
+4. Soumettre cette fiche à validation humaine avant toute fenêtre supervisée. **Aucune commande d'installation, de `docker compose up/down`, de `docker stop`, de migration ou de consommation Messenger n'est autorisée par cette checklist.**
+
+**Verdict au 09/11/2026 : Draft / No-Go.** Les workflows verts ne lèvent pas le blocage du contrôle HTTP 200 ni les limites de la recette opérationnelle.
