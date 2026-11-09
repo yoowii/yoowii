@@ -76,6 +76,11 @@ if args[0] == "start":
     runtime.write_text("running")
     sys.exit(0)
 if args[0] == "pull":
+    if os.environ.get("FAKE_TERMINATE_ON_PULL") == "1":
+        # Exercise the Bash SIGTERM trap; no real Docker daemon is involved.
+        import signal
+        os.kill(os.getppid(), signal.SIGTERM)
+        sys.exit(0)
     if os.environ.get("FAKE_FAIL_PULL") == "1":
         sys.exit(46)
     sys.exit(0)
@@ -438,3 +443,31 @@ os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
     check("trap 'rollback 130' INT" in script and "trap 'rollback 143' TERM" in script,
           "SIGINT/SIGTERM rollback handlers missing")
     print("PASS: signal rollback handlers are registered")
+    # Deliver an actual SIGTERM after worker shutdown, while the fake image
+    # pull runs. Ensure the old worker is recovered before the Compose swap.
+    env["FAKE_TERMINATE_ON_PULL"] = "1"
+    env["FAKE_FAIL_FIRST_UP"] = "0"
+    env["FAKE_WORKER_STATE"] = "running"
+    worker_runtime.write_text("running")
+    worker_image.write_text(OLD)
+    events.write_text("")
+    attempts.write_text("0")
+    (site / "compose.preprod.yml").write_text(original_compose)
+    (site / ".env").write_text(original_env)
+    terminated = subprocess.run(
+        ["bash", str(root / "isolated.sh"), NEW[4:]],
+        input=proposed_compose, text=True, capture_output=True, env=env, timeout=30
+    )
+    check(terminated.returncode != 0, "SIGTERM was reported as success")
+    check(worker_runtime.read_text() == "running",
+          "SIGTERM during pull failed to recover old worker")
+    check((site / "compose.preprod.yml").read_text() == original_compose,
+          "SIGTERM changed Compose before swap")
+    check((site / ".env").read_text() == original_env,
+          "SIGTERM changed release tag")
+    check(attempts.read_text() == "0",
+          "SIGTERM recreated app containers before swap")
+    check("reverting Compose and images" in terminated.stderr,
+          "SIGTERM did not enter rollback")
+    print("PASS: actual SIGTERM during pull restores worker before swap")
+    env.pop("FAKE_TERMINATE_ON_PULL")
