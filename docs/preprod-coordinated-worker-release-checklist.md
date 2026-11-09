@@ -204,3 +204,13 @@ message ne doit être injecté dans le VPS partagé ou dans une file fournisseur
 **Critère :** ne marquer cette étape validée que si la CI générale exécute
 le test et termine avec succès ; tout échec du test doit laisser PR #14 en
 brouillon et déclencher une analyse sans modification du VPS.
+
+
+## 10. Recette de coupure brutale et restauration jetable — CI
+
+- Le test PHPUnit **testInterruptedMessageCanBeRedeliveredInIsolatedDatabase** utilise un handler de démonstration enregistré exclusivement dans APP_ENV=test et des marqueurs temporaires, sans effet métier. Le consommateur Symfony est stoppé par SIGKILL pendant le traitement et le test vérifie que le message Doctrine n'est pas acquitté.
+- Le message verrouillé après mort brutale ne devient pas immédiatement disponible. Pour éviter l'attente du délai réel de redelivery, le test réinitialise exclusivement le champ delivered_at sur la file yoowii_ci_async de la base sylius_test. Il **simule ainsi l'expiration de la réservation**, puis relance le consommateur et vérifie l'acquittement au second passage. Ce n'est pas un test du délai de reprise automatique ni de l'idempotence métier.
+- Le script **scripts/preprod/test-backup-restore-isolated.sh**, exécuté seulement avec APP_ENV=test, GitHub Actions et opt-in explicite, crée deux bases MySQL fictives sur le runner, produit un dump réel avec mysqldump et le restaure dans la seconde base. Il compare les lignes, puis vérifie la restauration de fichiers de configuration fictifs et de leurs permissions.
+- Le job détruit les ressources temporaires et ne lit aucune sauvegarde, base ou volume du VPS.
+
+**Limites :** aucune restauration de sauvegarde Plesk ou MySQL réelle, aucun test de reprise automatique après le délai Doctrine, et aucune démonstration que le handler métier PreflightPrintAsset est idempotent. Maintenir PR #14 en brouillon tant que la sauvegarde/restauration réelle isolée et la recette supervisée du déployeur n'ont pas été réalisées.
