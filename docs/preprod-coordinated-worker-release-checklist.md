@@ -180,3 +180,27 @@ Ne jamais afficher le contenu du `.env`, `docker inspect` complet,
 
 **No-Go tant que la restauration isolée, la recette message en vol et le
 contrôle des sauvegardes ne sont pas documentés et approuvés.**
+
+
+## 9. Recette SIGTERM avec message en cours (CI isolée)
+
+Le test PHPUnit `testWorkerFinishesInFlightMessageAfterSigterm` utilise
+`APP_ENV=test`, MySQL `sylius_test`, les files `yoowii_ci_async` /
+`yoowii_ci_failed` et un handler `GracefulStopProbeHandler` **sans effet
+métier**. Il démarre le véritable consommateur Symfony Messenger via
+`Process`, attend un marqueur attestant que le handler est effectivement
+entré dans son traitement, envoie `SIGTERM` pendant le travail simulé
+(environ 2 secondes), puis vérifie la fin du handler, l'ACK de la file,
+l'absence de message en échec et l'absence de mouvement sur les files
+`default` et fournisseur.
+
+Ce test mesure l'arrêt coopératif d'un **processus** Symfony ; il ne prouve
+pas le bon comportement de la séquence Docker `stop --time 90` lorsqu'un
+handler réel de fichiers est interrompu, ni l'idempotence ou la restauration
+du stockage. L'arrêt forcé (SIGKILL après 90 secondes) et le rejeu sans
+doublon restent à qualifier à part dans un environnement jetable. Aucun
+message ne doit être injecté dans le VPS partagé ou dans une file fournisseur.
+
+**Critère :** ne marquer cette étape validée que si la CI générale exécute
+le test et termine avec succès ; tout échec du test doit laisser PR #14 en
+brouillon et déclencher une analyse sans modification du VPS.
