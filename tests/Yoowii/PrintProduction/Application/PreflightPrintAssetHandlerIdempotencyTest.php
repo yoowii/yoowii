@@ -19,6 +19,7 @@ use App\Yoowii\PrintProduction\Domain\PrintPreflightStatus;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 final class PreflightPrintAssetHandlerIdempotencyTest extends TestCase
@@ -113,6 +114,7 @@ final class PreflightPrintAssetHandlerIdempotencyTest extends TestCase
         self::assertSame(PrintPreflightStatus::Passed, $report->status());
     }
 
+    /** @param EntityManagerInterface&MockObject $manager */
     private function mockTransactions(EntityManagerInterface $manager): void
     {
         // Doctrine flushes on wrapInTransaction completion, including no-op
