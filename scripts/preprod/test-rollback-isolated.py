@@ -117,7 +117,7 @@ if "config" in args:
             "volumes": {"mysql_data": {}, "media": {}, "private_assets": {}}
         }))
     sys.exit(0)
-if "create" in args:
+if "up" in args and "--no-start" in args:
     runtime.write_text("created")
     image.write_text(os.environ["YOOWII_IMAGE_TAG"])
     if os.environ.get("FAKE_FAIL_WORKER_CREATE") == "1" and os.environ.get("YOOWII_IMAGE_TAG", "").endswith("b"*40):
@@ -227,14 +227,14 @@ os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
         # grace window before application replacement or worker recreation.
         if initial == "running":
             stop_positions = [i for i, row in enumerate(rows)
-                              if row.startswith("stop --time 90 worker-456")]
+                              if row.startswith("stop --timeout 90 worker-456")]
             check(len(stop_positions) == 1,
                   "Running worker must receive exactly one 90s graceful stop")
             first_stop = stop_positions[0]
             first_app_up = next((i for i, row in enumerate(rows)
                                  if " up -d " in row), -1)
             first_worker_create = next((i for i, row in enumerate(rows)
-                                       if " create " in " " + row + " "), -1)
+                                       if " up --no-start " in " " + row + " "), -1)
             check(first_app_up > first_stop,
                   "Application was recreated before graceful worker stop")
             check(first_worker_create > first_stop,
@@ -244,7 +244,7 @@ os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
                   "Previously stopped worker must not be stopped again")
             check(not any(row.startswith("start ") for row in rows),
                   "Previously stopped worker must not be started")
-        check(any(" create " in " " + x + " " and x.endswith(NEW) for x in rows),
+        check(any(" up --no-start " in " " + x + " " and x.endswith(NEW) for x in rows),
               f"{initial}: worker not recreated with new image")
         check(not any("remove-orphans" in x for x in rows),
               f"{initial}: unsafe orphan removal")
@@ -292,7 +292,7 @@ os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
           "Partial worker create failure updated release tag")
     check(worker_runtime.read_text() == "running",
           f"Partial worker create rollback did not restart worker: {broken_create.stderr}")
-    check(any(" create " in " " + row + " " and row.endswith(OLD)
+    check(any(" up --no-start " in " " + row + " " and row.endswith(OLD)
               for row in events.read_text().splitlines()),
           "Partial worker create failure did not rebuild previous image")
     print("PASS: partial worker creation failure restores previous image and running state")
@@ -374,7 +374,7 @@ os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
           "Failed worker start changed image tag")
     check(worker_runtime.read_text() == "running",
           f"Failed worker start rollback did not restore worker: {start_failed.stderr}")
-    check(any(" create " in " " + row + " " and row.endswith(OLD)
+    check(any(" up --no-start " in " " + row + " " and row.endswith(OLD)
               for row in events.read_text().splitlines()),
           "Failed worker start did not restore old worker image")
     print("PASS: worker start failure restores previous release and state")
@@ -407,7 +407,7 @@ os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
     # assert the critical ordering: worker stop is confirmed BEFORE image
     # and Compose promotion, and the old release remains unchanged on failure.
     stop_rows = events.read_text().splitlines()
-    check(any(row.startswith("stop --time 90 worker-456") for row in stop_rows),
+    check(any(row.startswith("stop --timeout 90 worker-456") for row in stop_rows),
           "In-flight safety guard must use the full 90s stop grace window")
     check(not any(" up -d " in row for row in stop_rows),
           "No app service may be recreated while worker stays running")
@@ -492,7 +492,7 @@ os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
     absent_rows = events.read_text().splitlines()
     check(not any(row.startswith(("stop ", "start ")) for row in absent_rows),
           "Worker-absent deployment performed a Docker worker lifecycle action")
-    check(not any(" create " in " " + row + " " for row in absent_rows),
+    check(not any(" up --no-start " in " " + row + " " for row in absent_rows),
           "Worker-absent deployment created a worker")
     check(attempts.read_text() == "1",
           "Worker-absent deployment did not promote PHP/Nginx exactly once")
