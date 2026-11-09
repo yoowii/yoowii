@@ -376,3 +376,14 @@ L'anomalie des images historiques affecte 79 produits `quote_only` désactivés 
 4. Soumettre cette fiche à validation humaine avant toute fenêtre supervisée. **Aucune commande d'installation, de `docker compose up/down`, de `docker stop`, de migration ou de consommation Messenger n'est autorisée par cette checklist.**
 
 **Verdict au 09/11/2026 : Draft / No-Go.** Les workflows verts ne lèvent pas le blocage du contrôle HTTP 200 ni les limites de la recette opérationnelle.
+
+
+## 15. Vérification HTTP en lecture seule sur le VPS — 09/11/2026
+
+L'administrateur a exécuté, sur le VPS actuel et **sans intervention sur les services**, la requête reproduisant exactement les en-têtes du healthcheck de `scripts/preprod/deploy-vps.sh` : `Host: preprod.yoowii.com`, `X-Forwarded-Proto: https`, `X-Forwarded-Host: preprod.yoowii.com`, `X-Forwarded-Port: 443` vers `http://127.0.0.1:8086/fr_FR/`.
+
+Résultat communiqué : **`HTTP_STATUS=200` ; `REDIRECT_URL=` vide**.
+
+**Interprétation limitée** : le service actuellement déployé répond correctement au healthcheck strict `200`. Les réponses `302` observées dans l'environnement Docker local isolé ne démontrent donc pas une incompatibilité du healthcheck avec le VPS actuel. **Ce contrôle ne prouve pas que la prochaine image ou le prochain déploiement renverra `200`** ; le healthcheck post-swap reste obligatoire. Aucune redirection ni exigence de code HTTP n'a été modifiée.
+
+Le point de vérification HTTP *sur l'état actuel* est levé ; **le Go/No-Go global reste bloqué** par la recette supervisée du déployeur et de son rollback, l'état des messages et des workers en cours et la procédure de reprise après une interruption non récupérable. Ne pas installer ni lancer le déployeur sans autorisation distincte.
