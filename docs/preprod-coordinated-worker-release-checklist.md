@@ -86,3 +86,21 @@ Ne pas copier dans un ticket les sorties de `docker inspect` sans `--format` ni 
 - Validation métier préalable à toute activation d'une file fournisseur.
 
 Aucune commande fournisseur et aucune migration de base de données ne font partie de cette recette.
+
+## 6. Avancement recette du 09/11/2026 — PR #14
+
+### Vérifications réalisées
+
+- Le contrôle SSH manuel [GitHub Actions #42641491907](https://github.com/yoowii/yoowii/actions/runs/42641491907) a réussi : un worker actif, image PHP alignée, transport Docker effectif Doctrine `yoowii_async`, commande `messenger:consume async`, désactivation des emails et des intégrations fournisseur.
+- Le test isolé `test-rollback-isolated.py` vérifie désormais explicitement le `docker stop --time 90` et son ordre **avant** la recréation PHP/Nginx et du worker ; une réponse à l'arrêt laissant le conteneur actif bloque toute promotion.
+- Ces vérifications sont **statiques ou simulées**. Elles ne démontrent ni l'arrêt réel d'un message en cours ni son éventuelle réexécution, ni la durabilité/idempotence des handlers.
+
+### Critères de validation restants (No-Go jusqu'à recette supervisée)
+
+1. **Sauvegarde et restauration vérifiées** de la configuration du déploiement et des données de préproduction ; documenter la procédure de retour arrière avant toute substitution du script root-owned.
+2. **Message inoffensif en vol** : tester dans un environnement isolé avec le même runtime et la même configuration Messenger. Vérifier la prise en compte du SIGTERM, la durée réelle de handler, les délais retry, l'ACK et l'absence de doublon après redémarrage. Ne pas envoyer de message fournisseur/commande réelle.
+3. **Simulation de panne et rollback surveillé** : tester restauration PHP/Nginx/worker et préservation des volumes et de l'état initial du worker. Aucune exécution automatisée sur le VPS partagé.
+4. **Équivalence des contrôles de santé** : le nouveau script de déploiement conserve son contrôle strict HTTP 200 ; le diagnostic indépendant a relevé HTTP 302. À la demande de l'administrateur, **ne pas corriger ni modifier le contrôle HTTP dans ce chantier**, mais considérer cette incompatibilité comme un **blocage de promotion du nouveau deployer** tant que le comportement attendu n'est pas validé lors d'une fenêtre de recette.
+5. **Revue de sécurité des logs de rollback** : `docker compose logs` peut inclure des données sensibles. Avant activation, évaluer la réduction ou la suppression de la sortie brute vers les logs publics de GitHub Actions.
+
+**Décision actuelle : No-Go sur installation du script de déploiement coordonné.** Les validations Docker/Messenger précédentes ne constituent pas une autorisation de mutation des conteneurs Plesk.
