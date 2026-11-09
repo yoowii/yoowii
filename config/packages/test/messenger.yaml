@@ -17,3 +17,4 @@ framework:
             'App\Tests\Yoowii\Messenger\Fixture\AlwaysFailMessage': async
             'App\Tests\Yoowii\Messenger\Fixture\SafeProbeMessage': async
             'App\Tests\Yoowii\Messenger\Fixture\GracefulStopProbeMessage': async
+            'App\Tests\Yoowii\Messenger\Fixture\ForcedStopProbeMessage': async
