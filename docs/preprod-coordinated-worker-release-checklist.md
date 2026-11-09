@@ -214,3 +214,26 @@ brouillon et déclencher une analyse sans modification du VPS.
 - Le job détruit les ressources temporaires et ne lit aucune sauvegarde, base ou volume du VPS.
 
 **Limites :** aucune restauration de sauvegarde Plesk ou MySQL réelle, aucun test de reprise automatique après le délai Doctrine, et aucune démonstration que le handler métier PreflightPrintAsset est idempotent. Maintenir PR #14 en brouillon tant que la sauvegarde/restauration réelle isolée et la recette supervisée du déployeur n'ont pas été réalisées.
+
+
+## 11. Contrôle d'idempotence du handler de préflight — étape suivante
+
+Un message Messenger Doctrine peut être livré à nouveau après un ACK perdu.
+Le handler de préflight vérifie désormais que le rapport correspond à la
+même empreinte de fichier et possède encore le statut `pending` avant
+d'ouvrir et d'inspecter le document. Si le rapport est déjà
+`passed`, `warning` ou `failed`, il sort sans modifier le rapport,
+sans nouvel historique et sans flush. Une relance volontaire peut réinitialiser
+le rapport avec `restart()`, comme auparavant.
+
+Le test `PreflightPrintAssetHandlerIdempotencyTest` vérifie le rejeu séquentiel
+du même message après analyse, le statut final en échec et le rejet
+d'un message ancien ne correspondant plus à l'empreinte du rapport.
+
+**Limite importante :** il s'agit d'idempotence **séquentielle**. Deux
+consommateurs qui chargent simultanément le même rapport encore `pending`
+peuvent passer le garde tous deux. Un mécanisme d'exclusion transactionnelle
+(ou de claim atomique) serait nécessaire avant d'affirmer une sécurité
+concurrente complète. Le worker observé sur VPS est unique, mais une
+redélivrance/concurrence accidentelle doit rester traitée comme un risque.
+Aucun appel fournisseur n'est réalisé par cette analyse de préflight.
