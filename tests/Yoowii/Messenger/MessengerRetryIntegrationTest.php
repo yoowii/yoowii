@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Yoowii\Messenger;
 
 use App\Tests\Yoowii\Messenger\Fixture\AlwaysFailMessage;
+use App\Tests\Yoowii\Messenger\Fixture\SafeProbeMessage;
 use App\Yoowii\Sourcing\Application\Message\SynchronizeRealisaprintCatalogConfigurations;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -60,6 +61,57 @@ final class MessengerRetryIntegrationTest extends KernelTestCase
         }
     }
 
+
+    /**
+     * CI-only real Messenger transport/consumer test, no supplier or external calls.
+     *
+     * The handler deliberately has no side effects, so a successful ACK is
+     * demonstrated by the dedicated async queue becoming empty with no failed
+     * message. It does not prove application handler idempotency or SIGTERM.
+     */
+    public function testSafeProbeIsConsumedWithoutTouchingOtherQueues(): void
+    {
+        self::bootKernel();
+
+        /** @var Connection $connection */
+        $connection = static::getContainer()->get('doctrine.dbal.default_connection');
+        $legacyBefore = $this->countMessages($connection, 'default');
+        $supplierBefore = $this->countMessages($connection, 'yoowii_ci_supplier_async');
+        $connection->executeStatement(
+            "DELETE FROM messenger_messages WHERE queue_name IN ('yoowii_ci_async', 'yoowii_ci_failed')",
+        );
+
+        try {
+            /** @var MessageBusInterface $bus */
+            $bus = static::getContainer()->get(MessageBusInterface::class);
+            $bus->dispatch(new SafeProbeMessage('ci-only-no-op'));
+
+            self::assertSame(1, $this->countMessages($connection, 'yoowii_ci_async'));
+            $process = new Process([
+                PHP_BINARY,
+                'bin/console',
+                'messenger:consume',
+                'async',
+                '--env=test',
+                '--no-debug',
+                '--limit=1',
+                '--time-limit=20',
+                '--no-interaction',
+            ], dirname(__DIR__, 3));
+            $process->setTimeout(40);
+            $process->run();
+
+            self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+            self::assertSame(0, $this->countMessages($connection, 'yoowii_ci_async'));
+            self::assertSame(0, $this->countMessages($connection, 'yoowii_ci_failed'));
+            self::assertSame($legacyBefore, $this->countMessages($connection, 'default'));
+            self::assertSame($supplierBefore, $this->countMessages($connection, 'yoowii_ci_supplier_async'));
+        } finally {
+            $connection->executeStatement(
+                "DELETE FROM messenger_messages WHERE queue_name IN ('yoowii_ci_async', 'yoowii_ci_failed')",
+            );
+        }
+    }
 
     public function testSupplierSyncIsQueuedSeparatelyAndNeverConsumedByArtworkWorker(): void
     {
