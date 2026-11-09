@@ -68,6 +68,43 @@ jobs:
             - name: Unit tests
               run: vendor/bin/phpunit
 
+            - name: Isolated synthetic MySQL and configuration restore drill
+              env:
+                  YOOWII_ALLOW_ISOLATED_RESTORE_TEST: '1'
+              run: bash scripts/preprod/test-backup-restore-isolated.sh
+
+            - name: Disconnected MySQL and file extraction restore exercise
+              run: |
+                  scratch="$(mktemp -d)"
+                  trap 'rm -rf "$scratch"' EXIT
+                  python3 - "$scratch" <<'PY'
+                  import gzip
+                  import hashlib
+                  import io
+                  from pathlib import Path
+                  import sys
+                  import tarfile
+
+                  path = Path(sys.argv[1])
+                  with gzip.open(path / "mysql.sql.gz", "wb") as stream:
+                      stream.write(b"CREATE TABLE ci_restore_probe (id INT PRIMARY KEY); INSERT INTO ci_restore_probe VALUES (1);\n")
+                  for filename in ("media.tar.gz", "private_assets.tar.gz"):
+                      with tarfile.open(path / filename, "w:gz") as tar:
+                          body = b"synthetic CI file, no customer information"
+                          record = tarfile.TarInfo("ci-probe/sample.txt")
+                          record.size = len(body)
+                          tar.addfile(record, io.BytesIO(body))
+                  (path / "compose.preprod.yml").write_text("services: {}\n")
+                  (path / "preprod.env").write_text("APP_SECRET=ci-fake-only\n")
+                  names = ("mysql.sql.gz", "media.tar.gz", "private_assets.tar.gz", "compose.preprod.yml", "preprod.env")
+                  (path / "SHA256SUMS").write_text("".join(
+                      hashlib.sha256((path / name).read_bytes()).hexdigest() + "  " + name + "\n"
+                      for name in names
+                  ))
+                  PY
+                  python3 scripts/preprod/restore-functional-isolated.py \
+                    --ack-isolated-host --backup-dir "$scratch"
+
             - name: Set up Node.js
               uses: actions/setup-node@v4
               with:

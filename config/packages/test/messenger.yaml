@@ -15,3 +15,6 @@ framework:
             yoowii_supplier_failed: 'doctrine://default?queue_name=yoowii_ci_supplier_failed'
         routing:
             'App\Tests\Yoowii\Messenger\Fixture\AlwaysFailMessage': async
+            'App\Tests\Yoowii\Messenger\Fixture\SafeProbeMessage': async
+            'App\Tests\Yoowii\Messenger\Fixture\GracefulStopProbeMessage': async
+            'App\Tests\Yoowii\Messenger\Fixture\ForcedStopProbeMessage': async

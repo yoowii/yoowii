@@ -18,5 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check deployment script syntax
         run: bash -n scripts/preprod/deploy-vps.sh
+      - name: Check read-only backup inventory script syntax
+        run: bash -n scripts/preprod/backup-readiness-readonly.sh
       - name: Test rollback with isolated mocked Docker
         run: python3 scripts/preprod/test-rollback-isolated.py
