@@ -172,6 +172,10 @@ fi
           f"Guard not tested: stdout={outcome.stdout!r}, stderr={outcome.stderr!r}")
     check("reverting Compose and images" in outcome.stderr, "Rollback not triggered")
     check("Rollback healthcheck passed" in outcome.stderr, "Rollback healthcheck failed")
+    check("Application logs withheld from CI output" in outcome.stderr,
+          "Rollback should explicitly avoid publishing raw application logs")
+    check(not any(" logs " in " " + row + " " for row in events.read_text().splitlines()),
+          "Rollback invoked Docker application logs in a public CI context")
     check((site / "compose.preprod.yml").read_text() == original_compose, "Compose not restored")
     check((site / ".env").read_text() == original_env, "Secret .env modified")
     check(attempts.read_text() == "2", "Expected failed deploy and rollback")
