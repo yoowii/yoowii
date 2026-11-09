@@ -17,7 +17,7 @@ use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintPreflightStatus;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\Persistence\ObjectRepository;
+use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
 
 final class PreflightPrintAssetHandlerIdempotencyTest extends TestCase
@@ -27,7 +27,7 @@ final class PreflightPrintAssetHandlerIdempotencyTest extends TestCase
         [$asset, $report, $payload] = $this->fixtures();
 
         $manager = $this->createMock(EntityManagerInterface::class);
-        $repository = $this->createMock(ObjectRepository::class);
+        $repository = $this->createMock(EntityRepository::class);
         $manager->method('find')->willReturn($asset);
         $manager->method('getRepository')->willReturn($repository);
         $repository->method('findOneBy')->willReturn($report);
@@ -87,7 +87,7 @@ final class PreflightPrintAssetHandlerIdempotencyTest extends TestCase
         PreflightPrintAsset $message,
     ): void {
         $manager = $this->createMock(EntityManagerInterface::class);
-        $repository = $this->createMock(ObjectRepository::class);
+        $repository = $this->createMock(EntityRepository::class);
         $manager->method('find')->willReturn($asset);
         $manager->method('getRepository')->willReturn($repository);
         $repository->method('findOneBy')->willReturn($report);
