@@ -29,7 +29,13 @@ final readonly class PreflightPrintAssetHandler
             return;
         }
         $report = $this->entityManager->getRepository(PrintPreflightReport::class)->findOneBy(['printAsset' => $asset]);
-        if (!$report instanceof PrintPreflightReport) {
+        // A message can be redelivered after the first ACK is lost. Do not
+        // re-analyse a completed report or duplicate its activity entry.
+        // The report checksum also prevents a stale message from affecting
+        // a report restarted for a newer artwork version.
+        if (!$report instanceof PrintPreflightReport
+            || !hash_equals($report->assetChecksum(), $message->assetChecksum)
+            || PrintPreflightStatus::Pending !== $report->status()) {
             return;
         }
 
