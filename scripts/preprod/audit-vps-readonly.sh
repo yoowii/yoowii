@@ -74,6 +74,51 @@ else
     else
       bad 'worker image does not match current PHP release'
     fi
+    # Inspect the *running container's* effective configuration without ever
+    # printing Docker environment values or the full inspect/Compose payload.
+    # This is metadata validation only: it does not prove queue consumption.
+    if python3 -c '
+import json
+import subprocess
+import sys
+from urllib.parse import parse_qs, urlsplit
+
+worker_id = sys.argv[1]
+try:
+    payload = subprocess.check_output(
+        ["docker", "inspect", "--format", "{{json .Config}}", worker_id],
+        stderr=subprocess.DEVNULL,
+    )
+    config = json.loads(payload)
+    variables = dict(item.split("=", 1) for item in config.get("Env", []) if "=" in item)
+    parsed = urlsplit(variables.get("MESSENGER_TRANSPORT_DSN", ""))
+    if parsed.scheme != "doctrine":
+        raise ValueError("non-Doctrine transport")
+    if parse_qs(parsed.query).get("queue_name") != ["yoowii_async"]:
+        raise ValueError("worker not bound to the dedicated queue")
+    required = {
+        "MAILER_DSN": "null://null",
+        "YOOWII_REALISAPRINT_ENABLED": "0",
+        "YOOWII_REALISAPRINT_FTP_ENABLED": "0",
+        "YOOWII_REALISAPRINT_PRESCRIPT_QUICK_PUBLICATION_ENABLED": "0",
+        "YOOWII_REALISAPRINT_QUOTE_ENABLED": "0",
+    }
+    if any(variables.get(key) != value for key, value in required.items()):
+        raise ValueError("supplier or mail isolation differs from approved overlay")
+    command = config.get("Cmd") or []
+    if not isinstance(command, list) or "messenger:consume" not in command:
+        raise ValueError("worker is not configured as Messenger consumer")
+    consume_index = command.index("messenger:consume")
+    if command[consume_index + 1:consume_index + 2] != ["async"]:
+        raise ValueError("worker consumes a transport other than async")
+except Exception:
+    # Never print the exception: it may embed container metadata/secrets.
+    sys.exit(1)
+' "$id"; then
+      ok 'worker effective queue, consumer command, mail and supplier isolation verified'
+    else
+      bad 'worker runtime transport/command/isolation validation failed (details withheld)'
+    fi
   done <<< "$ids"
 fi
 # Probe the local HTTP endpoint without following arbitrary redirects.
