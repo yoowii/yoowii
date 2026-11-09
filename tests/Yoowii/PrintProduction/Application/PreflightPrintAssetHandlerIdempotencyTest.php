@@ -16,6 +16,7 @@ use App\Yoowii\PrintProduction\Domain\Model\PrintJobActivity;
 use App\Yoowii\PrintProduction\Domain\Model\PrintPreflightReport;
 use App\Yoowii\PrintProduction\Domain\PrintAssetType;
 use App\Yoowii\PrintProduction\Domain\PrintPreflightStatus;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
@@ -27,12 +28,14 @@ final class PreflightPrintAssetHandlerIdempotencyTest extends TestCase
         [$asset, $report, $payload] = $this->fixtures();
 
         $manager = $this->createMock(EntityManagerInterface::class);
+        $this->mockTransactions($manager);
         $repository = $this->createMock(EntityRepository::class);
         $manager->method('find')->willReturn($asset);
         $manager->method('getRepository')->willReturn($repository);
         $repository->method('findOneBy')->willReturn($report);
+        $manager->expects(self::exactly(2))->method('refresh')->with($report, LockMode::PESSIMISTIC_WRITE);
         $manager->expects(self::once())->method('persist')->with(self::isInstanceOf(PrintJobActivity::class));
-        $manager->expects(self::once())->method('flush');
+        $manager->expects(self::exactly(2))->method('flush');
 
         $storage = $this->createMock(PrintAssetStorage::class);
         $storage->expects(self::once())->method('open')->willReturnCallback(static function () use ($payload) {
@@ -81,18 +84,63 @@ final class PreflightPrintAssetHandlerIdempotencyTest extends TestCase
         self::assertSame(PrintPreflightStatus::Pending, $report->status());
     }
 
+    public function testAnotherConsumerCompletingReportWhileWaitingForLockIsRespected(): void
+    {
+        [$asset, $report] = $this->fixtures();
+        $manager = $this->createMock(EntityManagerInterface::class);
+        $this->mockTransactions($manager);
+        $repository = $this->createMock(EntityRepository::class);
+        $manager->method('find')->willReturn($asset);
+        $manager->method('getRepository')->willReturn($repository);
+        $repository->method('findOneBy')->willReturn($report);
+
+        // Simulate an ORM refresh that sees the first consumer's committed
+        // status only after acquiring the pessimistic lock.
+        $manager->expects(self::once())->method('refresh')
+            ->with($report, LockMode::PESSIMISTIC_WRITE)
+            ->willReturnCallback(static function () use ($report): void {
+                $report->complete(PrintPreflightStatus::Passed, ['checks' => []], new \DateTimeImmutable());
+            });
+        $manager->expects(self::never())->method('persist');
+        $manager->expects(self::once())->method('flush');
+        $storage = $this->createMock(PrintAssetStorage::class);
+        $storage->expects(self::never())->method('open');
+
+        $handler = new PreflightPrintAssetHandler(
+            $manager, $storage, new InspectPrintArtwork(), new RecordPrintJobActivity($manager),
+        );
+        $handler(new PreflightPrintAsset(42, $asset->checksum()));
+        self::assertSame(PrintPreflightStatus::Passed, $report->status());
+    }
+
+    private function mockTransactions(EntityManagerInterface $manager): void
+    {
+        // Doctrine flushes on wrapInTransaction completion, including no-op
+        // callbacks; real row locks are separately validated in MySQL CI.
+        $manager->method('wrapInTransaction')->willReturnCallback(
+            static function (callable $callback) use ($manager): mixed {
+                $result = $callback($manager);
+                $manager->flush();
+
+                return $result;
+            },
+        );
+    }
+
     private function assertSkippedWithoutSideEffects(
         PrintAsset $asset,
         PrintPreflightReport $report,
         PreflightPrintAsset $message,
     ): void {
         $manager = $this->createMock(EntityManagerInterface::class);
+        $this->mockTransactions($manager);
         $repository = $this->createMock(EntityRepository::class);
         $manager->method('find')->willReturn($asset);
         $manager->method('getRepository')->willReturn($repository);
         $repository->method('findOneBy')->willReturn($report);
+        $manager->expects(self::once())->method('refresh')->with($report, LockMode::PESSIMISTIC_WRITE);
         $manager->expects(self::never())->method('persist');
-        $manager->expects(self::never())->method('flush');
+        $manager->expects(self::once())->method('flush');
         $storage = $this->createMock(PrintAssetStorage::class);
         $storage->expects(self::never())->method('open');
 
