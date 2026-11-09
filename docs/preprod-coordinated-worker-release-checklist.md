@@ -250,3 +250,47 @@ bout-en-bout de deux handlers préflight réels et simultanés avec stockage
 partagé. Le worker observé sur VPS est unique, mais un audit de contention
 réelle reste conseillé avant montée en charge. Aucun appel fournisseur
 n'est réalisé par l'analyse de préflight.
+
+
+## 12. Inventaire des prérequis de sauvegarde réelle — lecture seule
+
+Le script versionné `scripts/preprod/backup-readiness-readonly.sh` prépare
+la restauration d'une vraie sauvegarde Yoowii sans modifier le VPS.
+Il contrôle uniquement les propriétaires/modes de fichiers protégés, le
+format du tag de release, le nombre de conteneurs applicatifs actifs, la
+présence des **trois volumes persistants** définis par Compose
+(`mysql_data`, `media`, `private_assets`) et l'accès SQL par une requête
+`SELECT 1`. Les valeurs de `.env`, données des messages, contenus des
+volumes et identifiants MySQL ne sont jamais affichés.
+
+**Opération administrateur :** télécharger le fichier à partir du commit
+épinglé et relire son contenu ; faire `bash -n` puis exécuter
+`sudo bash backup-readiness-readonly.sh` manuellement. Ne pas
+l'installer comme commande forcée `yoowii-audit` : le compte de diagnostic
+reste strictement limité à son script existant. Le script ne produit
+aucune sauvegarde. En cas d'anomalie, **aucune correction automatique**.
+
+Pour compléter la preuve de sauvegarde réelle :
+
+1. Depuis Plesk, vérifier la présence d'une sauvegarde couvrant les données
+   Yoowii et son horodatage. Ne pas supposer qu'une sauvegarde Plesk du
+   domaine inclut les volumes Docker nommés ou la base MySQL contenue dans
+   Compose : vérifier explicitement leur couverture.
+2. Vérifier le support de sauvegarde, le chiffrement, les droits d'accès,
+   la rétention, la fenêtre de cohérence entre base et fichiers ainsi que
+   l'espace requis pour restaurer vers un **autre hôte / environnement
+   jetable** (sans réutiliser les volumes Docker du VPS).
+3. Restaurer **sur l'instance séparée**, avec ports et services externes
+   neutralisés. Ne pas utiliser les vraies clés Realisaprint, mail ou Stripe
+   dans l'environnement restauré. Vérifier nombre de tables, présence de
+   la table `messenger_messages`, cohérence des fichiers privés et
+   montages, puis supprimer l'instance selon la politique de rétention.
+4. Consigner uniquement les métadonnées non sensibles : version de la
+   sauvegarde, couverture (MySQL + volumes), date, durée de restauration,
+   checks réussis et responsable de la recette. Pas de dumps, de variables
+   d'environnement, de fichiers clients ni de captures SQL dans GitHub.
+
+**IMPORTANT :** la restauration MySQL synthétique réalisée en CI est déjà
+verte, mais **ne constitue pas** une preuve que les données réelles Yoowii
+sont sauvegardées ou restaurables. Le verdict reste No-Go tant que cette
+recette réelle n'est pas validée.
