@@ -52,6 +52,9 @@ jobs:
 
           # The server must enforce a single fixed command in authorized_keys.
           # Do not accept or interpolate user-supplied shell commands here.
+          # The audit uses exit 1 for non-blocking warnings (e.g., locale
+          # redirect), and exit 2 for failed checks. SSH failures return 255.
+          set +e
           ssh -T -i "$HOME/.ssh/yoowii_audit" \
             -o IdentitiesOnly=yes \
             -o BatchMode=yes \
@@ -60,3 +63,11 @@ jobs:
             -o ConnectTimeout=15 \
             -o ConnectionAttempts=1 \
             "yoowii-audit@$AUDIT_HOST"
+          audit_status=$?
+          set -e
+          case "$audit_status" in
+            0) echo "Read-only audit completed without warnings." ;;
+            1) echo "::warning::Read-only audit reported warnings; inspect diagnostic output." ;;
+            *) echo "::error::Read-only audit failed (status $audit_status)." >&2
+               exit "$audit_status" ;;
+          esac
