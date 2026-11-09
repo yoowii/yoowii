@@ -155,7 +155,16 @@ else
   exec /usr/bin/stat "$@"
 fi
 """)
-    for name in ("docker", "curl", "sleep", "stat"):
+    # Simulate a Compose rollback copy failure without affecting other copies.
+    (binpath / "cp").write_text("""#!/usr/bin/env python3
+import os, sys
+if os.environ.get("FAKE_FAIL_ROLLBACK_COPY") == "1" and any(
+    ".compose.preprod.rollback.tmp" in arg for arg in sys.argv[1:]
+):
+    sys.exit(61)
+os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
+""")
+    for name in ("docker", "curl", "sleep", "stat", "cp"):
         (binpath / name).chmod(0o755)
     env = dict(os.environ, PATH=str(binpath) + ":" + os.environ["PATH"],
                FAKE_EVENTS=str(events), FAKE_ATTEMPTS=str(attempts),
@@ -398,3 +407,34 @@ fi
     check(not any(" up -d " in row for row in stop_rows),
           "No app service may be recreated while worker stays running")
     print("PASS: worker grace window and no premature application promotion")
+
+    # A failed Compose restore must never skip old-worker recovery.
+    env["FAKE_WORKER_STATE"] = "running"
+    env["FAKE_FAIL_FIRST_UP"] = "1"
+    env["FAKE_FAIL_ROLLBACK_COPY"] = "1"
+    worker_runtime.write_text("running")
+    worker_image.write_text(OLD)
+    events.write_text("")
+    attempts.write_text("0")
+    (site / "compose.preprod.yml").write_text(original_compose)
+    (site / ".env").write_text(original_env)
+    failed_recovery = subprocess.run(
+        ["bash", str(root / "isolated.sh"), NEW[4:]],
+        input=proposed_compose, text=True, capture_output=True, env=env, timeout=30
+    )
+    check(failed_recovery.returncode != 0,
+          "Failed Compose rollback was reported as successful deployment")
+    check("CRITICAL: cannot restore previous Compose" in failed_recovery.stderr,
+          "Missing critical Compose recovery warning")
+    check(worker_runtime.read_text() == "running",
+          "Failed Compose recovery prevented old worker restart")
+    check((site / ".env").read_text() == original_env,
+          "Failed Compose recovery changed tag or secrets")
+    check(attempts.read_text() == "1",
+          "App must not be recreated with unverified Compose after copy failure")
+    print("PASS: failed Compose restore keeps old worker recovery and reports incident")
+    env.pop("FAKE_FAIL_ROLLBACK_COPY")
+
+    check("trap 'rollback 130' INT" in script and "trap 'rollback 143' TERM" in script,
+          "SIGINT/SIGTERM rollback handlers missing")
+    print("PASS: signal rollback handlers are registered")
