@@ -294,3 +294,45 @@ Pour compléter la preuve de sauvegarde réelle :
 verte, mais **ne constitue pas** une preuve que les données réelles Yoowii
 sont sauvegardées ou restaurables. Le verdict reste No-Go tant que cette
 recette réelle n'est pas validée.
+
+
+## 13. Drill de restauration fonctionnelle déconnectée
+
+Le script versionné `scripts/preprod/restore-functional-isolated.py` est
+destiné **uniquement à une machine jetable, différente du VPS Plesk Yoowii**.
+Il refuse de démarrer en root, sans `--ack-isolated-host`, si le chemin
+`/opt/yoowii/preprod` existe ou si un conteneur du projet
+`yoowii-preprod` est actif.
+
+Prérequis du poste de recette : Docker local utilisable par le compte
+non-root, Python 3, espace temporaire suffisant pour décompresser les
+archives et importer MySQL, et **une copie** du dossier de sauvegarde
+restauré depuis Restic sur le poste de recette. Ne pas faire tourner
+le script sur le VPS actif ni dans un environnement partagé avec des
+conteneurs clients. Les droits du groupe `docker` sont privilégiés ;
+vérifier l'isolation et la politique d'accès au poste jetable.
+
+Exemple **à exécuter sur la machine jetable, et jamais sur le VPS** :
+
+```bash
+python3 scripts/preprod/restore-functional-isolated.py \
+  --ack-isolated-host \
+  --backup-dir /CHEMIN/PROTEGE/2026-11-09_03-02-11
+```
+
+Le script valide les empreintes SHA-256 avant toute importation, extrait les
+archives médias et fichiers privés dans des répertoires temporaires privés
+en refusant les liens et chemins traversants, démarre un conteneur MySQL 8.4
+**sans réseau et sans port publié**, importe le dump SQL dans une base dédiée,
+vérifie la présence de tables, puis détruit le conteneur et les fichiers
+temporaires. Il n'utilise pas le fichier `preprod.env` pour démarrer
+MySQL et n'expose aucune clé fournisseur. La CI exerce ce mécanisme avec
+**des archives et données entièrement fictives**.
+
+**Preuve encore attendue :** lancer le drill sur le jeu réel restauré
+depuis Nextcloud vers un environnement jetable, puis documenter les
+résultats sans copier les données, secrets, noms de clients ou archives
+dans GitHub. Une extraction/import SQL réussie ne démontre pas encore le
+bon démarrage de Sylius ni la cohérence exhaustive des références entre
+base et médias. Cette vérification applicative devra être réalisée
+séparément, sous un environnement entièrement isolé.
