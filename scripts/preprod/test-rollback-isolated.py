@@ -471,3 +471,30 @@ os.execv("/bin/cp", ["/bin/cp", *sys.argv[1:]])
           "SIGTERM did not enter rollback")
     print("PASS: actual SIGTERM during pull restores worker before swap")
     env.pop("FAKE_TERMINATE_ON_PULL")
+    
+    # A deployment with no opted-in worker must never create or start one.
+    env["FAKE_WORKER_STATE"] = "absent"
+    env["FAKE_FAIL_FIRST_UP"] = "0"
+    worker_runtime.write_text("exited")
+    worker_image.write_text(OLD)
+    events.write_text("")
+    attempts.write_text("0")
+    (site / "compose.preprod.yml").write_text(original_compose)
+    (site / ".env").write_text(original_env)
+    no_worker = subprocess.run(
+        ["bash", str(root / "isolated.sh"), NEW[4:]],
+        input=proposed_compose, text=True, capture_output=True, env=env, timeout=30
+    )
+    check(no_worker.returncode == 0,
+          "Deployment with no worker failed unexpectedly")
+    check((site / ".env").read_text().startswith(f"YOOWII_IMAGE_TAG={NEW}"),
+          "Worker-absent deployment did not commit release")
+    absent_rows = events.read_text().splitlines()
+    check(not any(row.startswith(("stop ", "start ")) for row in absent_rows),
+          "Worker-absent deployment performed a Docker worker lifecycle action")
+    check(not any(" create " in " " + row + " " for row in absent_rows),
+          "Worker-absent deployment created a worker")
+    check(attempts.read_text() == "1",
+          "Worker-absent deployment did not promote PHP/Nginx exactly once")
+    print("PASS: worker absent remains absent after successful app deployment")
+
