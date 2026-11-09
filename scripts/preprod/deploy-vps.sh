@@ -176,7 +176,10 @@ rollback() {
   if [[ "$swapped" == true || "$worker_stopped" == true ]]; then
     echo "Deployment failed (exit $exit_code), reverting Compose and images" >&2
     "${compose[@]}" ps >&2 || true
-    "${compose[@]}" logs --tail=80 php nginx >&2 || true
+    # Avoid emitting application log lines to GitHub Actions: they may
+    # contain customer or vendor data. Gather logs locally under incident
+    # controls if needed; stdout/stderr here is not a secret-safe channel.
+    echo "Application logs withheld from CI output (inspect locally if required)" >&2
     if [[ "$swapped" == true ]]; then
       cp -p "$backup" "$dir/.compose.preprod.rollback.tmp"
       mv -f "$dir/.compose.preprod.rollback.tmp" "$dir/compose.preprod.yml"
