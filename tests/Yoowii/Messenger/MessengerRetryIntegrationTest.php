@@ -6,6 +6,7 @@ namespace App\Tests\Yoowii\Messenger;
 
 use App\Tests\Yoowii\Messenger\Fixture\AlwaysFailMessage;
 use App\Tests\Yoowii\Messenger\Fixture\SafeProbeMessage;
+use App\Tests\Yoowii\Messenger\Fixture\GracefulStopProbeMessage;
 use App\Yoowii\Sourcing\Application\Message\SynchronizeRealisaprintCatalogConfigurations;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -107,6 +108,80 @@ final class MessengerRetryIntegrationTest extends KernelTestCase
             self::assertSame($legacyBefore, $this->countMessages($connection, 'default'));
             self::assertSame($supplierBefore, $this->countMessages($connection, 'yoowii_ci_supplier_async'));
         } finally {
+            $connection->executeStatement(
+                "DELETE FROM messenger_messages WHERE queue_name IN ('yoowii_ci_async', 'yoowii_ci_failed')",
+            );
+        }
+    }
+
+    /**
+     * A real CI Messenger worker receives SIGTERM while a side-effect-free
+     * handler is in flight. Ensure it finishes, ACKs and exits gracefully.
+     * This never tests Docker stop, supplier messages or a live VPS.
+     */
+    public function testWorkerFinishesInFlightMessageAfterSigterm(): void
+    {
+        self::bootKernel();
+
+        /** @var Connection $connection */
+        $connection = static::getContainer()->get('doctrine.dbal.default_connection');
+        $legacyBefore = $this->countMessages($connection, 'default');
+        $supplierBefore = $this->countMessages($connection, 'yoowii_ci_supplier_async');
+        $connection->executeStatement(
+            "DELETE FROM messenger_messages WHERE queue_name IN ('yoowii_ci_async', 'yoowii_ci_failed')",
+        );
+
+        $runId = bin2hex(random_bytes(8));
+        $base = sys_get_temp_dir() . '/yoowii-ci-graceful-' . $runId;
+        $started = $base . '.started';
+        $finished = $base . '.finished';
+        $process = null;
+
+        try {
+            /** @var MessageBusInterface $bus */
+            $bus = static::getContainer()->get(MessageBusInterface::class);
+            $bus->dispatch(new GracefulStopProbeMessage($runId));
+            self::assertSame(1, $this->countMessages($connection, 'yoowii_ci_async'));
+
+            $process = new Process([
+                PHP_BINARY,
+                'bin/console',
+                'messenger:consume',
+                'async',
+                '--env=test',
+                '--no-debug',
+                '--time-limit=25',
+                '--no-interaction',
+            ], dirname(__DIR__, 3));
+            $process->setTimeout(45);
+            $process->start();
+
+            // Wait for the handler's started marker, NOT merely the worker
+            // process start. Use an explicit deadline to prevent a hung CI.
+            $deadline = microtime(true) + 20;
+            while (!file_exists($started) && $process->isRunning() && microtime(true) < $deadline) {
+                usleep(50000);
+            }
+            self::assertFileExists($started, 'Worker did not enter the in-flight handler');
+            self::assertFileDoesNotExist($finished, 'Probe finished before signal was sent');
+
+            // SIGTERM is the signal sent by docker stop. Messenger should
+            // finish the current handler before acknowledging and exiting.
+            $process->signal(15);
+            $process->wait();
+
+            self::assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+            self::assertFileExists($finished, 'In-flight handler was interrupted');
+            self::assertSame(0, $this->countMessages($connection, 'yoowii_ci_async'));
+            self::assertSame(0, $this->countMessages($connection, 'yoowii_ci_failed'));
+            self::assertSame($legacyBefore, $this->countMessages($connection, 'default'));
+            self::assertSame($supplierBefore, $this->countMessages($connection, 'yoowii_ci_supplier_async'));
+        } finally {
+            if ($process instanceof Process && $process->isRunning()) {
+                $process->stop(1);
+            }
+            @unlink($started);
+            @unlink($finished);
             $connection->executeStatement(
                 "DELETE FROM messenger_messages WHERE queue_name IN ('yoowii_ci_async', 'yoowii_ci_failed')",
             );
