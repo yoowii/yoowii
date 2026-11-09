@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: build-preprod-${{ github.ref }}
-  # Never cancel a workflow while it may be deploying to the VPS.
+  # Avoid cancelling image publication after it has started.
   cancel-in-progress: false
 
 jobs:
@@ -43,33 +43,6 @@ jobs:
             YOOWII_PHP_IMAGE=ghcr.io/yoowii/yoowii-php:sha-${{ github.sha }}
           tags: ghcr.io/yoowii/yoowii-nginx:sha-${{ github.sha }}
 
-  deploy:
-    name: Deploy to preprod VPS
-    needs: build
-    runs-on: ubuntu-24.04
-    environment: preprod
-    # Shared with deploy-preprod.yml, ensuring one deployment at a time.
-    concurrency:
-      group: deploy-yoowii-preprod
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy immutable images and matching Compose through restricted SSH
-        env:
-          SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
-          SSH_HOST_KEY: ${{ secrets.PREPROD_SSH_HOST_KEY }}
-          HOST: ${{ vars.PREPROD_HOST }}
-          USER: ${{ vars.PREPROD_USER }}
-          IMAGE_SHA: ${{ github.sha }}
-        run: |
-          set -Eeuo pipefail
-          [[ "$IMAGE_SHA" =~ ^[a-f0-9]{40}$ ]]
-          test -n "$HOST" && test -n "$USER" && test -n "$SSH_KEY" && test -n "$SSH_HOST_KEY"
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-          test -s compose.preprod.yml
-          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15 \
-            "$USER@$HOST" "sudo -n /usr/local/sbin/yoowii-deploy-preprod $IMAGE_SHA" < compose.preprod.yml
+# Intentionally no deploy job here: publication does not imply promotion.
+# Promote a verified image SHA through the separate, manually dispatched
+# Deploy Yoowii preprod workflow after explicit operational approval.
