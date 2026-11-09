@@ -198,7 +198,7 @@ rollback() {
     fi
     if [[ -n "$worker_id" ]]; then
       if [[ "$worker_reconciled" == true ]]; then
-        if YOOWII_IMAGE_TAG="$old_tag" "${worker_compose[@]}" create --no-deps --no-build --force-recreate worker; then
+        if YOOWII_IMAGE_TAG="$old_tag" "${worker_compose[@]}" up --no-start --no-deps --no-build --force-recreate worker; then
           rollback_worker_id="$(YOOWII_IMAGE_TAG="$old_tag" "${worker_compose[@]}" ps -a -q worker)" || rollback_worker_id=""
           rollback_worker_image=""
           rollback_worker_state=""
@@ -238,7 +238,7 @@ trap 'rollback 143' TERM
 # On stop timeout/error, abort before swapping Compose or PHP containers.
 if [[ "$worker_was_running" == true ]]; then
   worker_stopped=true
-  docker stop --time 90 "$worker_id"
+  docker stop --timeout 90 "$worker_id"
   # A successful Docker CLI exit alone does not prove the process has stopped.
   # Fail closed before touching PHP/Nginx if the worker remains active.
   stopped_state="$(docker inspect --format '{{.State.Status}}' "$worker_id")"
@@ -265,7 +265,7 @@ healthcheck || { echo "HTTP healthcheck failed" >&2; false; }
 if [[ -n "$worker_id" ]]; then
   # Mark first: Compose may delete the old container before failing mid-create.
   worker_reconciled=true
-  YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" create --no-deps --no-build --force-recreate worker
+  YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" up --no-start --no-deps --no-build --force-recreate worker
   worker_new_id="$(YOOWII_IMAGE_TAG="$tag" "${worker_compose[@]}" ps -a -q worker)"
   [[ -n "$worker_new_id" ]] || { echo "Worker recreation returned no container" >&2; false; }
   [[ "$(docker inspect --format '{{.Config.Image}}' "$worker_new_id")" == "ghcr.io/yoowii/yoowii-php:$tag" ]] || {
