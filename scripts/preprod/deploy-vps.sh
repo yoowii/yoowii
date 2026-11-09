@@ -171,8 +171,8 @@ fi
 
 swapped=false
 rollback() {
-  local exit_code="$?"
-  trap - ERR
+  local exit_code="${1:-$?}"
+  trap - ERR INT TERM
   if [[ "$swapped" == true || "$worker_stopped" == true ]]; then
     echo "Deployment failed (exit $exit_code), reverting Compose and images" >&2
     "${compose[@]}" ps >&2 || true
@@ -180,11 +180,16 @@ rollback() {
     # contain customer or vendor data. Gather logs locally under incident
     # controls if needed; stdout/stderr here is not a secret-safe channel.
     echo "Application logs withheld from CI output (inspect locally if required)" >&2
+    local compose_restored=false
     if [[ "$swapped" == true ]]; then
-      cp -p "$backup" "$dir/.compose.preprod.rollback.tmp"
-      mv -f "$dir/.compose.preprod.rollback.tmp" "$dir/compose.preprod.yml"
+      if cp -p "$backup" "$dir/.compose.preprod.rollback.tmp" &&
+         mv -f "$dir/.compose.preprod.rollback.tmp" "$dir/compose.preprod.yml"; then
+        compose_restored=true
+      else
+        echo "CRITICAL: cannot restore previous Compose; manual recovery required" >&2
+      fi
     fi
-    if [[ "$swapped" == true ]]; then
+    if [[ "$swapped" == true && "$compose_restored" == true ]]; then
       if YOOWII_IMAGE_TAG="$old_tag" "${compose[@]}" up -d --no-deps --no-build --force-recreate php nginx; then
         healthcheck && echo "Rollback healthcheck passed" >&2 || echo "CRITICAL: rollback healthcheck failed" >&2
       else
@@ -224,6 +229,10 @@ rollback() {
   exit "$exit_code"
 }
 trap rollback ERR
+# A terminated deployment must use the same recovery path as a command failure.
+# The EXIT trap still removes temporary files after rollback completes.
+trap 'rollback 130' INT
+trap 'rollback 143' TERM
 
 # Stop a running worker before recreating PHP, respecting its 90s grace period.
 # On stop timeout/error, abort before swapping Compose or PHP containers.
