@@ -11,3 +11,5 @@ services:
         tags: ['messenger.message_handler']
     App\Tests\Yoowii\Messenger\Fixture\GracefulStopProbeHandler:
         tags: ['messenger.message_handler']
+    App\Tests\Yoowii\Messenger\Fixture\ForcedStopProbeHandler:
+        tags: ['messenger.message_handler']
