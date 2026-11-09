@@ -205,6 +205,27 @@ fi
         check(worker_runtime.read_text() == ("running" if initial == "running" else "created"),
               f"{initial}: worker initial running state not preserved")
         rows = events.read_text().splitlines()
+        # A worker with a message in flight must be given the configured
+        # grace window before application replacement or worker recreation.
+        if initial == "running":
+            stop_positions = [i for i, row in enumerate(rows)
+                              if row.startswith("stop --time 90 worker-456")]
+            check(len(stop_positions) == 1,
+                  "Running worker must receive exactly one 90s graceful stop")
+            first_stop = stop_positions[0]
+            first_app_up = next((i for i, row in enumerate(rows)
+                                 if " up -d " in row), -1)
+            first_worker_create = next((i for i, row in enumerate(rows)
+                                       if " create " in " " + row + " "), -1)
+            check(first_app_up > first_stop,
+                  "Application was recreated before graceful worker stop")
+            check(first_worker_create > first_stop,
+                  "Worker was recreated before graceful stop")
+        else:
+            check(not any(row.startswith("stop ") for row in rows),
+                  "Previously stopped worker must not be stopped again")
+            check(not any(row.startswith("start ") for row in rows),
+                  "Previously stopped worker must not be started")
         check(any(" create " in " " + x + " " and x.endswith(NEW) for x in rows),
               f"{initial}: worker not recreated with new image")
         check(not any("remove-orphans" in x for x in rows),
@@ -363,3 +384,13 @@ fi
     check(attempts.read_text() == "0", "Still-running worker recreated PHP")
     print("PASS: successful stop command without stopped state cannot promote PHP")
     env.pop("FAKE_STOP_STAYS_RUNNING")
+
+    # While a real in-flight message cannot be simulated with fake Docker,
+    # assert the critical ordering: worker stop is confirmed BEFORE image
+    # and Compose promotion, and the old release remains unchanged on failure.
+    stop_rows = events.read_text().splitlines()
+    check(any(row.startswith("stop --time 90 worker-456") for row in stop_rows),
+          "In-flight safety guard must use the full 90s stop grace window")
+    check(not any(" up -d " in row for row in stop_rows),
+          "No app service may be recreated while worker stays running")
+    print("PASS: worker grace window and no premature application promotion")
