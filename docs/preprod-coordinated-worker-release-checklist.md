@@ -104,3 +104,79 @@ Aucune commande fournisseur et aucune migration de base de données ne font part
 5. **Revue de sécurité des logs de rollback** : la sortie brute `docker compose logs` vers GitHub Actions a été **supprimée** du nouveau script (PR #14), avec test isolé vérifiant qu'aucune commande de lecture des logs applicatifs n'est invoquée lors du rollback. Les diagnostics détaillés restent à recueillir localement sous contrôle d'accès si un incident se produit.
 
 **Décision actuelle : No-Go sur installation du script de déploiement coordonné.** Les validations Docker/Messenger précédentes ne constituent pas une autorisation de mutation des conteneurs Plesk.
+
+
+## 7. Validation fonctionnelle Messenger sur base isolée (09/11/2026)
+
+La suite `tests/Yoowii/Messenger/MessengerRetryIntegrationTest.php` inclut
+`testSafeProbeIsConsumedWithoutTouchingOtherQueues`. Elle utilise **uniquement**
+`APP_ENV=test`, la base `sylius_test` du runner CI, le transport Doctrine
+`yoowii_ci_async`, un message `SafeProbeMessage` et un handler `SafeProbeHandler`
+sans effet métier. Le test vérifie :
+
+1. l'envoi dans la file CI dédiée ;
+2. la consommation et l'acquittement par `messenger:consume async --env=test --limit=1` ;
+3. l'absence de message dans `yoowii_ci_failed` ;
+4. la conservation exacte des compteurs des files `default` et
+   `yoowii_ci_supplier_async`.
+
+Le message et son handler ne sont routés/enregistrés que par
+`config/packages/test/messenger.yaml` et `config/services_test.yaml`.
+**Ne pas les copier, dispatcher ou activer sur le VPS.** Le résultat du test
+ne prouve pas que `PreflightPrintAssetHandler` est idempotent lors d'un arrêt
+en cours de traitement et d'un redémarrage. Cette preuve reste à réaliser
+dans une instance isolée, sans fournisseurs.
+
+## 8. Sauvegardes et restauration avant toute recette réelle
+
+**Procédure à préparer, non exécutée sur le VPS.** La sauvegarde doit être
+externe au répertoire remplacé par le déploiement et protégée contre les
+accès non autorisés. Le déployeur proposé ne modifie pas la base ou les
+volumes volontairement, mais une sauvegarde/restauration vérifiable reste
+obligatoire avant de remplacer un composant actif sur un VPS Plesk partagé.
+
+### Inventaire lecture seule
+
+```bash
+sudo stat -c '%U:%G %a %n' /usr/local/sbin/yoowii-deploy-preprod \
+  /opt/yoowii/preprod/.env /opt/yoowii/preprod/compose.preprod.yml \
+  /opt/yoowii/preprod/compose.preprod.worker.yml
+docker ps -a --filter label=com.docker.compose.project=yoowii-preprod \
+  --format '{{.Names}} {{.Image}} {{.Status}}'
+```
+
+Ne jamais afficher le contenu du `.env`, `docker inspect` complet,
+`docker compose config` résolu ou les messages dans les tickets.
+
+### Plan de sauvegarde supervisé
+
+1. Identifier la dernière sauvegarde Plesk du site **Yoowii uniquement**,
+   la base MySQL dédiée, et les volumes persistants concernés ; contrôler
+   sa date, l'outil et la rétention, sans partager les secrets.
+2. Conserver une copie root-only (`0700` pour le répertoire, `0600` pour
+   chaque fichier contenant des secrets) du déployeur installé, des Compose,
+   du `.env` et du tag d'image actuellement actif. Ne pas conserver cette
+   copie dans GitHub ou dans les logs Actions.
+3. Effectuer **un test de restauration vers une instance isolée**, pas vers
+   les volumes actifs. Vérifier que la base se restaure, que les montages
+   attendus existent et que les secrets ne sont pas consignés.
+4. Documenter le point de décision Go/No-Go, la personne habilitée à
+   arrêter la recette et le chemin de reprise si le rollback automatique
+   échoue. Ne jamais lancer `docker compose down -v`, de prune global, ou
+   une restauration MySQL sur la base active pour un simple test.
+
+### Procédure de retour arrière (à valider en fenêtre supervisée)
+
+- Si l'installation du **nouveau script de déploiement** devait échouer avant
+  son premier usage, restaurer uniquement l'ancien exécutable root-owned
+  à partir de la copie vérifiée : cela n'implique aucune action Docker.
+- Si un vrai déploiement échoue, ne pas annoncer un rollback réussi sur la
+  seule présence de l'ancien tag : contrôler le Compose actif, la version
+  des conteneurs PHP/Nginx, l'image et l'état du worker, puis les journaux
+  système **localement sous contrôle d'accès**.
+- Conserver les fichiers et données pour diagnostic ; ne pas forcer une
+  restauration si un message fournisseur ou une opération métier a pu
+  être engagé entretemps.
+
+**No-Go tant que la restauration isolée, la recette message en vol et le
+contrôle des sauvegardes ne sont pas documentés et approuvés.**
