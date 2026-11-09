@@ -68,6 +68,11 @@ jobs:
             - name: Unit tests
               run: vendor/bin/phpunit
 
+            - name: Isolated synthetic MySQL and configuration restore drill
+              env:
+                  YOOWII_ALLOW_ISOLATED_RESTORE_TEST: '1'
+              run: bash scripts/preprod/test-backup-restore-isolated.sh
+
             - name: Set up Node.js
               uses: actions/setup-node@v4
               with:
