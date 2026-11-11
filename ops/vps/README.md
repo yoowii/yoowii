@@ -16,6 +16,16 @@ La V2 vérifie les permissions des fichiers sensibles, la forme du SHA release, 
 
 **Limites :** un état `running` ou `healthy` ne prouve pas un parcours marchand fonctionnel ; le contrôle des volumes porte sur leurs montages, pas sur leur contenu ; le comptage ne lit ni ne valide le contenu des messages. Le SQL échoué émet un avertissement et **ne signifie pas** « file vide ». Ne jamais consommer/purger les messages de `default` (19 messages relevés lors de la recette du 11/11/2026, valeur historique), ni modifier les volumes, ni effectuer une migration, ni toucher aux autres sites Plesk.
 
+### Contrôle HTTP local : simulation du proxy public
+
+Le diagnostic du 11/11/2026 a établi que le storefront public `https://preprod.yoowii.com/fr_FR/` répond **HTTP 200** avec HTTP Basic Auth, et que l'appel local `127.0.0.1:8086/fr_FR/` répond également **HTTP 200** lorsque les trois en-têtes `Host`, `X-Forwarded-Host` et `X-Forwarded-Proto` sont fournis. Sans `X-Forwarded-Host`, la simulation locale était trompeuse (302 vers `/en_US/` puis erreur 500 « Channel could not be found »).
+
+L'audit envoie maintenant **des valeurs explicites fixes** pour ces trois en-têtes, représentant le domaine public attendu. Il ne suit pas les redirections. **200 = PASS, 302 = WARN, HTTP 5xx = FAIL**. Toute autre réponse reste un avertissement selon la logique historique. Cela n'autorise **pas** à faire confiance aux en-têtes transmis par n'importe quel client dans la configuration réelle de Symfony ou Plesk.
+
+Le workflow de lint exécute aussi `python3 -m unittest discover -s ops/vps/tests -p 'test_*.py' -v`, qui teste la portion HTTP du **vrai script versionné** avec un `curl` simulé, sans SSH, Docker, MySQL ni accès réseau.
+
+**Cette évolution Git n'est pas installée automatiquement sur VPS :** utiliser les procédures de préparation, de recette, d'installation et de rollback ci-dessous, avec vérification SHA-256, avant de conclure à son activation.
+
 ## 2. Préparer une nouvelle version — avant toute installation
 
 Conditions : accès administrateur VPS autorisé, commit Git déjà revu/fusionné, absence de déploiement ou de rollback en cours, sauvegarde du script actuel et procédure de retour arrière disponible. Comparer aussi les chemins, images et montages attendus avec le Compose **réellement déployé**.
