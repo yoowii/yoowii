@@ -71,3 +71,7 @@ Consulter :
 ## État du chantier
 
 Le dépôt contient le socle Sylius, le snapshot tarifaire immuable, le sourcing multi-fournisseurs, son administration sous `/admin/print-sourcing` et le calculateur boutique pour flyers et cartes de visite.
+
+## Exploitation préproduction et audit VPS
+
+L'audit VPS read-only est versionné dans [`ops/vps/yoowii-audit-readonly`](ops/vps/yoowii-audit-readonly), avec la [procédure d'installation, de lancement manuel/GitHub et de rollback](ops/vps/README.md). Le workflow [`Audit Yoowii VPS (read-only)`](.github/workflows/audit-vps.yml) est **manuel**, utilise l'environnement GitHub `preprod-audit` et la commande SSH forcée historique. Aucun merge Git n'installe ce script sur le VPS ni ne déclenche un déploiement de Sylius.
