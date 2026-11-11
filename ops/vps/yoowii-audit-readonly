@@ -121,6 +121,122 @@ except Exception:
     fi
   done <<< "$ids"
 fi
+# Inspect only the four essential services belonging to the Yoowii Compose project.
+# Container state and mount destinations are inspected; never print .Env, full
+# inspect responses, credentials, volume contents or file paths from clients.
+mysql_audit_id=''
+for service in php nginx mysql redis; do
+  if ! service_ids="$(docker ps -aq --filter label=com.docker.compose.project=yoowii-preprod --filter "label=com.docker.compose.service=$service")"; then
+    bad "$service container lookup failed"
+    continue
+  fi
+  service_count=0
+  [[ -z "$service_ids" ]] || service_count="$(printf '%s\n' "$service_ids" | wc -l)"
+  if [[ "$service_count" != 1 ]]; then
+    bad "$service expected exactly one Compose container (found $service_count)"
+    continue
+  fi
+  service_id="$service_ids"
+  if ! state="$(docker inspect --format '{{.State.Status}}' "$service_id" 2>/dev/null)" ||
+     ! health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$service_id" 2>/dev/null)" ||
+     ! image="$(docker inspect --format '{{.Config.Image}}' "$service_id" 2>/dev/null)"; then
+    bad "$service metadata inspection failed"
+    continue
+  fi
+  printf 'INFO service=%s state=%s health=%s\n' "$service" "$state" "$health"
+  if [[ "$state" == running ]]; then
+    ok "$service running"
+  else
+    bad "$service not running"
+  fi
+  if [[ "$service" == mysql || "$service" == redis ]]; then
+    [[ "$health" == healthy ]] && ok "$service healthcheck healthy" || bad "$service healthcheck not healthy"
+  elif [[ "$health" == unhealthy ]]; then
+    bad "$service unhealthy"
+  fi
+  if [[ "$service" == php || "$service" == nginx ]]; then
+    if [[ "$release" =~ ^sha-[a-f0-9]{40}$ && "$image" == "ghcr.io/yoowii/yoowii-$service:$release" ]]; then
+      ok "$service image aligned with configured release"
+    else
+      bad "$service image mismatch"
+    fi
+  else
+    case "$service:$image" in
+      mysql:mysql:8.4|redis:redis:7.4-alpine) ok "$service expected image reference" ;;
+      *) bad "$service unexpected image reference" ;;
+    esac
+  fi
+  # Require the correct mount destination/type without relying on generated
+  # Compose volume names; do not inspect or modify any volume contents.
+  if ! mounts="$(docker inspect --format '{{json .Mounts}}' "$service_id" 2>/dev/null)" ||
+     ! printf '%s' "$mounts" | python3 -c '
+import json, sys
+service = sys.argv[1]
+try:
+    mounts = json.load(sys.stdin)
+    expected = {
+        "php": {"/srv/sylius/public/media": False,
+                "/srv/sylius/var/private/print": False},
+        "nginx": {"/srv/sylius/public/media": True},
+        "mysql": {"/var/lib/mysql": False},
+        "redis": {},
+    }[service]
+    by_destination = {m.get("Destination"): m for m in mounts}
+    valid = all(
+        destination in by_destination
+        and by_destination[destination].get("Type") == "volume"
+        and by_destination[destination].get("RW") is (not readonly)
+        for destination, readonly in expected.items()
+    )
+    sys.exit(0 if valid else 1)
+except (ValueError, TypeError, KeyError):
+    sys.exit(1)
+' "$service"; then
+    bad "$service expected volume mounts absent or inconsistent"
+  else
+    ok "$service expected volume mounts"
+  fi
+  if [[ "$service" == mysql && "$state" == running ]]; then
+    mysql_audit_id="$service_id"
+  fi
+done
+
+# One fixed read-only aggregate: never reserve/consume/purge Messenger messages.
+# SQL output is captured, validated and limited to queue names and counts.
+# A missing table/failed query is a WARNING, not proof that queues are empty.
+if [[ -n "$mysql_audit_id" ]]; then
+  if queue_counts="$(docker exec "$mysql_audit_id" sh -c '
+    MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --batch --skip-column-names "$MYSQL_DATABASE" \
+      -e "SELECT queue_name, COUNT(*) AS total, SUM(delivered_at IS NULL) AS unreserved, SUM(delivered_at IS NOT NULL) AS reserved FROM messenger_messages GROUP BY queue_name ORDER BY queue_name"
+  ' 2>/dev/null)"; then
+    if [[ -z "$queue_counts" ]]; then
+      ok 'Messenger queue aggregate available (no rows)'
+    elif printf '%s\n' "$queue_counts" | python3 -c '
+import re, sys
+for line in sys.stdin:
+    values = line.rstrip("\n").split("\t")
+    if len(values) != 4 or not re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", values[0]):
+        sys.exit(1)
+    if not all(re.fullmatch(r"[0-9]+", value) for value in values[1:]):
+        sys.exit(1)
+    total, unreserved, reserved = map(int, values[1:])
+    if total != unreserved + reserved:
+        sys.exit(1)
+'; then
+      while IFS="$(printf '\t')" read -r queue total unreserved reserved; do
+        printf 'INFO messenger_queue=%s total=%s unreserved=%s reserved=%s\n' "$queue" "$total" "$unreserved" "$reserved"
+      done <<< "$queue_counts"
+      ok 'Messenger queue counters read-only'
+    else
+      warning 'Messenger queue aggregate has invalid output (details withheld)'
+    fi
+  else
+    warning 'Messenger queue counters unavailable (no SQL writes attempted)'
+  fi
+else
+  warning 'Messenger queue counters skipped (MySQL container not running)'
+fi
+
 # Probe the local HTTP endpoint without following arbitrary redirects.
 # The /fr_FR/ route may redirect to /en_US/; this is a routing warning,
 # not an automatic healthcheck success.
