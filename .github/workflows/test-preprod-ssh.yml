@@ -2,9 +2,6 @@ name: Test SSH Preprod
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - chore/ci-cd
 
 permissions:
   contents: read
@@ -44,6 +41,16 @@ jobs:
               exit 1
             }
 
+      - name: Vérifier la correspondance de la clé GitHub avec le VPS
+        run: |
+          set -euo pipefail
+          fingerprint="$(ssh-keygen -y -f ~/.ssh/id_ed25519 | ssh-keygen -lf - -E sha256)"
+          echo "Empreinte de la clé publique GitHub Actions : $fingerprint"
+          [[ "$fingerprint" == *"SHA256:jj5Ne1oMDo/9vUwiCe1FL3muDVU8qfI6D0c2YLkT4FI"* ]] || {
+            echo "::error::La clé privée GitHub ne correspond pas à authorized_keys sur le VPS"
+            exit 1
+          }
+
       - name: Tester la connexion
         env:
           HOST: ${{ vars.PREPROD_HOST }}
@@ -67,7 +74,10 @@ jobs:
             -i ~/.ssh/id_ed25519 \
             -o StrictHostKeyChecking=yes \
             -o BatchMode=yes \
+            -o PreferredAuthentications=publickey \
+            -o PasswordAuthentication=no \
             -o ConnectTimeout=15 \
+            -o ConnectionAttempts=1 \
             "${USER}@${HOST}" \
             "whoami && id && hostname"
 
@@ -81,6 +91,9 @@ jobs:
             -i ~/.ssh/id_ed25519 \
             -o StrictHostKeyChecking=yes \
             -o BatchMode=yes \
+            -o PreferredAuthentications=publickey \
+            -o PasswordAuthentication=no \
             -o ConnectTimeout=15 \
+            -o ConnectionAttempts=1 \
             "${USER}@${HOST}" \
             'sudo -n -l /usr/local/sbin/yoowii-deploy-preprod d91b93698fa66e1987947fd649519f3d77519f33'
