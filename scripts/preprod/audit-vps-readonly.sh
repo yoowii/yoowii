@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# Root-owned, fixed-command audit. No user arguments, no writes, no secrets.
+set -Eeuo pipefail
+[[ "$#" -eq 0 ]] || { echo 'ERROR: arguments are not accepted' >&2; exit 2; }
+BASE=/opt/yoowii/preprod
+FAIL=0
+WARN=0
+ok() { printf 'PASS %s\n' "$1"; }
+bad() { printf 'FAIL %s\n' "$1"; FAIL=$((FAIL+1)); }
+warning() { printf 'WARN %s\n' "$1"; WARN=$((WARN+1)); }
+file_status() {
+  local path="$1" label="$2" owner mode
+  if [[ -L "$path" ]]; then bad "$label is a symlink"; return 0; fi
+  if [[ ! -f "$path" ]]; then bad "$label missing"; return 0; fi
+  owner="$(stat -c %u "$path")"
+  mode="$(stat -c %a "$path")"
+  printf 'INFO %s uid=%s mode=%s\n' "$label" "$owner" "$mode"
+  if (( (8#$mode & 8#022) != 0 )); then bad "$label writable by group or others"; fi
+}
+printf 'YOOWII preprod read-only audit\n'
+if [[ ! -d "$BASE" ]]; then bad 'preprod directory missing'; exit 2; fi
+file_status "$BASE/.env" 'env'
+file_status "$BASE/compose.preprod.yml" 'compose'
+file_status /usr/local/sbin/yoowii-deploy-preprod 'deployer'
+if [[ "$(stat -c %u /usr/local/sbin/yoowii-deploy-preprod 2>/dev/null || echo unknown)" != 0 ]]; then
+  bad 'deployer must be root-owned'
+fi
+if [[ -L "$BASE/compose.preprod.worker.yml" ]]; then
+  bad 'worker overlay is a symlink'
+elif [[ -f "$BASE/compose.preprod.worker.yml" ]]; then
+  file_status "$BASE/compose.preprod.worker.yml" 'worker overlay'
+  [[ "$(stat -c %u "$BASE/compose.preprod.worker.yml")" == 0 ]] || bad 'worker overlay must be root-owned'
+else
+  warning 'worker overlay absent (expected if worker has not been enabled)'
+fi
+release=''
+if [[ -f "$BASE/.env" && -r "$BASE/.env" ]]; then
+  release="$(sed -n 's/^YOOWII_IMAGE_TAG=//p' "$BASE/.env" | tail -1)"
+  if [[ "$release" =~ ^sha-[a-f0-9]{40}$ ]]; then
+    ok 'release tag format valid'
+  else
+    bad 'release tag missing or invalid'
+  fi
+  if grep -q '^YOOWII_MESSENGER_TRANSPORT_DSN=' "$BASE/.env"; then
+    ok 'dedicated Messenger DSN variable present (value NOT inspected)'
+  else
+    warning 'dedicated Messenger DSN variable not declared'
+  fi
+fi
+if ! command -v docker >/dev/null 2>&1; then
+  bad 'docker unavailable'
+elif ! ids="$(docker ps -a --filter label=com.docker.compose.project=yoowii-preprod --filter label=com.docker.compose.service=worker --format '{{.ID}}')"; then
+  bad 'docker inspection failed'
+else
+  count=0
+  [[ -z "$ids" ]] || count="$(printf '%s\n' "$ids" | wc -l)"
+  printf 'INFO worker_count=%s\n' "$count"
+  (( count <= 1 )) || bad 'multiple workers found'
+  if (( count > 0 )) && [[ ! -f "$BASE/compose.preprod.worker.yml" ]]; then
+    bad 'worker exists but approved overlay is missing'
+  fi
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    if ! metadata="$(docker inspect --format '{{.Config.Image}} {{.State.Status}}' "$id")"; then
+      bad 'unable to inspect worker'
+      continue
+    fi
+    image="${metadata%% *}"
+    state="${metadata#* }"
+    printf 'INFO worker_state=%s\n' "$state"
+    case "$state" in running|exited|created) ok 'worker state supported';; *) bad 'worker state unsupported';; esac
+    if [[ -n "$release" && "$image" == "ghcr.io/yoowii/yoowii-php:$release" ]]; then
+      ok 'worker image aligned with release'
+    else
+      bad 'worker image does not match current PHP release'
+    fi
+    # Inspect the *running container's* effective configuration without ever
+    # printing Docker environment values or the full inspect/Compose payload.
+    # This is metadata validation only: it does not prove queue consumption.
+    if python3 -c '
+import json
+import subprocess
+import sys
+from urllib.parse import parse_qs, urlsplit
+
+worker_id = sys.argv[1]
+try:
+    payload = subprocess.check_output(
+        ["docker", "inspect", "--format", "{{json .Config}}", worker_id],
+        stderr=subprocess.DEVNULL,
+    )
+    config = json.loads(payload)
+    variables = dict(item.split("=", 1) for item in config.get("Env", []) if "=" in item)
+    parsed = urlsplit(variables.get("MESSENGER_TRANSPORT_DSN", ""))
+    if parsed.scheme != "doctrine":
+        raise ValueError("non-Doctrine transport")
+    if parse_qs(parsed.query).get("queue_name") != ["yoowii_async"]:
+        raise ValueError("worker not bound to the dedicated queue")
+    required = {
+        "MAILER_DSN": "null://null",
+        "YOOWII_REALISAPRINT_ENABLED": "0",
+        "YOOWII_REALISAPRINT_FTP_ENABLED": "0",
+        "YOOWII_REALISAPRINT_PRESCRIPT_QUICK_PUBLICATION_ENABLED": "0",
+        "YOOWII_REALISAPRINT_QUOTE_ENABLED": "0",
+    }
+    if any(variables.get(key) != value for key, value in required.items()):
+        raise ValueError("supplier or mail isolation differs from approved overlay")
+    command = config.get("Cmd") or []
+    if not isinstance(command, list) or "messenger:consume" not in command:
+        raise ValueError("worker is not configured as Messenger consumer")
+    consume_index = command.index("messenger:consume")
+    if command[consume_index + 1:consume_index + 2] != ["async"]:
+        raise ValueError("worker consumes a transport other than async")
+except Exception:
+    # Never print the exception: it may embed container metadata/secrets.
+    sys.exit(1)
+' "$id"; then
+      ok 'worker effective queue, consumer command, mail and supplier isolation verified'
+    else
+      bad 'worker runtime transport/command/isolation validation failed (details withheld)'
+    fi
+  done <<< "$ids"
+fi
+# Probe the local HTTP endpoint without following arbitrary redirects.
+# The /fr_FR/ route may redirect to /en_US/; this is a routing warning,
+# not an automatic healthcheck success.
+http_headers="$(curl --silent --show-error --head --connect-timeout 3 --max-time 10 \
+  -H 'Host: preprod.yoowii.com' -H 'X-Forwarded-Proto: https' \
+  http://127.0.0.1:8086/fr_FR/ 2>/dev/null || true)"
+http_code="$(printf '%s\n' "$http_headers" | sed -n 's/^HTTP\/[^ ]* \([0-9][0-9][0-9]\).*/\1/p' | tail -1)"
+redirect="$(printf '%s\n' "$http_headers" | sed -n 's/^[Ll]ocation:[[:space:]]*\([^[:cntrl:]]*\).*/\1/p' | tr -d '\r' | tail -1)"
+printf 'INFO local_http_status=%s\n' "${http_code:-unavailable}"
+if [[ "$http_code" == 200 ]]; then
+  ok 'local storefront responds HTTP 200'
+elif [[ "$http_code" == 302 && "$redirect" == "http://127.0.0.1:8086/en_US/" ]]; then
+  warning 'local /fr_FR/ redirects to /en_US/ on internal HTTP origin; locale and public URL generation need review'
+else
+  warning 'local storefront returned unexpected status or redirect; inspect reverse proxy and locale'
+fi
+printf 'RESULT failures=%d warnings=%d\n' "$FAIL" "$WARN"
+if (( FAIL > 0 )); then exit 2; fi
+if (( WARN > 0 )); then exit 1; fi
+exit 0
