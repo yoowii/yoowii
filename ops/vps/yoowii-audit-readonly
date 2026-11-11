@@ -238,10 +238,13 @@ else
 fi
 
 # Probe the local HTTP endpoint without following arbitrary redirects.
+# Match the public HTTPS host passed by Plesk; do not trust an inbound
+# X-Forwarded-Host in this probe or infer safety of arbitrary client headers.
 # The /fr_FR/ route may redirect to /en_US/; this is a routing warning,
 # not an automatic healthcheck success.
 http_headers="$(curl --silent --show-error --head --connect-timeout 3 --max-time 10 \
-  -H 'Host: preprod.yoowii.com' -H 'X-Forwarded-Proto: https' \
+  -H 'Host: preprod.yoowii.com' \
+  -H 'X-Forwarded-Host: preprod.yoowii.com' -H 'X-Forwarded-Proto: https' \
   http://127.0.0.1:8086/fr_FR/ 2>/dev/null || true)"
 http_code="$(printf '%s\n' "$http_headers" | sed -n 's/^HTTP\/[^ ]* \([0-9][0-9][0-9]\).*/\1/p' | tail -1)"
 redirect="$(printf '%s\n' "$http_headers" | sed -n 's/^[Ll]ocation:[[:space:]]*\([^[:cntrl:]]*\).*/\1/p' | tr -d '\r' | tail -1)"
@@ -250,6 +253,8 @@ if [[ "$http_code" == 200 ]]; then
   ok 'local storefront responds HTTP 200'
 elif [[ "$http_code" == 302 && ( "$redirect" == "/en_US/" || "$redirect" == "http://127.0.0.1:8086/en_US/" ) ]]; then
   warning 'local /fr_FR/ redirects to /en_US/ on internal HTTP origin; locale and public URL generation need review'
+elif [[ "$http_code" =~ ^5[0-9]{2}$ ]]; then
+  bad 'local storefront returned HTTP 5xx; inspect application and reverse proxy'
 else
   warning 'local storefront returned unexpected status or redirect; inspect reverse proxy and locale'
 fi
