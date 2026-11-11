@@ -1,0 +1,264 @@
+#!/usr/bin/env bash
+# Root-owned, fixed-command audit. No user arguments, no writes, no secrets.
+set -Eeuo pipefail
+[[ "$#" -eq 0 ]] || { echo 'ERROR: arguments are not accepted' >&2; exit 2; }
+BASE=/opt/yoowii/preprod
+FAIL=0
+WARN=0
+ok() { printf 'PASS %s\n' "$1"; }
+bad() { printf 'FAIL %s\n' "$1"; FAIL=$((FAIL+1)); }
+warning() { printf 'WARN %s\n' "$1"; WARN=$((WARN+1)); }
+file_status() {
+  local path="$1" label="$2" owner mode
+  if [[ -L "$path" ]]; then bad "$label is a symlink"; return 0; fi
+  if [[ ! -f "$path" ]]; then bad "$label missing"; return 0; fi
+  owner="$(stat -c %u "$path")"
+  mode="$(stat -c %a "$path")"
+  printf 'INFO %s uid=%s mode=%s\n' "$label" "$owner" "$mode"
+  if (( (8#$mode & 8#022) != 0 )); then bad "$label writable by group or others"; fi
+}
+printf 'YOOWII preprod read-only audit\n'
+if [[ ! -d "$BASE" ]]; then bad 'preprod directory missing'; exit 2; fi
+file_status "$BASE/.env" 'env'
+file_status "$BASE/compose.preprod.yml" 'compose'
+file_status /usr/local/sbin/yoowii-deploy-preprod 'deployer'
+if [[ "$(stat -c %u /usr/local/sbin/yoowii-deploy-preprod 2>/dev/null || echo unknown)" != 0 ]]; then
+  bad 'deployer must be root-owned'
+fi
+if [[ -L "$BASE/compose.preprod.worker.yml" ]]; then
+  bad 'worker overlay is a symlink'
+elif [[ -f "$BASE/compose.preprod.worker.yml" ]]; then
+  file_status "$BASE/compose.preprod.worker.yml" 'worker overlay'
+  [[ "$(stat -c %u "$BASE/compose.preprod.worker.yml")" == 0 ]] || bad 'worker overlay must be root-owned'
+else
+  warning 'worker overlay absent (expected if worker has not been enabled)'
+fi
+release=''
+if [[ -f "$BASE/.env" && -r "$BASE/.env" ]]; then
+  release="$(sed -n 's/^YOOWII_IMAGE_TAG=//p' "$BASE/.env" | tail -1)"
+  if [[ "$release" =~ ^sha-[a-f0-9]{40}$ ]]; then
+    ok 'release tag format valid'
+  else
+    bad 'release tag missing or invalid'
+  fi
+  if grep -q '^YOOWII_MESSENGER_TRANSPORT_DSN=' "$BASE/.env"; then
+    ok 'dedicated Messenger DSN variable present (value NOT inspected)'
+  else
+    warning 'dedicated Messenger DSN variable not declared'
+  fi
+fi
+if ! command -v docker >/dev/null 2>&1; then
+  bad 'docker unavailable'
+elif ! ids="$(docker ps -a --filter label=com.docker.compose.project=yoowii-preprod --filter label=com.docker.compose.service=worker --format '{{.ID}}')"; then
+  bad 'docker inspection failed'
+else
+  count=0
+  [[ -z "$ids" ]] || count="$(printf '%s\n' "$ids" | wc -l)"
+  printf 'INFO worker_count=%s\n' "$count"
+  (( count <= 1 )) || bad 'multiple workers found'
+  if (( count > 0 )) && [[ ! -f "$BASE/compose.preprod.worker.yml" ]]; then
+    bad 'worker exists but approved overlay is missing'
+  fi
+  while IFS= read -r id; do
+    [[ -n "$id" ]] || continue
+    if ! metadata="$(docker inspect --format '{{.Config.Image}} {{.State.Status}}' "$id")"; then
+      bad 'unable to inspect worker'
+      continue
+    fi
+    image="${metadata%% *}"
+    state="${metadata#* }"
+    printf 'INFO worker_state=%s\n' "$state"
+    case "$state" in running|exited|created) ok 'worker state supported';; *) bad 'worker state unsupported';; esac
+    if [[ -n "$release" && "$image" == "ghcr.io/yoowii/yoowii-php:$release" ]]; then
+      ok 'worker image aligned with release'
+    else
+      bad 'worker image does not match current PHP release'
+    fi
+    # Inspect the *running container's* effective configuration without ever
+    # printing Docker environment values or the full inspect/Compose payload.
+    # This is metadata validation only: it does not prove queue consumption.
+    if python3 -c '
+import json
+import subprocess
+import sys
+from urllib.parse import parse_qs, urlsplit
+
+worker_id = sys.argv[1]
+try:
+    payload = subprocess.check_output(
+        ["docker", "inspect", "--format", "{{json .Config}}", worker_id],
+        stderr=subprocess.DEVNULL,
+    )
+    config = json.loads(payload)
+    variables = dict(item.split("=", 1) for item in config.get("Env", []) if "=" in item)
+    parsed = urlsplit(variables.get("MESSENGER_TRANSPORT_DSN", ""))
+    if parsed.scheme != "doctrine":
+        raise ValueError("non-Doctrine transport")
+    if parse_qs(parsed.query).get("queue_name") != ["yoowii_async"]:
+        raise ValueError("worker not bound to the dedicated queue")
+    required = {
+        "MAILER_DSN": "null://null",
+        "YOOWII_REALISAPRINT_ENABLED": "0",
+        "YOOWII_REALISAPRINT_FTP_ENABLED": "0",
+        "YOOWII_REALISAPRINT_PRESCRIPT_QUICK_PUBLICATION_ENABLED": "0",
+        "YOOWII_REALISAPRINT_QUOTE_ENABLED": "0",
+    }
+    if any(variables.get(key) != value for key, value in required.items()):
+        raise ValueError("supplier or mail isolation differs from approved overlay")
+    command = config.get("Cmd") or []
+    if not isinstance(command, list) or "messenger:consume" not in command:
+        raise ValueError("worker is not configured as Messenger consumer")
+    consume_index = command.index("messenger:consume")
+    if command[consume_index + 1:consume_index + 2] != ["async"]:
+        raise ValueError("worker consumes a transport other than async")
+except Exception:
+    # Never print the exception: it may embed container metadata/secrets.
+    sys.exit(1)
+' "$id"; then
+      ok 'worker effective queue, consumer command, mail and supplier isolation verified'
+    else
+      bad 'worker runtime transport/command/isolation validation failed (details withheld)'
+    fi
+  done <<< "$ids"
+fi
+# Inspect only the four essential services belonging to the Yoowii Compose project.
+# Container state and mount destinations are inspected; never print .Env, full
+# inspect responses, credentials, volume contents or file paths from clients.
+mysql_audit_id=''
+for service in php nginx mysql redis; do
+  if ! service_ids="$(docker ps -aq --filter label=com.docker.compose.project=yoowii-preprod --filter "label=com.docker.compose.service=$service")"; then
+    bad "$service container lookup failed"
+    continue
+  fi
+  service_count=0
+  [[ -z "$service_ids" ]] || service_count="$(printf '%s\n' "$service_ids" | wc -l)"
+  if [[ "$service_count" != 1 ]]; then
+    bad "$service expected exactly one Compose container (found $service_count)"
+    continue
+  fi
+  service_id="$service_ids"
+  if ! state="$(docker inspect --format '{{.State.Status}}' "$service_id" 2>/dev/null)" ||
+     ! health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$service_id" 2>/dev/null)" ||
+     ! image="$(docker inspect --format '{{.Config.Image}}' "$service_id" 2>/dev/null)"; then
+    bad "$service metadata inspection failed"
+    continue
+  fi
+  printf 'INFO service=%s state=%s health=%s\n' "$service" "$state" "$health"
+  if [[ "$state" == running ]]; then
+    ok "$service running"
+  else
+    bad "$service not running"
+  fi
+  if [[ "$service" == mysql || "$service" == redis ]]; then
+    [[ "$health" == healthy ]] && ok "$service healthcheck healthy" || bad "$service healthcheck not healthy"
+  elif [[ "$health" == unhealthy ]]; then
+    bad "$service unhealthy"
+  fi
+  if [[ "$service" == php || "$service" == nginx ]]; then
+    if [[ "$release" =~ ^sha-[a-f0-9]{40}$ && "$image" == "ghcr.io/yoowii/yoowii-$service:$release" ]]; then
+      ok "$service image aligned with configured release"
+    else
+      bad "$service image mismatch"
+    fi
+  else
+    case "$service:$image" in
+      mysql:mysql:8.4|redis:redis:7.4-alpine) ok "$service expected image reference" ;;
+      *) bad "$service unexpected image reference" ;;
+    esac
+  fi
+  # Require the correct mount destination/type without relying on generated
+  # Compose volume names; do not inspect or modify any volume contents.
+  if ! mounts="$(docker inspect --format '{{json .Mounts}}' "$service_id" 2>/dev/null)" ||
+     ! printf '%s' "$mounts" | python3 -c '
+import json, sys
+service = sys.argv[1]
+try:
+    mounts = json.load(sys.stdin)
+    expected = {
+        "php": {"/srv/sylius/public/media": False,
+                "/srv/sylius/var/private/print": False},
+        "nginx": {"/srv/sylius/public/media": True},
+        "mysql": {"/var/lib/mysql": False},
+        "redis": {},
+    }[service]
+    by_destination = {m.get("Destination"): m for m in mounts}
+    valid = all(
+        destination in by_destination
+        and by_destination[destination].get("Type") == "volume"
+        and by_destination[destination].get("RW") is (not readonly)
+        for destination, readonly in expected.items()
+    )
+    sys.exit(0 if valid else 1)
+except (ValueError, TypeError, KeyError):
+    sys.exit(1)
+' "$service"; then
+    bad "$service expected volume mounts absent or inconsistent"
+  else
+    ok "$service expected volume mounts"
+  fi
+  if [[ "$service" == mysql && "$state" == running ]]; then
+    mysql_audit_id="$service_id"
+  fi
+done
+
+# One fixed read-only aggregate: never reserve/consume/purge Messenger messages.
+# SQL output is captured, validated and limited to queue names and counts.
+# A missing table/failed query is a WARNING, not proof that queues are empty.
+if [[ -n "$mysql_audit_id" ]]; then
+  if queue_counts="$(docker exec "$mysql_audit_id" sh -c '
+    MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --batch --skip-column-names "$MYSQL_DATABASE" \
+      -e "SELECT queue_name, COUNT(*) AS total, SUM(delivered_at IS NULL) AS unreserved, SUM(delivered_at IS NOT NULL) AS reserved FROM messenger_messages GROUP BY queue_name ORDER BY queue_name"
+  ' 2>/dev/null)"; then
+    if [[ -z "$queue_counts" ]]; then
+      ok 'Messenger queue aggregate available (no rows)'
+    elif printf '%s\n' "$queue_counts" | python3 -c '
+import re, sys
+for line in sys.stdin:
+    values = line.rstrip("\n").split("\t")
+    if len(values) != 4 or not re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", values[0]):
+        sys.exit(1)
+    if not all(re.fullmatch(r"[0-9]+", value) for value in values[1:]):
+        sys.exit(1)
+    total, unreserved, reserved = map(int, values[1:])
+    if total != unreserved + reserved:
+        sys.exit(1)
+'; then
+      while IFS="$(printf '\t')" read -r queue total unreserved reserved; do
+        printf 'INFO messenger_queue=%s total=%s unreserved=%s reserved=%s\n' "$queue" "$total" "$unreserved" "$reserved"
+      done <<< "$queue_counts"
+      ok 'Messenger queue counters read-only'
+    else
+      warning 'Messenger queue aggregate has invalid output (details withheld)'
+    fi
+  else
+    warning 'Messenger queue counters unavailable (no SQL writes attempted)'
+  fi
+else
+  warning 'Messenger queue counters skipped (MySQL container not running)'
+fi
+
+# Probe the local HTTP endpoint without following arbitrary redirects.
+# Match the public HTTPS host passed by Plesk; do not trust an inbound
+# X-Forwarded-Host in this probe or infer safety of arbitrary client headers.
+# The /fr_FR/ route may redirect to /en_US/; this is a routing warning,
+# not an automatic healthcheck success.
+http_headers="$(curl --silent --show-error --head --connect-timeout 3 --max-time 10 \
+  -H 'Host: preprod.yoowii.com' \
+  -H 'X-Forwarded-Host: preprod.yoowii.com' -H 'X-Forwarded-Proto: https' \
+  http://127.0.0.1:8086/fr_FR/ 2>/dev/null || true)"
+http_code="$(printf '%s\n' "$http_headers" | sed -n 's/^HTTP\/[^ ]* \([0-9][0-9][0-9]\).*/\1/p' | tail -1)"
+redirect="$(printf '%s\n' "$http_headers" | sed -n 's/^[Ll]ocation:[[:space:]]*\([^[:cntrl:]]*\).*/\1/p' | tr -d '\r' | tail -1)"
+printf 'INFO local_http_status=%s\n' "${http_code:-unavailable}"
+if [[ "$http_code" == 200 ]]; then
+  ok 'local storefront responds HTTP 200'
+elif [[ "$http_code" == 302 && ( "$redirect" == "/en_US/" || "$redirect" == "http://127.0.0.1:8086/en_US/" ) ]]; then
+  warning 'local /fr_FR/ redirects to /en_US/ on internal HTTP origin; locale and public URL generation need review'
+elif [[ "$http_code" =~ ^5[0-9]{2}$ ]]; then
+  bad 'local storefront returned HTTP 5xx; inspect application and reverse proxy'
+else
+  warning 'local storefront returned unexpected status or redirect; inspect reverse proxy and locale'
+fi
+printf 'RESULT failures=%d warnings=%d\n' "$FAIL" "$WARN"
+if (( FAIL > 0 )); then exit 2; fi
+if (( WARN > 0 )); then exit 1; fi
+exit 0
