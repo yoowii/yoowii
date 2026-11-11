@@ -14,6 +14,7 @@ use Symfony\Component\Cache\Adapter\RedisAdapter;
 final class RedisRealisaprintConfigurationPopularity implements RealisaprintConfigurationPopularity
 {
     private const string KEY = 'yoowii.realisaprint.configuration_popularity';
+
     private const int MAXIMUM_STORED_CONFIGURATIONS = 1_000;
 
     private ?\Redis $connection = null;

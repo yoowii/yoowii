@@ -24,11 +24,13 @@ final readonly class RealisaprintMappingValidator
     ) {
     }
 
+    /** @param array<string, string|int|float> $sample */
     public function validate(SupplierRoute $route, SupplierProductMappingVersion $mapping, PersistedPrintProductDefinition $definition, array $sample, \DateTimeImmutable $at): RealisaprintMappingValidation
     {
         $errors = $this->coverageErrors($mapping, $definition);
         $priceDiagnostic = null;
         $catalog = $this->entityManager->getRepository(RealisaprintCatalogProduct::class)->findOneBy(['providerProductId' => $route->supplierProduct()->code()]);
+        /** @var array<string, mixed>|null $provider */
         $provider = $mapping->configurationMapping()['realisaprint'] ?? null;
 
         try {
@@ -90,7 +92,17 @@ final readonly class RealisaprintMappingValidator
 
                 continue;
             }
+            if (!is_array($allowed)) {
+                $errors[] = sprintf('Les valeurs de l’axe « %s » sont invalides.', $option);
+
+                continue;
+            }
             foreach ($allowed as $value) {
+                if (!is_scalar($value)) {
+                    $errors[] = sprintf('Une valeur non valide de « %s » n’est pas couverte.', $option);
+
+                    continue;
+                }
                 if (!array_key_exists((string) $value, $values)) {
                     $errors[] = sprintf('La valeur « %s » de « %s » n’est pas couverte.', (string) $value, $option);
                 }
@@ -107,16 +119,22 @@ final readonly class RealisaprintMappingValidator
         foreach ($definition->options() as $code => $option) {
             $allowed = $option['allowed_values'] ?? [];
             $default = $option['default'] ?? null;
-            if ([] !== $allowed) {
-                $sample[$code] = (is_string($default) || is_int($default)) && in_array($default, $allowed, true) ? $default : $allowed[0];
+            if (is_array($allowed) && [] !== $allowed) {
+                $first = $allowed[0] ?? null;
+                if (!is_string($first) && !is_int($first) && !is_float($first)) {
+                    throw new \DomainException(sprintf('Valeur initiale non valide pour « %s ».', $code));
+                }
+                $sample[$code] = (is_string($default) || is_int($default)) && in_array($default, $allowed, true) ? $default : $first;
 
                 continue;
             }
             if ('integer' === ($option['type'] ?? null)) {
-                $sample[$code] = is_int($default) ? $default : (int) ($option['minimum'] ?? 1);
+                $minimum = $option['minimum'] ?? null;
+                $sample[$code] = is_int($default) ? $default : (is_numeric($minimum) ? (int) $minimum : 1);
             }
             if ('float' === ($option['type'] ?? null)) {
-                $sample[$code] = is_numeric($default) && (float) $default > 0 ? (float) $default : (float) ($option['minimum'] ?? 1);
+                $minimum = $option['minimum'] ?? null;
+                $sample[$code] = is_numeric($default) && (float) $default > 0 ? (float) $default : (is_numeric($minimum) ? (float) $minimum : 1.0);
             }
             if ('text' === ($option['type'] ?? null) && is_string($default) && '' !== trim($default)) {
                 $sample[$code] = $default;
@@ -126,20 +144,23 @@ final readonly class RealisaprintMappingValidator
         return $sample;
     }
 
-    /**  array<string, string|int|float> $sample */
+    /** @param array<string, string|int|float> $sample */
     public function fingerprint(SupplierProductMappingVersion $mapping, array $sample): string
     {
         return hash('sha256', json_encode(['mapping' => $mapping->configurationMapping(), 'sample' => $sample], \JSON_THROW_ON_ERROR));
     }
 
-    /** @param array<string, string|int|float> $configuration @param array<string, mixed> $state */
+    /**
+     * @param array<string, string|int|float> $configuration
+     * @param array<string, mixed> $state
+     */
     private function assertTestValuesAvailable(array $configuration, array $state): void
     {
         foreach (is_array($state['availability'] ?? null) ? $state['availability'] : [] as $option => $available) {
             if (!is_string($option) || !is_array($available) || !array_key_exists($option, $configuration)) {
                 continue;
             }
-            if (!in_array((string) $configuration[$option], array_map('strval', $available), true)) {
+            if (!in_array((string) $configuration[$option], array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : '', $available), true)) {
                 throw new \DomainException(sprintf('La valeur d’essai de « %s » n’est plus disponible chez Realisaprint.', $option));
             }
         }

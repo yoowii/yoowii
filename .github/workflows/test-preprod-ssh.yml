@@ -1,0 +1,99 @@
+name: Test SSH Preprod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-ssh:
+    name: Test connexion VPS
+    runs-on: ubuntu-latest
+    environment: preprod
+
+    steps:
+      - name: Configurer SSH
+        env:
+          SSH_KEY: ${{ secrets.PREPROD_SSH_KEY }}
+          SSH_HOST_KEY: ${{ secrets.PREPROD_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+
+          install -m 700 -d ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          # Vérifier que le fichier known_hosts contient une entrée
+          test -s ~/.ssh/known_hosts || {
+            echo "::error::known_hosts est vide"
+            exit 1
+          }
+
+          # Vérifier que l'entrée correspond à l'adresse du VPS
+          ssh-keygen -F "91.229.245.159" \
+            -f ~/.ssh/known_hosts >/dev/null || {
+              echo "::error::Clé d'hôte introuvable pour le VPS"
+              exit 1
+            }
+
+      - name: Vérifier la correspondance de la clé GitHub avec le VPS
+        run: |
+          set -euo pipefail
+          fingerprint="$(ssh-keygen -y -f ~/.ssh/id_ed25519 | ssh-keygen -lf - -E sha256)"
+          echo "Empreinte de la clé publique GitHub Actions : $fingerprint"
+          [[ "$fingerprint" == *"SHA256:jj5Ne1oMDo/9vUwiCe1FL3muDVU8qfI6D0c2YLkT4FI"* ]] || {
+            echo "::error::La clé privée GitHub ne correspond pas à authorized_keys sur le VPS"
+            exit 1
+          }
+
+      - name: Tester la connexion
+        env:
+          HOST: ${{ vars.PREPROD_HOST }}
+          USER: ${{ vars.PREPROD_USER }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$HOST" ]]; then
+            echo "::error::PREPROD_HOST est vide ou absent"
+            exit 1
+          fi
+
+          if [[ -z "$USER" ]]; then
+            echo "::error::PREPROD_USER est vide ou absent"
+            exit 1
+          fi
+
+          echo "Connexion SSH au VPS..."
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o PreferredAuthentications=publickey \
+            -o PasswordAuthentication=no \
+            -o ConnectTimeout=15 \
+            -o ConnectionAttempts=1 \
+            "${USER}@${HOST}" \
+            "whoami && id && hostname"
+
+      - name: Vérifier l'autorisation sudo sans déployer
+        env:
+          HOST: ${{ vars.PREPROD_HOST }}
+          USER: ${{ vars.PREPROD_USER }}
+        run: |
+          set -euo pipefail
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o PreferredAuthentications=publickey \
+            -o PasswordAuthentication=no \
+            -o ConnectTimeout=15 \
+            -o ConnectionAttempts=1 \
+            "${USER}@${HOST}" \
+            'sudo -n -l /usr/local/sbin/yoowii-deploy-preprod d91b93698fa66e1987947fd649519f3d77519f33'

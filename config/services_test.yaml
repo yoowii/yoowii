@@ -3,3 +3,13 @@ imports:
 
 sylius_api:
     enabled: true
+
+services:
+    App\Tests\Yoowii\Messenger\Fixture\AlwaysFailHandler:
+        tags: ['messenger.message_handler']
+    App\Tests\Yoowii\Messenger\Fixture\SafeProbeHandler:
+        tags: ['messenger.message_handler']
+    App\Tests\Yoowii\Messenger\Fixture\GracefulStopProbeHandler:
+        tags: ['messenger.message_handler']
+    App\Tests\Yoowii\Messenger\Fixture\ForcedStopProbeHandler:
+        tags: ['messenger.message_handler']

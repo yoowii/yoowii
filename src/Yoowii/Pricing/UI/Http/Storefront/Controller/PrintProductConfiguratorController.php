@@ -73,6 +73,7 @@ final class PrintProductConfiguratorController extends AbstractController
             if (ConfiguratorKind::SupplierApi !== $sourcing->configuratorKind() || !$mapping instanceof SupplierProductMappingVersion) {
                 throw new \DomainException('Le configurateur sélectionné ne prend pas en charge ce rafraîchissement.');
             }
+            $values = self::stringKeyedOptions($values);
             $configuration = $definition->configure($publishedValues->resolve($definition, $definitions->storefrontSchema($definitionCode), $values, $fixedOptions->forMapping($mapping)));
 
             // show_variables is a display endpoint. It may run before a
@@ -141,6 +142,7 @@ final class PrintProductConfiguratorController extends AbstractController
                 throw new \InvalidArgumentException('La configuration reçue est invalide.');
             }
 
+            $formData = self::stringKeyedOptions($formData);
             $values = $publishedValues->resolve($definition, $schemas, $formData, $fixed);
             /** @var array<string, mixed> $values */
             $configuration = $definition->configure($values);
@@ -233,6 +235,9 @@ final class PrintProductConfiguratorController extends AbstractController
             ], UrlGeneratorInterface::ABSOLUTE_URL));
 
             try {
+                if (!is_array($provider) || !is_scalar($provider['product'] ?? null) || !is_scalar($provider['stock'] ?? null)) {
+                    throw new \DomainException('Missing Prescript supplier identifiers.');
+                }
                 $template = $prescriptTemplates->template((string) $provider['product'], (string) $provider['stock'], 1.0, 'FR', $callbackUrl);
             } catch (\Throwable) {
                 return $this->render('shop/product/show/realisaprint_prescript_configurator.html.twig', [
@@ -307,7 +312,7 @@ final class PrintProductConfiguratorController extends AbstractController
     /**
      * @param array<string, list<string|int>> $availableOptions
      * @param array<string, mixed> $data
-     * @param list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}> $fieldSchemas
+     * @param list<array<string, mixed>> $fieldSchemas
      */
     private function createConfiguratorForm(
         string $productCode,
@@ -328,24 +333,19 @@ final class PrintProductConfiguratorController extends AbstractController
         ]);
     }
 
-    /** @param array<string, mixed> $values @param array<string, array{value: string|int|float, label: string}> $fixed */
-    private function withFixedValues(array $values, array $fixed): array
-    {
-        foreach ($fixed as $code => $field) {
-            $values[$code] = $field['value'];
-        }
-
-        return $values;
-    }
-
-    /** @param list<array<string, mixed>> $schemas @param array<string, array{value: string|int|float, label: string}> $fixed
-     * @return list<array<string, mixed>> */
+    /**
+     * @param list<array<string, mixed>> $schemas
+     * @param array<string, array{value: string|int|float, label: string}> $fixed
+     *
+     * @return list<array<string, mixed>>
+     */
     private function withFixedSchema(array $schemas, array $fixed): array
     {
         foreach ($schemas as &$schema) {
-            if (isset($fixed[$schema['code'] ?? ''])) {
+            $code = $schema['code'] ?? null;
+            if (is_string($code) && isset($fixed[$code])) {
                 $schema['fixed'] = true;
-                $schema['fixed_label'] = $fixed[$schema['code']]['label'];
+                $schema['fixed_label'] = $fixed[$code]['label'];
             }
         }
         unset($schema);
@@ -363,57 +363,57 @@ final class PrintProductConfiguratorController extends AbstractController
         if (!$definition instanceof \App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition) {
             return ['state' => null, 'stale' => false];
         }
-            $state = $mapping->initialDisplayState();
-            if (!is_array($state)) {
-                $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
-                    'definition_code' => $definitionCode,
-                    'mapping_id' => $mapping->id(),
-                    'reason' => 'state_not_array',
-                ]);
-                if ('dev' === $kernel->getEnvironment()) {
-                    $logger->debug('Realisaprint initial display state diagnostic.', [
-                        'definition_code' => $definitionCode,
-                        'mapping_id' => $mapping->id(),
-                        'raw_initial_display_state' => $state,
-                        'checks' => ['json_shape' => false, 'reason' => 'state_not_array'],
-                        'initial_provider_state' => null,
-                        'initial_provider_state_stale' => false,
-                    ]);
-                }
-
-                return ['state' => null, 'stale' => false];
-            }
-
-            $compatibilityReason = $displayStateBuilder->compatibilityReason($state, $mapping, $definition);
-            $freshnessReason = $displayStateBuilder->freshnessReason($state, $now);
-            $compatible = null === $compatibilityReason;
-            $fresh = null === $freshnessReason;
+        $state = $mapping->initialDisplayState();
+        if (!is_array($state)) {
+            $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
+                'definition_code' => $definitionCode,
+                'mapping_id' => $mapping->id(),
+                'reason' => 'state_not_array',
+            ]);
             if ('dev' === $kernel->getEnvironment()) {
-                $checks = $displayStateBuilder->compatibilityChecks($state, $mapping, $definition);
                 $logger->debug('Realisaprint initial display state diagnostic.', [
                     'definition_code' => $definitionCode,
                     'mapping_id' => $mapping->id(),
                     'raw_initial_display_state' => $state,
-                    'checks' => [
-                        ...$checks,
-                        'expiration' => $fresh,
-                        'compatibility_reason' => $compatibilityReason,
-                        'freshness_reason' => $freshnessReason,
-                    ],
-                    'initial_provider_state' => $compatible ? $state : null,
-                    'initial_provider_state_stale' => $compatible && !$fresh,
+                    'checks' => ['json_shape' => false, 'reason' => 'state_not_array'],
+                    'initial_provider_state' => null,
+                    'initial_provider_state_stale' => false,
                 ]);
             }
-            if (!$compatible) {
-                $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
-                    'definition_code' => $definitionCode,
-                    'mapping_id' => $mapping->id(),
-                    'reason' => $compatibilityReason,
-                ]);
-            }
-            if ($compatible) {
-                return ['state' => $state, 'stale' => !$fresh];
-            }
+
+            return ['state' => null, 'stale' => false];
+        }
+
+        $compatibilityReason = $displayStateBuilder->compatibilityReason($state, $mapping, $definition);
+        $freshnessReason = $displayStateBuilder->freshnessReason($state, $now);
+        $compatible = null === $compatibilityReason;
+        $fresh = null === $freshnessReason;
+        if ('dev' === $kernel->getEnvironment()) {
+            $checks = $displayStateBuilder->compatibilityChecks($state, $mapping, $definition);
+            $logger->debug('Realisaprint initial display state diagnostic.', [
+                'definition_code' => $definitionCode,
+                'mapping_id' => $mapping->id(),
+                'raw_initial_display_state' => $state,
+                'checks' => [
+                    ...$checks,
+                    'expiration' => $fresh,
+                    'compatibility_reason' => $compatibilityReason,
+                    'freshness_reason' => $freshnessReason,
+                ],
+                'initial_provider_state' => $compatible ? $state : null,
+                'initial_provider_state_stale' => $compatible && !$fresh,
+            ]);
+        }
+        if (!$compatible) {
+            $logger->warning('Realisaprint initial display state was rejected for the storefront.', [
+                'definition_code' => $definitionCode,
+                'mapping_id' => $mapping->id(),
+                'reason' => $compatibilityReason,
+            ]);
+        }
+        if ($compatible) {
+            return ['state' => $state, 'stale' => !$fresh];
+        }
 
         return ['state' => null, 'stale' => false];
     }
@@ -429,7 +429,12 @@ final class PrintProductConfiguratorController extends AbstractController
         }
     }
 
-    /** @param array<string, mixed> $submitted @param list<string> $axes @param array<string, array{value: string|int|float, label: string}> $fixed @param array<string, mixed> $state */
+    /**
+     * @param array<string, mixed> $submitted
+     * @param list<string> $axes
+     * @param array<string, array{value: string|int|float, label: string}> $fixed
+     * @param array<string, mixed> $state
+     */
     private function assertCustomerPricingAxesComplete(array $submitted, array $axes, array $fixed, array $state): void
     {
         $visibility = is_array($state['visibility'] ?? null) ? $state['visibility'] : [];
@@ -444,12 +449,19 @@ final class PrintProductConfiguratorController extends AbstractController
         }
     }
 
-    /** @param list<string> $axes @param array<string, list<string|int>> $availableOptions @param list<array<string, mixed>> $fieldSchemas */
+    /**
+     * @param list<string> $axes
+     * @param array<string, list<string|int>> $availableOptions
+     * @param list<array<string, mixed>> $fieldSchemas
+     */
     private function hasAvailableConfiguration(array $axes, array $availableOptions, array $fieldSchemas): bool
     {
         $schemas = [];
         foreach ($fieldSchemas as $schema) {
-            $schemas[$schema['code']] = $schema;
+            $code = $schema['code'] ?? null;
+            if (is_string($code)) {
+                $schemas[$code] = $schema;
+            }
         }
         foreach ($axes as $axis) {
             $schema = $schemas[$axis] ?? null;
@@ -466,6 +478,22 @@ final class PrintProductConfiguratorController extends AbstractController
         }
 
         return [] !== $axes;
+    }
+
+    /**
+     * @param array<array-key, mixed> $options
+     *
+     * @return array<string, mixed>
+     */
+    private static function stringKeyedOptions(array $options): array
+    {
+        foreach (array_keys($options) as $key) {
+            if (!is_string($key)) {
+                throw new \InvalidArgumentException('La configuration contient une clé non valide.');
+            }
+        }
+
+        return $options;
     }
 
     /** @param ProductRepositoryInterface<Product> $productRepository */

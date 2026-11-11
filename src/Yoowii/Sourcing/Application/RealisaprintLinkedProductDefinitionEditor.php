@@ -17,7 +17,11 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
     {
     }
 
-    /** @param array<string, array<string, mixed>> $options @param list<string> $pricingAxes @param array<string, mixed> $prescriptSummaryProfile */
+    /**
+     * @param array<string, array<string, mixed>> $options
+     * @param non-empty-list<string> $pricingAxes
+     * @param array<string, mixed> $prescriptSummaryProfile
+     */
     public function update(SupplierRoute $route, RealisaprintCatalogProduct $catalog, PersistedPrintProductDefinition $definition, string $configuratorMode, array $options, array $pricingAxes, array $prescriptSummaryProfile): SupplierProductMappingVersion
     {
         $previous = $this->latestMapping($route);
@@ -57,7 +61,11 @@ final readonly class RealisaprintLinkedProductDefinitionEditor
         return $mapping;
     }
 
-    /** @param array<string, array<string, mixed>> $options @return array<string, array{option: string, values: array<string, mixed>, quantity?: true, fixed_value?: bool|float|int|string}> */
+    /**
+     * @param array<string, array<string, mixed>> $options
+     *
+     * @return array<string, array{option: string, values: array<string, mixed>, quantity?: true, fixed_value?: bool|float|int|string}>
+     */
     private function rules(array $options, RealisaprintCatalogProduct $catalog): array
     {
         $catalogVariables = $catalog->configuration()['variables'] ?? [];

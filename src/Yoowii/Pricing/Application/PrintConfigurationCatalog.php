@@ -145,7 +145,11 @@ final readonly class PrintConfigurationCatalog
                 continue;
             }
 
-            foreach (($payload['entries'] ?? []) as $entry) {
+            $entries = $payload['entries'] ?? null;
+            if (!is_array($entries)) {
+                continue;
+            }
+            foreach ($entries as $entry) {
                 $configuration = is_array($entry) ? ($entry['configuration'] ?? null) : null;
                 if (!is_array($configuration)) {
                     continue;

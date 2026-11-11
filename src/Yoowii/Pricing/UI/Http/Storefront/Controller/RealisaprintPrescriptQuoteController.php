@@ -33,7 +33,11 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         if (!$csrf->isTokenValid(new CsrfToken('prescript_quote_' . $productCode, is_string($payload['_token'] ?? null) ? $payload['_token'] : ''))) {
             return new JsonResponse(['message' => 'Jeton de sécurité invalide.'], Response::HTTP_FORBIDDEN, ['Cache-Control' => 'no-store']);
         }
-        $product = $productRepository->findOneByChannelAndCode($channelContext->getChannel(), $productCode);
+        $channel = $channelContext->getChannel();
+        if (!$channel instanceof \Sylius\Component\Core\Model\ChannelInterface) {
+            throw new \LogicException('The configured channel must be a Sylius core channel.');
+        }
+        $product = $productRepository->findOneByChannelAndCode($channel, $productCode);
         if (!$product instanceof Product || !$product->isEnabled() || FulfillmentType::Print !== $product->getFulfillmentType()) {
             throw $this->createNotFoundException();
         }
@@ -60,6 +64,7 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
         if (!$variant instanceof ProductVariant || null === $variant->getCode()) {
             return new JsonResponse(['message' => 'La variante commerciale est indisponible.'], Response::HTTP_UNPROCESSABLE_ENTITY, ['Cache-Control' => 'no-store']);
         }
+
         try {
             $snapshot = $creator->create($definitionCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now, $delivery, $sourcing->route());
             $token = $quoteStore->issue($variant->getCode(), $definitionCode, $snapshot, $now);
@@ -69,5 +74,4 @@ final class RealisaprintPrescriptQuoteController extends AbstractController
 
         return new JsonResponse(['quote_token' => $token, 'quote_html' => $this->renderView('shop/product/show/_print_quote.html.twig', ['pricing_snapshot' => $snapshot, 'quote_token' => $token])], Response::HTTP_CREATED, ['Cache-Control' => 'no-store']);
     }
-
 }

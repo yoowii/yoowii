@@ -71,11 +71,11 @@ final readonly class SubmitPrintJobToRealisaprint
                 $configurationResponse = null;
                 $configurationCode = $prescript['code'] ?? null;
                 if (null === $prescript) {
-                    $configurationResponse = $this->client->post('save_configuration', $configurationPayload ?? []);
+                    $configurationResponse = $this->client->post('save_configuration', $configurationPayload);
                     $configurationCode = $configurationResponse['code'] ?? null;
                 }
                 if (!is_scalar($configurationCode) || '' === trim((string) $configurationCode)) {
-                    $submission->recordFailure(array_filter(['save_configuration' => $configurationPayload]), null === $prescript ? $this->error($configurationResponse ?? [], 'Realisaprint did not return a configuration code.') : 'Le code Préscript est invalide.', $now);
+                    $submission->recordFailure(array_filter(['save_configuration' => $configurationPayload]), null === $prescript ? $this->error($configurationResponse, 'Realisaprint did not return a configuration code.') : 'Le code Préscript est invalide.', $now);
 
                     return $submission;
                 }

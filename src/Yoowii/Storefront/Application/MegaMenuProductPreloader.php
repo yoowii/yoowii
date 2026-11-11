@@ -38,7 +38,7 @@ final class MegaMenuProductPreloader
             }
 
             $roots[spl_object_id($taxon->getRoot())] = $taxon->getRoot();
-            $firstLevel = min($firstLevel ?? PHP_INT_MAX, (int) $taxon->getLevel());
+            $firstLevel = min($firstLevel ?? \PHP_INT_MAX, (int) $taxon->getLevel());
         }
 
         if ([] === $roots || null === $firstLevel) {

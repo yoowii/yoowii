@@ -15,12 +15,16 @@ class PersistedPrintProductDefinition
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    /** @phpstan-ignore property.unusedType (assigned by Doctrine ORM hydration) */
     private ?int $id = null;
 
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $active = false;
 
-    /** @param array<string, array{type: string, required?: bool, allowed_values?: list<string|int|float>, minimum?: int|float|null, maximum?: int|float|null}> $options @param non-empty-list<string> $pricingAxes */
+    /**
+     * @param array<string, array<string, mixed>> $options
+     * @param non-empty-list<string> $pricingAxes
+     */
     public function __construct(
         #[ORM\Column(name: 'product_code', type: Types::STRING, length: 64)]
         private readonly string $productCode,
@@ -55,7 +59,10 @@ class PersistedPrintProductDefinition
         $this->replaceDraftDefinition($options, $this->pricingAxes);
     }
 
-    /** @param array<string, array<string, mixed>> $options @param non-empty-list<string> $pricingAxes */
+    /**
+     * @param array<string, array<string, mixed>> $options
+     * @param non-empty-list<string> $pricingAxes
+     */
     public function replaceDraftDefinition(array $options, array $pricingAxes): void
     {
         if ($this->active) {
@@ -91,30 +98,33 @@ class PersistedPrintProductDefinition
     {
         $schema = [];
         foreach ($this->options as $code => $option) {
-            if (!is_string($code) || !is_array($option)) {
-                continue;
-            }
             $valueLabels = [];
-            foreach (($option['value_labels'] ?? []) as $value => $label) {
-                if ((is_string($value) || is_int($value)) && is_string($label)) {
+            $labels = $option['value_labels'] ?? null;
+            foreach (is_array($labels) ? $labels : [] as $value => $label) {
+                if (is_string($label)) {
                     $valueLabels[(string) $value] = $label;
                 }
             }
             $parent = str_ends_with($code, '_zone') ? substr($code, 0, -strlen('_zone')) : null;
+            $allowed = $option['allowed_values'] ?? null;
+            $area = $option['area'] ?? null;
+            $position = $option['position'] ?? null;
+            $minimum = $option['minimum'] ?? null;
+            $maximum = $option['maximum'] ?? null;
             $schema[] = [
                 'code' => $code,
                 'label' => is_string($option['label'] ?? null) ? $option['label'] : ucfirst(str_replace('_', ' ', $code)),
                 // Provider types only describe the API: forms use canonical Yoowii types.
-                'type' => 'checkbox' === ($option['provider_type'] ?? null) ? 'checkbox' : (string) ($option['type'] ?? 'code'),
+                'type' => 'checkbox' === ($option['provider_type'] ?? null) ? 'checkbox' : (is_string($option['type'] ?? null) ? $option['type'] : 'code'),
                 'provider_type' => is_string($option['provider_type'] ?? null) ? $option['provider_type'] : null,
                 'values' => $valueLabels,
-                'allowed_values' => array_values(array_filter($option['allowed_values'] ?? [], static fn (mixed $value): bool => is_string($value) || is_int($value))),
-                'area' => isset($option['area']) ? (int) $option['area'] : 1,
-                'position' => isset($option['position']) ? (int) $option['position'] : 0,
+                'allowed_values' => array_values(array_filter(is_array($allowed) ? $allowed : [], static fn (mixed $value): bool => is_string($value) || is_int($value))),
+                'area' => is_scalar($area) ? (int) $area : 1,
+                'position' => is_scalar($position) ? (int) $position : 0,
                 'readonly' => (bool) ($option['readonly'] ?? false),
                 'default' => is_string($option['default'] ?? null) || is_int($option['default'] ?? null) || is_float($option['default'] ?? null) ? $option['default'] : null,
-                'minimum' => isset($option['minimum']) ? (float) $option['minimum'] : null,
-                'maximum' => isset($option['maximum']) ? (float) $option['maximum'] : null,
+                'minimum' => is_numeric($minimum) ? (float) $minimum : null,
+                'maximum' => is_numeric($maximum) ? (float) $maximum : null,
                 'depends_on' => null !== $parent ? $this->yesNoDependency($parent) : null,
             ];
         }
@@ -158,18 +168,32 @@ class PersistedPrintProductDefinition
     {
         $options = [];
         foreach ($this->options as $code => $item) {
-            if (!is_string($code) || !is_array($item)) {
-                throw new \DomainException('Invalid persisted print option definition.');
-            }
-            $type = PrintOptionType::tryFrom('checkbox' === ($item['provider_type'] ?? null) ? 'checkbox' : (string) ($item['type'] ?? ''));
+            $rawType = $item['type'] ?? null;
+            $type = PrintOptionType::tryFrom('checkbox' === ($item['provider_type'] ?? null) ? 'checkbox' : (is_string($rawType) ? $rawType : ''));
             if (!$type instanceof PrintOptionType) {
                 throw new \DomainException(sprintf('Invalid type for print option "%s".', $code));
             }
+            /** @var list<string|int>|mixed $allowed */
             $allowed = $item['allowed_values'] ?? [];
-            if (!is_array($allowed)) {
+            if (!is_array($allowed) || !array_is_list($allowed)) {
                 throw new \DomainException('Invalid allowed values.');
             }
-            $options[$code] = new PrintOptionDefinition($code, $type, (bool) ($item['required'] ?? true), $allowed, PrintOptionType::Float === $type && isset($item['minimum']) ? (float) $item['minimum'] : (isset($item['minimum']) ? (int) $item['minimum'] : null), PrintOptionType::Float === $type && isset($item['maximum']) ? (float) $item['maximum'] : (isset($item['maximum']) ? (int) $item['maximum'] : null));
+            foreach ($allowed as $value) {
+                if (!is_string($value) && !is_int($value)) {
+                    throw new \DomainException(sprintf('Invalid allowed value for print option "%s".', $code));
+                }
+            }
+            $min = $item['minimum'] ?? null;
+            $max = $item['maximum'] ?? null;
+            if (null !== $min && !is_numeric($min)) {
+                throw new \DomainException(sprintf('Invalid minimum for print option "%s".', $code));
+            }
+            if (null !== $max && !is_numeric($max)) {
+                throw new \DomainException(sprintf('Invalid maximum for print option "%s".', $code));
+            }
+            $minimum = null === $min ? null : (PrintOptionType::Float === $type ? (float) $min : (int) $min);
+            $maximum = null === $max ? null : (PrintOptionType::Float === $type ? (float) $max : (int) $max);
+            $options[$code] = new PrintOptionDefinition($code, $type, (bool) ($item['required'] ?? true), $allowed, $minimum, $maximum);
         }
 
         return new PrintProductDefinition($this->productCode, $this->schemaVersion, 'matrix_exact', $options, $this->pricingAxes);
@@ -183,8 +207,9 @@ class PersistedPrintProductDefinition
             return null;
         }
         $matches = ['oui' => [], 'non' => []];
-        foreach (($parentDefinition['value_labels'] ?? []) as $canonical => $label) {
-            if (!is_string($label) || (!is_string($canonical) && !is_int($canonical))) {
+        $labels = $parentDefinition['value_labels'] ?? null;
+        foreach (is_array($labels) ? $labels : [] as $canonical => $label) {
+            if (!is_string($label)) {
                 continue;
             }
             $meaning = mb_strtolower(trim($label));
@@ -194,7 +219,8 @@ class PersistedPrintProductDefinition
         }
         // Definitions without labels may still publish canonical oui/non values.
         if ([] === $matches['oui'] && [] === $matches['non']) {
-            foreach (($parentDefinition['allowed_values'] ?? []) as $canonical) {
+            $allowed = $parentDefinition['allowed_values'] ?? null;
+            foreach (is_array($allowed) ? $allowed : [] as $canonical) {
                 if (!is_string($canonical) && !is_int($canonical)) {
                     continue;
                 }

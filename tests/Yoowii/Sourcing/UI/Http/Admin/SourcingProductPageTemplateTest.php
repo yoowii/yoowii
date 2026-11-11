@@ -15,7 +15,8 @@ final class SourcingProductPageTemplateTest extends TestCase
         self::assertIsString($template);
         self::assertStringContainsString('Sourcing storefront résolu', $template);
         self::assertStringContainsString('Décision storefront', $template);
-        self::assertStringContainsString('Sourcing de secours', $template);
+        self::assertStringContainsString("state.status == 'fallback'", $template);
+        self::assertStringContainsString("'Secours'", $template);
         self::assertStringContainsString('snapshot', $template);
     }
 

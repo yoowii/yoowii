@@ -6,8 +6,8 @@ namespace App\Yoowii\Pricing\UI\Http\Storefront\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
+use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\Options;
@@ -20,7 +20,7 @@ final class PrintConfiguratorType extends AbstractType
     {
         /** @var array<string, list<string|int>> $optionChoices */
         $optionChoices = $options['option_choices'];
-        /** @var list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|null}> $fieldSchemas */
+        /** @var list<array{code: string, label: string, type: string, values: array<string, string>, area: int, position: int, readonly: bool, default: string|int|float|null, fixed?: bool, depends_on?: array{option: string, value: string}|null, minimum?: int|float|null, maximum?: int|float|null}> $fieldSchemas */
         $fieldSchemas = $options['field_schemas'] ?? [];
         $schemasByCode = [];
         foreach ($fieldSchemas as $schema) {
@@ -49,9 +49,8 @@ final class PrintConfiguratorType extends AbstractType
                 };
                 $builder->add($code, $type, [
                     'label' => $schema['label'],
-                    'required' => true,
                     'attr' => array_filter([
-                        'data-area' => $schema['area'] ?? 1,
+                        'data-area' => $schema['area'],
                         'data-option-code' => $code,
                         'data-depends-on' => is_array($schema['depends_on'] ?? null) ? ($schema['depends_on']['option'] . ':' . $schema['depends_on']['value']) : null,
                         'min' => $schema['minimum'] ?? null,

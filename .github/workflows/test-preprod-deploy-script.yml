@@ -1,0 +1,24 @@
+name: Test preprod deployment script
+
+on:
+  pull_request:
+    branches: [chore/ci-cd]
+    paths:
+      - 'scripts/preprod/**'
+      - '.github/workflows/test-preprod-deploy-script.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-rollback:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check deployment script syntax
+        run: bash -n scripts/preprod/deploy-vps.sh
+      - name: Check read-only backup inventory script syntax
+        run: bash -n scripts/preprod/backup-readiness-readonly.sh
+      - name: Test rollback with isolated mocked Docker
+        run: python3 scripts/preprod/test-rollback-isolated.py

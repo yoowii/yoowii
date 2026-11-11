@@ -50,6 +50,7 @@ final class RealisaprintDraftRepairTest extends TestCase
         $entityManager->method('getRepository')->willReturnCallback(static fn (string $class): EntityRepository => match ($class) {
             Product::class => $productRepository,
             SupplierProductMappingVersion::class => $mappingRepository,
+            default => throw new \LogicException(sprintf('Unexpected repository: %s', $class)),
         });
         $entityManager->expects(self::once())->method('persist');
         $entityManager->expects(self::once())->method('flush');

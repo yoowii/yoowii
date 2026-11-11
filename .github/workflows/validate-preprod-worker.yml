@@ -1,0 +1,77 @@
+name: Validate opt-in Messenger worker Compose
+
+on:
+  pull_request:
+    paths:
+      - 'compose.preprod.yml'
+      - 'compose.preprod.worker.yml'
+      - 'scripts/preprod/check-messenger-worker.sh'
+      - 'scripts/preprod/preflight-messenger-rollout.sh'
+      - 'scripts/preprod/test-messenger-monitor-isolated.py'
+      - 'scripts/preprod/test-messenger-preflight-isolated.py'
+      - '.github/workflows/validate-preprod-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-worker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check read-only monitor shell syntax
+        run: |
+          bash -n scripts/preprod/check-messenger-worker.sh
+          bash -n scripts/preprod/preflight-messenger-rollout.sh
+      - name: Test monitor with mocked Docker (no live VPS access)
+        run: |
+          python3 scripts/preprod/test-messenger-monitor-isolated.py
+          python3 scripts/preprod/test-messenger-preflight-isolated.py
+      - name: Validate Compose and worker isolation (no containers started)
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          env_file="$(mktemp)"
+          trap 'rm -f "$env_file"' EXIT
+          cat > "$env_file" <<'ENV'
+          YOOWII_IMAGE_TAG=sha-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          APP_SECRET=ci-only-dummy
+          DATABASE_URL=mysql://ci:ci@mysql:3306/ci
+          MYSQL_DATABASE=ci
+          MYSQL_USER=ci
+          MYSQL_PASSWORD=ci
+          MYSQL_ROOT_PASSWORD=ci
+          ENV
+          # Without the opt-in, the storefront must keep the legacy queue.
+          docker compose --env-file "$env_file" -f compose.preprod.yml config --format json |
+            python3 -c 'import json,sys; c=json.load(sys.stdin); assert c["services"]["php"]["environment"]["MESSENGER_TRANSPORT_DSN"] == "doctrine://default", "Legacy queue fallback changed"'
+          printf '%s\n' 'YOOWII_MESSENGER_TRANSPORT_DSN=doctrine://default?queue_name=yoowii_async' >> "$env_file"
+          docker compose --env-file "$env_file" -f compose.preprod.yml \
+            -f compose.preprod.worker.yml --profile messenger config --quiet
+          docker compose --env-file "$env_file" -f compose.preprod.yml \
+            -f compose.preprod.worker.yml --profile messenger config --format json |
+            python3 -c '
+          import json, sys
+          config = json.load(sys.stdin)
+          services = config["services"]
+          worker = services["worker"]
+          php = services["php"]
+          assert worker["image"] == php["image"], "Worker release differs from PHP"
+          assert not worker.get("ports"), "Worker may not expose a port"
+          assert set(worker.get("networks", [])) == {"internal"}, "Worker must stay on the internal network"
+          worker_dsn = worker.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "")
+          producer_dsn = php.get("environment", {}).get("MESSENGER_TRANSPORT_DSN", "")
+          assert worker_dsn == producer_dsn, "Producer and worker must share the same queue"
+          assert worker_dsn == "doctrine://default?queue_name=yoowii_async", "Worker must use dedicated Yoowii queue"
+          assert php["environment"]["YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN"] == "doctrine://default?queue_name=yoowii_supplier_async", "Supplier producer queue must remain isolated"
+          assert "YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN" not in worker["environment"], "Artwork worker must not be explicitly configured to consume supplier queue"
+          command = worker.get("command", [])
+          assert "messenger:consume" in command and "async" in command
+          assert worker.get("profiles") == ["messenger"]
+          assert worker.get("environment", {}).get("MAILER_DSN") == "null://null", "Outgoing mail must be disabled"
+          assert worker.get("environment", {}).get("YOOWII_REALISAPRINT_ENABLED") == "0", "Supplier integration must be disabled"
+          assert worker.get("environment", {}).get("YOOWII_REALISAPRINT_FTP_ENABLED") == "0", "Supplier FTP must be disabled"
+          assert any(v.get("target") == "/srv/sylius/var/private/print" for v in worker.get("volumes", [])), "Private files mount missing"
+          print("PASS: PHP producer + worker use dedicated Doctrine queue; worker internal-only")
+          '

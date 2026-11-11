@@ -1,0 +1,103 @@
+# Yoowii preproduction: deploy only after PHP/Nginx application images exist.
+# Run with: docker compose --env-file /opt/yoowii/preprod/.env -p yoowii-preprod -f compose.preprod.yml config
+name: yoowii-preprod
+
+services:
+  php:
+    image: ghcr.io/yoowii/yoowii-php:${YOOWII_IMAGE_TAG:?Set YOOWII_IMAGE_TAG to an immutable release tag}
+    restart: unless-stopped
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: '0'
+      PHP_DATE_TIMEZONE: Europe/Paris
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      # Preserve the legacy default queue until the VPS explicitly opts in to
+      # the dedicated Yoowii queue. No legacy messages are migrated/deleted.
+      MESSENGER_TRANSPORT_DSN: ${YOOWII_MESSENGER_TRANSPORT_DSN:-doctrine://default}
+      # Supplier sync is enqueued separately; the artwork worker never consumes it.
+      YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN: ${YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN:-doctrine://default?queue_name=yoowii_supplier_async}
+      DEFAULT_URI: https://preprod.yoowii.com
+      YOOWII_REDIS_DSN: redis://redis:6379
+      MAILER_DSN: ${MAILER_DSN:-null://null}
+      # Realisaprint API / Prescript; credentials remain in the VPS .env.
+      YOOWII_REALISAPRINT_ENABLED: ${YOOWII_REALISAPRINT_ENABLED:-0}
+      YOOWII_REALISAPRINT_BASE_URL: ${YOOWII_REALISAPRINT_BASE_URL:-https://www.realisaprint.com/api}
+      YOOWII_REALISAPRINT_SHOP_ID: ${YOOWII_REALISAPRINT_SHOP_ID:-}
+      YOOWII_REALISAPRINT_API_KEY: ${YOOWII_REALISAPRINT_API_KEY:-}
+      YOOWII_REALISAPRINT_FTP_ENABLED: ${YOOWII_REALISAPRINT_FTP_ENABLED:-0}
+      YOOWII_REALISAPRINT_PRESCRIPT_QUICK_PUBLICATION_ENABLED: ${YOOWII_REALISAPRINT_PRESCRIPT_QUICK_PUBLICATION_ENABLED:-0}
+      YOOWII_REALISAPRINT_FTP_HOST: ${YOOWII_REALISAPRINT_FTP_HOST:-}
+      YOOWII_REALISAPRINT_FTP_PORT: ${YOOWII_REALISAPRINT_FTP_PORT:-21}
+      YOOWII_REALISAPRINT_FTP_USER: ${YOOWII_REALISAPRINT_FTP_USER:-}
+      YOOWII_REALISAPRINT_FTP_PASSWORD: ${YOOWII_REALISAPRINT_FTP_PASSWORD:-}
+      YOOWII_REALISAPRINT_FTP_BASE_DIRECTORY: ${YOOWII_REALISAPRINT_FTP_BASE_DIRECTORY:-}
+      YOOWII_REALISAPRINT_QUOTE_ENABLED: ${YOOWII_REALISAPRINT_QUOTE_ENABLED:-0}
+      YOOWII_REALISAPRINT_QUOTE_CACHE_TTL: ${YOOWII_REALISAPRINT_QUOTE_CACHE_TTL:-900}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - media:/srv/sylius/public/media
+      # Private customer artwork and BAT files; never expose this volume through nginx.
+      - private_assets:/srv/sylius/var/private/print
+    networks:
+      - internal
+      - web
+
+  nginx:
+    image: ghcr.io/yoowii/yoowii-nginx:${YOOWII_IMAGE_TAG:?Set YOOWII_IMAGE_TAG to an immutable release tag}
+    restart: unless-stopped
+    depends_on:
+      - php
+    ports:
+      - '127.0.0.1:8086:80'
+    volumes:
+      - media:/srv/sylius/public/media:ro
+    networks:
+      - web
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -uroot -e "SELECT 1" >/dev/null 2>&1']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - internal
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
+  web:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  media:
+  private_assets:

@@ -1,0 +1,42 @@
+# Opt-in worker. NOT loaded by the automatic deployment pipeline.
+# This overlay is for manual infrastructure rollout only.
+services:
+  worker:
+    image: ghcr.io/yoowii/yoowii-php:${YOOWII_IMAGE_TAG:?Set an immutable release image}
+    restart: unless-stopped
+    profiles:
+      - messenger
+    init: true
+    stop_grace_period: 90s
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: '0'
+      PHP_DATE_TIMEZONE: Europe/Paris
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      DEFAULT_URI: https://preprod.yoowii.com
+      YOOWII_REDIS_DSN: redis://redis:6379
+      # Disable outgoing email from the independent worker until approved.
+      MAILER_DSN: 'null://null'
+      # Dedicated queue; never consume the 19 legacy messages in queue_name=default.
+      MESSENGER_TRANSPORT_DSN: ${YOOWII_MESSENGER_TRANSPORT_DSN:?Configure the dedicated Yoowii transport on VPS}
+      # Fail closed: supplier integrations are not authorized for this worker.
+      # A sync message would require a separate, reviewed activation phase.
+      YOOWII_REALISAPRINT_ENABLED: '0'
+      YOOWII_REALISAPRINT_FTP_ENABLED: '0'
+      YOOWII_REALISAPRINT_PRESCRIPT_QUICK_PUBLICATION_ENABLED: '0'
+      YOOWII_REALISAPRINT_QUOTE_ENABLED: '0'
+    volumes:
+      - private_assets:/srv/sylius/var/private/print
+    networks:
+      - internal
+    command:
+      - php
+      - bin/console
+      - messenger:consume
+      - async
+      - --env=prod
+      - --no-debug
+      - --time-limit=3600
+      - --memory-limit=256M
+      - --limit=100

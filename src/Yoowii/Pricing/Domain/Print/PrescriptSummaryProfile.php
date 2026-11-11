@@ -24,6 +24,7 @@ final readonly class PrescriptSummaryProfile
             return null;
         }
 
+        /** @var array<string, mixed>|null $profile */
         $profile = $provider['prescript_summary_profile'] ?? null;
         if (!is_array($profile)) {
             return null;

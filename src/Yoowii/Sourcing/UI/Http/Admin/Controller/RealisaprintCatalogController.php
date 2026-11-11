@@ -115,7 +115,7 @@ final class RealisaprintCatalogController extends AbstractController
         return $this->redirectToRoute('yoowii_admin_realisaprint_catalog_show', ['id' => $id]);
     }
 
-    /**  list<array{product: Product, stock: string, mapping_status: string, route_status: string, mapping: SupplierProductMappingVersion|null, route: SupplierRoute}> */
+    /** @return list<array<string, mixed>> */
     private function generatedProducts(RealisaprintCatalogProduct $catalogProduct, EntityManagerInterface $entityManager, RealisaprintMappingCompleteness $completeness, RealisaprintDraftRepair $repair): array
     {
         $supplier = $entityManager->getRepository(PrintSupplier::class)->findOneBy(['code' => 'realisaprint']);
@@ -130,7 +130,7 @@ final class RealisaprintCatalogController extends AbstractController
         $stocks = is_array($configuration['stocks'] ?? null) ? $configuration['stocks'] : [];
         $items = [];
         foreach ($entityManager->getRepository(SupplierRoute::class)->findBy(['supplierProduct' => $supplierProduct], ['id' => 'ASC']) as $route) {
-            if (!$route instanceof SupplierRoute || isset($items[$route->yoowiiProductCode()])) {
+            if (isset($items[$route->yoowiiProductCode()])) {
                 continue;
             }
             $product = $entityManager->getRepository(Product::class)->findOneBy(['code' => $route->yoowiiProductCode()]);

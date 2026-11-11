@@ -31,10 +31,12 @@ final class RealisaprintMappingCompleteness
         $expectedIds = [];
         foreach ($providerVariables as $id => $variable) {
             if (is_string($id) && is_array($variable)) {
-                if ($this->isSupplierOwnedReadonlyText($variable)) {
+                /** @var array<string, mixed> $typedVariable */
+                $typedVariable = $variable;
+                if ($this->isSupplierOwnedReadonlyText($typedVariable)) {
                     continue;
                 }
-                $expectedIds[$id] = $variable;
+                $expectedIds[$id] = $typedVariable;
             }
         }
         if ([] === $expectedIds) {
@@ -65,18 +67,19 @@ final class RealisaprintMappingCompleteness
                 throw new \InvalidArgumentException(sprintf('Les valeurs de « %s » doivent être un objet JSON.', $id));
             }
             $sourceValues = $providerVariable['values'] ?? false;
-            if (false === $sourceValues || null === $sourceValues) {
-                $fixed = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false)
-                    && is_string($providerVariable['default'] ?? null) && '' !== trim($providerVariable['default']);
+            if (false === $sourceValues) {
+                $fixed = 'text' === ($providerVariable['type'] ?? null) && true === ($providerVariable['readonly'] ?? false) &&
+                    is_string($providerVariable['default'] ?? null) && '' !== trim($providerVariable['default']);
                 if ($fixed) {
                     $allowed = $options[$optionCode]['allowed_values'] ?? [];
-                    if (!is_array($allowed) || 1 !== count($allowed) || count($values) !== 1 ||
+                    if (!is_array($allowed) || 1 !== count($allowed) || !is_scalar($allowed[0]) || count($values) !== 1 ||
                         ($values[(string) $allowed[0]] ?? null) !== (string) $providerVariable['default']) {
                         throw new \InvalidArgumentException(sprintf('La valeur fixe de « %s » doit correspondre exactement au défaut Realisaprint.', $id));
                     }
                 } elseif ([] !== $values) {
                     throw new \InvalidArgumentException(sprintf('« %s » est une valeur libre : ses correspondances doivent être {}.', $id));
                 }
+
                 continue;
             }
             if (!is_array($sourceValues)) {
@@ -87,6 +90,9 @@ final class RealisaprintMappingCompleteness
                 throw new \InvalidArgumentException(sprintf('Les valeurs Yoowii de « %s » sont invalides.', $optionCode));
             }
             foreach ($allowed as $canonical) {
+                if (!is_scalar($canonical)) {
+                    throw new \InvalidArgumentException(sprintf('La valeur Yoowii de « %s » est invalide.', $optionCode));
+                }
                 if (!array_key_exists((string) $canonical, $values)) {
                     throw new \InvalidArgumentException(sprintf('La valeur Yoowii « %s » de « %s » n’est pas mappée.', (string) $canonical, $optionCode));
                 }
@@ -104,9 +110,9 @@ final class RealisaprintMappingCompleteness
     /** @param array<string, mixed> $variable */
     private function isSupplierOwnedReadonlyText(array $variable): bool
     {
-        return 'text' === ($variable['type'] ?? null)
-            && true === ($variable['readonly'] ?? false)
-            && false === ($variable['values'] ?? null)
-            && (!is_string($variable['default'] ?? null) || '' === trim($variable['default']));
+        return 'text' === ($variable['type'] ?? null) &&
+            true === ($variable['readonly'] ?? false) &&
+            false === ($variable['values'] ?? null) &&
+            (!is_string($variable['default'] ?? null) || '' === trim($variable['default']));
     }
 }

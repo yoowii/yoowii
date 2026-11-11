@@ -10,6 +10,7 @@ final class PublishedNumericMinimums
     /**
      * @param list<array<string, mixed>> $schemas
      * @param array<string, mixed> $values
+     *
      * @return array<string, mixed>
      */
     public function apply(array $schemas, array $values): array

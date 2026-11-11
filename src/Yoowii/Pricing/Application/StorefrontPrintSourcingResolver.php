@@ -42,6 +42,7 @@ final readonly class StorefrontPrintSourcingResolver
             }
 
             $kind = ConfiguratorKind::fromConfigurationMapping($mapping->configurationMapping());
+
             try {
                 $driverCode = $this->driverCode($mapping, $kind);
                 $this->driverRegistry->get($driverCode);
@@ -65,7 +66,7 @@ final readonly class StorefrontPrintSourcingResolver
     private function publishedMapping(string $productCode, SupplierRoute $route, \DateTimeImmutable $at): ?SupplierProductMappingVersion
     {
         foreach ($this->entityManager->getRepository(SupplierProductMappingVersion::class)->findBy(['yoowiiProductCode' => $productCode, 'active' => true]) as $mapping) {
-            if (!$mapping instanceof SupplierProductMappingVersion || $mapping->supplierProduct() !== $route->supplierProduct()) {
+            if ($mapping->supplierProduct() !== $route->supplierProduct()) {
                 continue;
             }
 
@@ -79,7 +80,9 @@ final readonly class StorefrontPrintSourcingResolver
 
     private function driverCode(SupplierProductMappingVersion $mapping, ConfiguratorKind $kind): string
     {
-        $declared = $mapping->configurationMapping()['yoowii']['configurator_driver'] ?? null;
+        $configurationMapping = $mapping->configurationMapping();
+        $yoowii = $configurationMapping['yoowii'] ?? null;
+        $declared = is_array($yoowii) ? ($yoowii['configurator_driver'] ?? null) : null;
         if (is_string($declared) && preg_match('/^[a-z][a-z0-9_]*$/D', $declared)) {
             return $declared;
         }

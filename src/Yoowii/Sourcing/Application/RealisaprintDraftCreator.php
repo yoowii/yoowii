@@ -255,6 +255,7 @@ final readonly class RealisaprintDraftCreator
             ]);
 
             $summary = array_map(static fn (array $difference): string => sprintf('%s (%s → %s)', $difference['path'], $difference['existing'], $difference['submitted']), $differences);
+
             throw new \DomainException(sprintf('La définition de configurateur partagée ne correspond pas aux options sélectionnées. Différences détectées : %s. Créez une révision avant de modifier son schéma.', implode('; ', $summary)));
         }
     }
@@ -262,6 +263,7 @@ final readonly class RealisaprintDraftCreator
     /**
      * @param array<array-key, mixed> $existing
      * @param array<array-key, mixed> $submitted
+     *
      * @return list<array{path: string, existing: string, submitted: string}>
      */
     private function definitionDifferences(array $existing, array $submitted, string $path): array
@@ -319,6 +321,7 @@ final readonly class RealisaprintDraftCreator
 
     /**
      * @param array<array-key, mixed> $contents
+     *
      * @return array<array-key, mixed>
      */
     private function normalizeContents(array $contents): array
@@ -359,7 +362,9 @@ final readonly class RealisaprintDraftCreator
         $providerVariables = [];
         foreach ($variables as $code => $variable) {
             if (is_string($code) && is_array($variable)) {
-                $providerVariables[$code] = $variable;
+                /** @var array<string, mixed> $typedVariable */
+                $typedVariable = $variable;
+                $providerVariables[$code] = $typedVariable;
             }
         }
 

@@ -13,6 +13,7 @@ final class StorefrontInitialConfiguratorValues
      * @param list<array<string, mixed>> $schemas
      * @param array<string, array{value: string|int|float, label: string}> $fixedValues
      * @param array<string, mixed>|null $initialDisplayState
+     *
      * @return array<string, string|int|float>
      */
     public function resolve(PrintProductDefinition $definition, array $schemas, array $fixedValues, ?array $initialDisplayState): array
@@ -44,6 +45,7 @@ final class StorefrontInitialConfiguratorValues
             $non = $this->nonValue($schema, $allowed);
             if (null !== $non) {
                 $values[$code] = $non;
+
                 continue;
             }
             if (1 === count($allowed)) {
@@ -54,14 +56,20 @@ final class StorefrontInitialConfiguratorValues
         return $values;
     }
 
-    /** @param array<string, mixed> $schema @param list<string|int|float> $allowed */
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string|int|float> $allowed
+     */
     private function nonValue(array $schema, array $allowed): string|int|float|null
     {
         if ('checkbox' !== ($schema['type'] ?? null)) {
             return null;
         }
+        $labels = $schema['values'] ?? null;
+        $labels = is_array($labels) ? $labels : [];
         foreach ($allowed as $value) {
-            $label = is_string($schema['values'][(string) $value] ?? null) ? $schema['values'][(string) $value] : $value;
+            $candidate = $labels[(string) $value] ?? null;
+            $label = is_string($candidate) ? $candidate : $value;
             if ('non' === mb_strtolower(trim((string) $label))) {
                 return $value;
             }
