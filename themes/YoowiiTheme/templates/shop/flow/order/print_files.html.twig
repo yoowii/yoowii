@@ -1,0 +1,34 @@
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+
+{% block title %}{{ 'yoowii.print_flow.my_print_files'|trans }} | {{ parent() }}{% endblock %}
+
+{% block content %}
+    <div class="container py-5 yoowii-print-flow">
+        <div class="mx-auto" style="max-width: 960px">
+            <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Flow</p>
+            <h1 class="display-6 mb-2">{{ 'yoowii.print_flow.my_print_files'|trans }}</h1>
+            <p class="lead text-secondary mb-5">{{ 'yoowii.print_flow.order_hint'|trans({'%number%': order.number}) }}</p>
+
+            <div class="row g-4">
+                {% for job in jobs %}
+                    {% set item = job.orderItem %}
+                    <div class="col-12 col-md-6">
+                        <article class="card h-100 shadow-sm border-0">
+                            <div class="card-body p-4">
+                                <span class="badge text-bg-light mb-3">{{ job.reference }}</span>
+                                <h2 class="h4">{{ item.productName }}</h2>
+                                <p class="text-secondary mb-4">{{ 'yoowii.print_flow.quantity'|trans({'%quantity%': item.quantity}) }}</p>
+                                <div class="d-flex align-items-center justify-content-between gap-3">
+                                    <span class="yoowii-print-status is-{{ job.status.value }}">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span>
+                                    <a class="btn btn-primary" href="{{ job_links[job.reference] }}">{{ 'yoowii.print_flow.manage_files'|trans }}</a>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                {% else %}
+                    <div class="col-12"><div class="alert alert-info">{{ 'yoowii.print_flow.no_jobs'|trans }}</div></div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

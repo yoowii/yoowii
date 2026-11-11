@@ -1,0 +1,154 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Yoowii\Pricing\Application;
+
+use App\Yoowii\Pricing\Domain\Print\MatrixPrintPriceCalculator;
+use App\Yoowii\Pricing\Domain\Print\PrintConfiguration;
+use App\Yoowii\Pricing\Domain\Print\PrintPricingPolicy;
+use App\Yoowii\Pricing\Domain\Print\PrintQuote;
+use App\Yoowii\Pricing\Domain\Quote\QuoteFallbackReason;
+use App\Yoowii\Pricing\Domain\Quote\QuoteSource;
+use App\Yoowii\Pricing\Domain\Quote\QuoteTrace;
+use App\Yoowii\Sourcing\Domain\FixedSupplierRouter;
+use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
+use App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository;
+use App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository;
+use Psr\Log\LoggerInterface;
+
+final readonly class PrintQuoteService
+{
+    public function __construct(
+        private SupplierRouteRepository $routeRepository,
+        private SupplierPricingMatrixVersionRepository $matrixRepository,
+        private MatrixPrintPriceCalculator $calculator,
+        private FixedSupplierRouter $supplierRouter,
+        private RealisaprintLiveQuoteCalculator $realisaprintCalculator,
+        private LoggerInterface $logger,
+    ) {
+    }
+
+    public function quote(
+        PrintConfiguration $configuration,
+        PrintPricingPolicy $pricingPolicy,
+        string $currencyCode,
+        \DateTimeImmutable $calculatedAt,
+    ): PrintQuote {
+        $routes = $this->routeRepository->findCandidates(
+            $configuration->productCode(),
+            $calculatedAt,
+        );
+        $supplierProducts = array_map(
+            static fn (SupplierRoute $route) => $route->supplierProduct(),
+            $routes,
+        );
+        $matrices = $this->matrixRepository->findSelectableFor(
+            $supplierProducts,
+            $currencyCode,
+            $calculatedAt,
+        );
+
+        $correlationId = bin2hex(random_bytes(16));
+        $fallbackReason = QuoteFallbackReason::MatrixUsed;
+        $safeDetail = 'No eligible Realisaprint real-time quote route was selected.';
+        foreach ($this->supplierRouter->rank($configuration->productCode(), $calculatedAt, $routes) as $route) {
+            $reason = $this->realisaprintCalculator->fallbackReason($route);
+            if (null !== $reason) {
+                $fallbackReason = $reason;
+                $safeDetail = 'Realisaprint real-time quotation is unavailable for this route.';
+
+                break;
+            }
+            if (!$this->realisaprintCalculator->supports($route)) {
+                continue;
+            }
+
+            try {
+                return $this->realisaprintCalculator->quote($route, $configuration, $pricingPolicy, $currencyCode, $calculatedAt, $correlationId)->withSourcingRoute($route);
+            } catch (RealisaprintQuoteException $exception) {
+                $fallbackReason = $exception->reason();
+                $safeDetail = $exception->safeDetail();
+                $this->logger->warning('Realisaprint real-time quote failed; matrix fallback will be attempted.', [
+                    'correlation_id' => $correlationId,
+                    'product_code' => $configuration->productCode(),
+                    'supplier_code' => $route->supplierProduct()->supplier()->code(),
+                    'supplier_product_code' => $route->supplierProduct()->code(),
+                    'fallback_reason' => $fallbackReason->value,
+                    'technical_detail' => $safeDetail,
+                ]);
+
+                break;
+            }
+        }
+
+        $quote = $this->calculator->calculate(
+            $configuration,
+            $pricingPolicy,
+            $currencyCode,
+            $calculatedAt,
+            $routes,
+            $matrices,
+        );
+        $trace = new QuoteTrace(QuoteSource::MatrixFallback, $quote->supplierCode(), $quote->supplierProductCode(), null, null, $correlationId, $calculatedAt, $fallbackReason, $safeDetail);
+        $this->logger->warning('Print quote fell back to matrix pricing.', [
+            'correlation_id' => $correlationId,
+            'source' => QuoteSource::MatrixFallback->value,
+            'fallback_reason' => $fallbackReason->value,
+            'supplier_code' => $quote->supplierCode(),
+            'supplier_product_code' => $quote->supplierProductCode(),
+            'technical_detail' => $safeDetail,
+        ]);
+
+        return $quote->withQuoteTrace($trace);
+    }
+
+    /**
+     * Quotes one storefront-resolved route only. This must be used after a
+     * configurator has been rendered: silently trying another supplier here
+     * would turn one customer configuration into another supplier's order.
+     */
+    public function quoteForRoute(
+        PrintConfiguration $configuration,
+        PrintPricingPolicy $pricingPolicy,
+        string $currencyCode,
+        \DateTimeImmutable $calculatedAt,
+        SupplierRoute $route,
+    ): PrintQuote {
+        if (!$route->isEligibleFor($configuration->productCode(), $calculatedAt)) {
+            throw new \DomainException('Le sourcing sélectionné n’est plus disponible. Recommencez votre configuration.');
+        }
+
+        $correlationId = bin2hex(random_bytes(16));
+        if ($this->realisaprintCalculator->supports($route)) {
+            if (null !== $this->realisaprintCalculator->fallbackReason($route)) {
+                throw new \DomainException('Le fournisseur sélectionné ne peut pas calculer le prix pour le moment.');
+            }
+
+            try {
+                return $this->realisaprintCalculator->quote($route, $configuration, $pricingPolicy, $currencyCode, $calculatedAt, $correlationId);
+            } catch (RealisaprintQuoteException $exception) {
+                $this->logger->warning('Locked storefront sourcing could not be quoted.', [
+                    'correlation_id' => $correlationId,
+                    'product_code' => $configuration->productCode(),
+                    'supplier_code' => $route->supplierProduct()->supplier()->code(),
+                    'supplier_product_code' => $route->supplierProduct()->code(),
+                    'reason' => $exception->reason()->value,
+                ]);
+
+                throw new \DomainException('Le fournisseur sélectionné ne peut pas calculer le prix pour le moment.');
+            }
+        }
+
+        $matrices = $this->matrixRepository->findSelectableFor([$route->supplierProduct()], $currencyCode, $calculatedAt);
+
+        return $this->calculator->calculate(
+            $configuration,
+            $pricingPolicy,
+            $currencyCode,
+            $calculatedAt,
+            [$route],
+            $matrices,
+        )->withSourcingRoute($route);
+    }
+}

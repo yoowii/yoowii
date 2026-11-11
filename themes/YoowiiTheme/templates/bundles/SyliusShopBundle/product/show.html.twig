@@ -1,0 +1,18 @@
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+
+{% set prefixes = ['sylius_shop.product.show'] %}
+
+{% block title %}{{ product.name }} | {{ parent() }}{% endblock %}
+
+{% block content %}
+    {% if product.fulfillmentType.value == 'print' %}
+        {% include 'shop/product/show/print.html.twig' with {
+            product,
+            quote_token: app.request.query.get('print_quote'),
+            configuration_context: 'print-' ~ product.code,
+            configuration
+        } only %}
+    {% else %}
+        {% hook 'sylius_shop.product.show' with { product, configuration } %}
+    {% endif %}
+{% endblock %}

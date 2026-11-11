@@ -1,0 +1,137 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Yoowii\Pricing\Application;
+
+use App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition;
+
+/** Resolves published display rules before a configuration can reach a supplier. */
+final class PublishedConfiguratorValues
+{
+    public function __construct(private readonly ?PublishedNumericMinimums $numericMinimums = null)
+    {
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schemas
+     * @param array<string, mixed> $values
+     * @param array<string, array{value: string|int|float, label: string}> $fixed
+     *
+     * @return array<string, mixed>
+     */
+    public function resolve(PrintProductDefinition $definition, array $schemas, array $values, array $fixed = []): array
+    {
+        foreach ($fixed as $code => $field) {
+            $values[$code] = $field['value'];
+        }
+        $values = ($this->numericMinimums ?? new PublishedNumericMinimums())->apply($schemas, $values);
+        foreach ($schemas as $schema) {
+            $code = $schema['code'] ?? null;
+            if (!is_string($code) || array_key_exists($code, $fixed)) {
+                continue;
+            }
+            $value = $values[$code] ?? null;
+            $missing = !array_key_exists($code, $values) || null === $value || (is_string($value) && '' === trim($value));
+            if (!$missing) {
+                // Never replace an explicit client value: normalizeCode() must reject it if invalid.
+                continue;
+            }
+            if ('checkbox' === ($schema['type'] ?? null)) {
+                $values[$code] = $this->choiceDefault($schema, $code);
+
+                continue;
+            }
+            if ('code' === ($schema['type'] ?? null)) {
+                // Dynamic provider visibility is not trusted from the browser.
+                // An omitted select (disabled/hidden by show_variables) is always
+                // resolved from its published canonical default on the server.
+                $values[$code] = $this->choiceDefault($schema, $code);
+
+                continue;
+            }
+            if (!array_key_exists($code, $values)) {
+                $default = $schema['default'] ?? null;
+                if (null === $default || '' === $default) {
+                    throw new \DomainException(sprintf('La définition publiée ne fournit pas de valeur sûre pour l’axe caché « %s ».', $code));
+                }
+                $values[$code] = $default;
+            }
+        }
+
+        $resolved = $definition->configure($values)->toArray();
+        foreach ($definition->pricingAxes() as $axis) {
+            if (!array_key_exists($axis, $resolved) || '' === trim((string) $resolved[$axis])) {
+                throw new \DomainException(sprintf('L’axe de prix « %s » ne possède aucune valeur publiée sûre.', $axis));
+            }
+        }
+
+        return $resolved;
+    }
+
+    /** @param array<string, mixed> $schema */
+    private function choiceDefault(array $schema, string $code): string
+    {
+        $default = $schema['default'] ?? null;
+        $allowed = $schema['allowed_values'] ?? array_keys(is_array($schema['values'] ?? null) ? $schema['values'] : []);
+        if (!is_string($default) || '' === trim($default) || !is_array($allowed) || !in_array($default, $allowed, true)) {
+            throw new \DomainException(sprintf('La définition publiée de l’option à choix « %s » doit définir un défaut canonique non vide présent dans allowed_values.', $code));
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param array<string, mixed> $values
+     */
+    public function isVisible(array $schema, array $values): bool
+    {
+        if (self::intOrDefault($schema['position'] ?? null, 0) <= 0 || true === ($schema['fixed'] ?? false)) {
+            return false;
+        }
+        $dependency = $schema['depends_on'] ?? null;
+        if (!is_array($dependency)) {
+            return true;
+        }
+
+        $option = $dependency['option'] ?? null;
+        if (!is_string($option) || !array_key_exists($option, $values)) {
+            return false;
+        }
+
+        return self::stringOrDefault($values[$option], '') === self::stringOrDefault($dependency['value'] ?? null, '');
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schemas
+     * @param array<string, mixed> $values
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function visible(array $schemas, array $values): array
+    {
+        $visible = array_values(array_filter($schemas, fn (array $schema): bool => $this->isVisible($schema, $values)));
+        usort($visible, static fn (array $left, array $right): int => [
+            self::intOrDefault($left['area'] ?? null, 1),
+            self::intOrDefault($left['position'] ?? null, 0),
+            self::stringOrDefault($left['code'] ?? null, ''),
+        ] <=> [
+            self::intOrDefault($right['area'] ?? null, 1),
+            self::intOrDefault($right['position'] ?? null, 0),
+            self::stringOrDefault($right['code'] ?? null, ''),
+        ]);
+
+        return $visible;
+    }
+
+    private static function intOrDefault(mixed $value, int $default): int
+    {
+        return is_scalar($value) ? (int) $value : $default;
+    }
+
+    private static function stringOrDefault(mixed $value, string $default): string
+    {
+        return is_scalar($value) ? (string) $value : $default;
+    }
+}

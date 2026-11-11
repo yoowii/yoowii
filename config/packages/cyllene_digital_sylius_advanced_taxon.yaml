@@ -1,0 +1,5 @@
+imports:
+    # The plugin's full shop hooks also replace Sylius product-listing layouts.
+    # Yoowii keeps those pages under its Tailwind theme; the mega menu consumes the
+    # plugin data through the existing Yoowii header template instead.
+    - { resource: "@CylleneDigitalSyliusAdvancedTaxonPlugin/config/twig_hooks/admin.yaml" }

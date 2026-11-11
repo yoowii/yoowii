@@ -1,0 +1,5 @@
+format;sides;paper;grammage;quantity;finishing;corners;production_cost;shipping_cost
+85x55;two_sided;coated_matt;350;250;none;square;1800;700
+85x55;two_sided;coated_matt;350;500;none;square;2400;700
+85x55;two_sided;coated_matt;350;500;matte_lamination;rounded;2600;700
+85x55;two_sided;coated_matt;350;1000;matte_lamination;rounded;3800;800

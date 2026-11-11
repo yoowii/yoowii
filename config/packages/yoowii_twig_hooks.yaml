@@ -1,0 +1,72 @@
+sylius_twig_hooks:
+    hooks:
+        'sylius_admin.product.create.content.form.sections.general':
+            fulfillment_type:
+                template: 'admin/product/form/sections/general/fulfillment_type.html.twig'
+                priority: 450
+
+        'sylius_admin.product.update.content.form.sections.general':
+            fulfillment_type:
+                template: 'admin/product/form/sections/general/fulfillment_type.html.twig'
+                priority: 450
+
+        'sylius_admin.taxon.create.content.sections.form': &yoowii_taxon_form_sections
+            main_navigation:
+                template: 'admin/taxon/sections/form/tabs/main_navigation.html.twig'
+                priority: 350
+
+        'sylius_admin.taxon.update.content.sections.form': *yoowii_taxon_form_sections
+
+        'sylius_admin.taxon.create.content.sections.side_navigation': &yoowii_taxon_side_navigation
+            main_navigation:
+                template: 'admin/taxon/sections/side_navigation/main_navigation.html.twig'
+                priority: 350
+
+        'sylius_admin.taxon.update.content.sections.side_navigation': *yoowii_taxon_side_navigation
+
+        'sylius_shop.shared.product.card.prices':
+            price:
+                component: 'sylius_shop:product:card:price'
+                props:
+                    variant: '@=_context.variant'
+                    template: 'shop/shared/product/card/prices/price.html.twig'
+                priority: 0
+
+        'sylius_shop.product.show.content.info.summary':
+            reference:
+                template: 'shop/product/show/content/info/summary/reference.html.twig'
+                priority: 450
+            add_to_cart:
+                component: 'sylius_shop:product:add_to_cart_form'
+                props:
+                    product: '@=_context.product'
+                    template: 'shop/product/show/content/info/summary/add_to_cart.html.twig'
+                priority: 100
+
+        'sylius_shop.product.show.content.info.summary.prices':
+            price:
+                component: 'sylius_shop:product:price'
+                props:
+                    variant: '@=_context.variant'
+                    template: 'shop/product/show/content/info/summary/prices/price.html.twig'
+                priority: 100
+
+        'sylius_shop.product.show.content':
+            print_configurator:
+                template: 'shop/product/show/content/print_configurator.html.twig'
+                priority: 50
+
+        'sylius_shop.cart.index.content.form.sections.general.items.body':
+            item:
+                template: 'shop/cart/index/content/form/sections/general/items/body/item.html.twig'
+                priority: 300
+
+        'sylius_shop.order.thank_you.content':
+            print_files:
+                template: 'shop/order/thank_you/content/print_files.html.twig'
+                priority: 50
+
+        'sylius_shop.account.order.show.content.main':
+            print_files:
+                template: 'shop/account/order/show/print_files.html.twig'
+                priority: 100

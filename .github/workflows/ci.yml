@@ -1,0 +1,117 @@
+name: CI
+
+on:
+    pull_request: ~
+    push:
+        branches:
+            - main
+
+concurrency:
+    group: ci-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    quality:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_ALLOW_EMPTY_PASSWORD: 1
+                    MYSQL_DATABASE: sylius_test
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=10
+
+        env:
+            APP_ENV: test
+            APP_DEBUG: 0
+            APP_SECRET: ci-only-secret
+            DATABASE_URL: mysql://root@127.0.0.1:3306/sylius_test?serverVersion=8.4&charset=utf8mb4
+            MAILER_DSN: null://null
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: intl, gd, opcache, mysql, pdo_mysql
+                  coverage: none
+                  tools: composer:v2
+
+            - name: Validate Composer metadata
+              run: composer validate --strict
+
+            - name: Install PHP dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Static analysis
+              run: vendor/bin/phpstan analyse
+
+            - name: Coding standards
+              run: vendor/bin/ecs check
+
+            - name: Prepare isolated test database schema
+              run: php bin/console doctrine:schema:create --env=test --no-interaction
+
+            - name: Unit tests
+              run: vendor/bin/phpunit
+
+            - name: Isolated synthetic MySQL and configuration restore drill
+              env:
+                  YOOWII_ALLOW_ISOLATED_RESTORE_TEST: '1'
+              run: bash scripts/preprod/test-backup-restore-isolated.sh
+
+            - name: Disconnected MySQL and file extraction restore exercise
+              run: |
+                  scratch="$(mktemp -d)"
+                  trap 'rm -rf "$scratch"' EXIT
+                  python3 - "$scratch" <<'PY'
+                  import gzip
+                  import hashlib
+                  import io
+                  from pathlib import Path
+                  import sys
+                  import tarfile
+
+                  path = Path(sys.argv[1])
+                  with gzip.open(path / "mysql.sql.gz", "wb") as stream:
+                      stream.write(b"CREATE TABLE ci_restore_probe (id INT PRIMARY KEY); INSERT INTO ci_restore_probe VALUES (1);\n")
+                  for filename in ("media.tar.gz", "private_assets.tar.gz"):
+                      with tarfile.open(path / filename, "w:gz") as tar:
+                          body = b"synthetic CI file, no customer information"
+                          record = tarfile.TarInfo("ci-probe/sample.txt")
+                          record.size = len(body)
+                          tar.addfile(record, io.BytesIO(body))
+                  (path / "compose.preprod.yml").write_text("services: {}\n")
+                  (path / "preprod.env").write_text("APP_SECRET=ci-fake-only\n")
+                  names = ("mysql.sql.gz", "media.tar.gz", "private_assets.tar.gz", "compose.preprod.yml", "preprod.env")
+                  (path / "SHA256SUMS").write_text("".join(
+                      hashlib.sha256((path / name).read_bytes()).hexdigest() + "  " + name + "\n"
+                      for name in names
+                  ))
+                  PY
+                  python3 scripts/preprod/restore-functional-isolated.py \
+                    --ack-isolated-host --backup-dir "$scratch"
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+
+            - name: Build frontend assets
+              run: |
+                  corepack enable
+                  yarn install
+                  yarn build

@@ -1,0 +1,118 @@
+yoowii:
+    admin:
+        product:
+            bulk_availability:
+                enable: Activer
+                disable: Désactiver
+                enable_confirmation: Activer les produits sélectionnés ?
+                disable_confirmation: Désactiver les produits sélectionnés ?
+                no_products_selected: Sélectionnez au moins un produit.
+                updated_enabled: '%count% produit(s) activé(s).'
+                updated_disabled: '%count% produit(s) désactivé(s).'
+    form:
+        taxon:
+            main_navigation_title: Navigation storefront Yoowii
+            show_in_main_navigation: Afficher dans le menu principal
+            main_navigation_help: Rend ce taxon accessible directement dans la barre de navigation du storefront. Les sous-taxons mis en avant pilotent uniquement le contenu du méga-menu.
+            main_navigation_position: Position dans le menu principal
+            main_navigation_label: Libellé court dans le menu
+        product:
+            fulfillment_type: Type d’exécution
+            print_definition: Calculateur print
+            print_definition_help: Profil de configuration par défaut du produit. Une route fournisseur peut utiliser sa propre définition publiée.
+            print_definition_tooltip: Ce choix décrit le profil de configuration par défaut, pas le fournisseur. Si le mapping de la route fournisseur résolue porte une définition, le storefront utilise cette définition ; sinon il utilise ce profil, notamment pour les routes matrice.
+            print_definition_placeholder: Aucun calculateur
+    fulfillment_type:
+        print: Production imprimée
+        web_project: Projet web
+        media_project: Projet photo ou vidéo
+        subscription: Abonnement
+        quote_only: Sur devis uniquement
+    print_definition:
+        PRINT_FLYER: Flyers
+        PRINT_BUSINESS_CARD: Cartes de visite
+    storefront:
+        mega_menu:
+            navigation_label: Navigation principale
+            mobile_navigation_label: Navigation mobile
+            all_products: Tous les produits
+            quick_access: Accès rapides
+            create_print: Créer mon imprimé
+            families_label: Familles de produits
+            open_family: Ouvrir le menu de %family%
+            close: Fermer le menu
+            back: Retour
+            view_all_category: Voir toute la catégorie
+            view_all_products: Voir tous les produits
+            empty_family: Découvrez tous les produits de cette catégorie.
+            need_help: Besoin d’aide ?
+            contact_advice: Contact et conseils
+            previous_media: Média précédent
+            next_media: Média suivant
+            services:
+                title: Services
+                design: Studio de design
+                file_check: Contrôle de fichiers
+                file_adaptation: Adaptation de fichiers
+                quote: Devis sur demande
+        starting_from: À partir de
+        configure_print_product: Configurer ce produit
+        print_configuration: Configurez votre produit
+        print_configuration_hint: Choisissez les caractéristiques souhaitées pour obtenir le meilleur tarif disponible.
+        print_summary: Votre configuration
+        calculate_price: Calculer mon prix
+        calculating_price: Calcul du tarif…
+        calculated_price: Tarif calculé
+        price_after_configuration: Le prix final dépend de votre configuration.
+        choice_pending: À choisir
+        change_choice: Modifier
+        restore_choices: Restaurer les choix
+        configuration_unavailable: Ce produit n’a actuellement aucune configuration tarifaire disponible.
+        reference: Réf.
+        add_to_cart: Ajouter au panier
+        price_excluding_tax: HT
+    print_flow:
+        my_print_files: Mes fichiers d’impression
+        order_hint: 'Commande %number% : déposez et suivez les fichiers de chaque produit imprimé.'
+        thank_you_title: Votre commande nécessite des fichiers d’impression
+        thank_you_hint: Déposez-les maintenant ou revenez plus tard avec le lien sécurisé de votre commande.
+        upload_my_files: Importer mes fichiers
+        quantity: '%quantity% exemplaire(s)'
+        manage_files: Gérer les fichiers
+        no_jobs: Aucun dossier de production print n’est encore disponible pour cette commande.
+        job_title: 'Dossier %reference%'
+        upload_artwork: Importer votre fichier d’impression
+        replace_artwork: Remplacer votre fichier d’impression
+        upload_formats: PDF recommandé, ou JPG, PNG et TIFF. Pour un recto-verso, utilisez un PDF de deux pages.
+        preview: Aperçu
+        drop_file: Glissez-déposez votre fichier ici
+        or_choose_file: ou cliquez pour le sélectionner
+        artwork_confirmation: Je confirme avoir vérifié le format, le contenu, le fond perdu et les informations du document.
+        send_file: Envoyer le fichier
+        replace_file: Remplacer le fichier
+        upload_success: Votre fichier a bien été reçu.
+        artwork_locked: Le fichier d’impression est verrouillé car le BAT est disponible ou la production a commencé.
+        bat_title: Bon à tirer (BAT)
+        bat_hint: Vérifiez attentivement les textes, couleurs, dimensions et la disposition. Votre validation autorise la mise en production.
+        open_bat: Ouvrir le BAT
+        bat_confirmation: Je confirme avoir contrôlé le BAT et autorise la mise en production de ce document.
+        approve_bat: Valider définitivement le BAT
+        bat_already_approved: BAT validé
+        bat_approved: Le BAT est validé. Le fichier ne peut plus être remplacé.
+        follow_up: Suivi de production
+        tracking: Suivi transport
+        errors:
+            confirmation_required: Confirmez avoir vérifié votre document avant de l’envoyer.
+            invalid_file: Sélectionnez un fichier PDF, JPG, PNG ou TIFF valide de 100 Mo maximum.
+            bat_confirmation_required: Cochez la confirmation avant de valider le BAT.
+        status:
+            awaiting_files: Fichiers à transmettre
+            files_received: Fichiers reçus
+            bat_pending: BAT en préparation
+            bat_ready: BAT à valider
+            bat_approved: BAT validé
+            in_production: En fabrication
+            shipped: Expédié
+            delivered: Livré
+            blocked: Action requise
+            cancelled: Annulé

@@ -1,0 +1,62 @@
+{% extends '@SyliusShop/shared/layout/base.html.twig' %}
+
+{% block title %}{{ page_title }} | Yoowii{% endblock %}
+
+{% block content %}
+    <div class="container py-5">
+        {% for type, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ type == 'error' ? 'danger' : type }}" role="alert">{{ message }}</div>
+            {% endfor %}
+        {% endfor %}
+
+        <div class="row g-5">
+            <div class="col-lg-7">
+                <p class="text-uppercase text-primary fw-semibold mb-2">Impression professionnelle</p>
+                <h1 class="display-5 mb-3">{{ page_title }}</h1>
+                <p class="lead text-secondary">Configurez votre produit. Le prix est vérifié directement auprès des grilles fournisseurs disponibles.</p>
+
+                {% if available %}
+                    <div class="card shadow-sm mt-4">
+                        <div class="card-body p-4">
+                            {{ form_start(form) }}
+                            {{ form_errors(form) }}
+                            <div class="row g-3">
+                                {% for field in form %}
+                                    {% if field.vars.name != '_token' %}
+                                        <div class="col-md-6">{{ form_row(field) }}</div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            {{ form_rest(form) }}
+                            <button class="btn btn-primary btn-lg mt-4" type="submit">Calculer mon prix</button>
+                            {{ form_end(form, {render_rest: false}) }}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning mt-4">Ce produit n’a actuellement aucune configuration tarifaire disponible.</div>
+                {% endif %}
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card border-0 bg-light sticky-top" style="top: 2rem;">
+                    <div class="card-body p-4 p-xl-5">
+                        <h2 class="h4">Votre tarif</h2>
+                        {% if quote and quote_token %}
+                            <div class="display-5 fw-bold my-4">
+                                {{ (quote.pricingSnapshot.unitPrice / 100)|number_format(2, ',', ' ') }} {{ quote.pricingSnapshot.currencyCode }} HT
+                            </div>
+                            <p class="text-secondary">Prix calculé pour la configuration sélectionnée. Les taxes sont calculées par Sylius dans le panier.</p>
+                            <form method="post" action="{{ path('yoowii_shop_print_add_to_cart', {token: quote_token, _locale: app.request.locale}) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('add_print_quote_' ~ quote_token) }}">
+                                <button type="submit" class="btn btn-success btn-lg w-100">Ajouter au panier</button>
+                            </form>
+                        {% else %}
+                            <p class="text-secondary mb-0">Choisissez vos options pour obtenir immédiatement le prix disponible.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

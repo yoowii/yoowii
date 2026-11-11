@@ -1,0 +1,168 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Yoowii\Pricing\Domain\Print\Definition;
+
+final readonly class PrintOptionDefinition
+{
+    /**
+     * @param list<string|int> $allowedValues
+     */
+    public function __construct(
+        private string $code,
+        private PrintOptionType $type,
+        private bool $required = true,
+        private array $allowedValues = [],
+        private int|float|null $minimum = null,
+        private int|float|null $maximum = null,
+    ) {
+        if (1 !== preg_match('/^[a-z][a-z0-9_]*$/D', $this->code)) {
+            throw new \InvalidArgumentException('A print option code must use lowercase letters, digits and underscores.');
+        }
+
+        if (null !== $this->minimum && null !== $this->maximum && $this->minimum > $this->maximum) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" has an invalid numeric range.', $this->code));
+        }
+
+        foreach ($this->allowedValues as $allowedValue) {
+            $this->assertValueType($allowedValue);
+        }
+    }
+
+    public function code(): string
+    {
+        return $this->code;
+    }
+
+    public function isRequired(): bool
+    {
+        return $this->required;
+    }
+
+    public function normalize(mixed $value): string|int|float
+    {
+        $normalizedValue = match ($this->type) {
+            PrintOptionType::Code => $this->normalizeCode($value),
+            PrintOptionType::Checkbox => $this->normalizeCheckbox($value),
+            PrintOptionType::Integer => $this->normalizeInteger($value),
+            PrintOptionType::Float => $this->normalizeFloat($value),
+            PrintOptionType::Text => $this->normalizeText($value),
+        };
+
+        if ([] !== $this->allowedValues && !in_array($normalizedValue, $this->allowedValues, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Print option "%s" contains unsupported value "%s".',
+                $this->code,
+                (string) $normalizedValue,
+            ));
+        }
+
+        if ((is_int($normalizedValue) || is_float($normalizedValue)) && null !== $this->minimum && $normalizedValue < $this->minimum) {
+            throw new \InvalidArgumentException(sprintf(
+                'Print option "%s" must be greater than or equal to %d.',
+                $this->code,
+                (string) $this->minimum,
+            ));
+        }
+
+        if ((is_int($normalizedValue) || is_float($normalizedValue)) && null !== $this->maximum && $normalizedValue > $this->maximum) {
+            throw new \InvalidArgumentException(sprintf(
+                'Print option "%s" must be less than or equal to %d.',
+                $this->code,
+                (string) $this->maximum,
+            ));
+        }
+
+        return $normalizedValue;
+    }
+
+    private function normalizeCode(mixed $value): string
+    {
+        if (!is_string($value)) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" must be a string code.', $this->code));
+        }
+
+        $value = strtolower(trim($value));
+
+        if (1 !== preg_match('/^[a-z0-9][a-z0-9_-]*$/D', $value)) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" must be a canonical lowercase code.', $this->code));
+        }
+
+        return $value;
+    }
+
+    private function normalizeCheckbox(mixed $value): string
+    {
+        if (true === $value || (is_scalar($value) && 'oui' === strtolower(trim((string) $value)))) {
+            return 'oui';
+        }
+        if (false === $value || (is_scalar($value) && 'non' === strtolower(trim((string) $value)))) {
+            return 'non';
+        }
+
+        throw new \InvalidArgumentException(sprintf('Print option "%s" must be checkbox value "oui" or "non".', $this->code));
+    }
+
+    private function normalizeInteger(mixed $value): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || 1 !== preg_match('/^-?\d+$/D', trim($value))) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" must be an integer.', $this->code));
+        }
+
+        $integer = filter_var(trim($value), \FILTER_VALIDATE_INT);
+
+        if (false === $integer) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" is outside the supported integer range.', $this->code));
+        }
+
+        return $integer;
+    }
+
+    private function normalizeFloat(mixed $value): float
+    {
+        if (is_int($value) || is_float($value)) {
+            $normalized = (float) $value;
+        } elseif (is_string($value) && 1 === preg_match('/^\d+(?:[.,]\d{1,6})?$/D', trim($value))) {
+            $normalized = (float) str_replace(',', '.', trim($value));
+        } else {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" must be a positive decimal number with at most 6 decimal places.', $this->code));
+        }
+        if (!is_finite($normalized) || $normalized <= 0) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" must be greater than zero.', $this->code));
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeText(mixed $value): string
+    {
+        if (!is_string($value)) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" must be text.', $this->code));
+        }
+        $value = trim($value);
+        if ('' === $value || mb_strlen($value) > 255 || preg_match('/[\x00-\x1F\x7F]/u', $value)) {
+            throw new \InvalidArgumentException(sprintf('Print option "%s" contains invalid text.', $this->code));
+        }
+
+        return $value;
+    }
+
+    private function assertValueType(string|int|float $value): void
+    {
+        if ((PrintOptionType::Code === $this->type || PrintOptionType::Checkbox === $this->type) && !is_string($value)) {
+            throw new \InvalidArgumentException(sprintf('Allowed values for print option "%s" must be strings.', $this->code));
+        }
+
+        if (PrintOptionType::Integer === $this->type && !is_int($value)) {
+            throw new \InvalidArgumentException(sprintf('Allowed values for print option "%s" must be integers.', $this->code));
+        }
+        if (PrintOptionType::Float === $this->type && !is_int($value) && !is_float($value)) {
+            throw new \InvalidArgumentException(sprintf('Allowed values for print option "%s" must be numeric.', $this->code));
+        }
+    }
+}

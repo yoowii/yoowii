@@ -1,0 +1,29 @@
+framework:
+    translator: { fallbacks: ["%locale%"] }
+    secret: '%env(APP_SECRET)%'
+    form:
+        enabled: true
+    http_method_override: true
+    session:
+        handler_id: ~
+    serializer:
+        mapping:
+            paths: [ '%kernel.project_dir%/config/serialization' ]
+
+when@prod:
+    framework:
+        # PHP-FPM receives requests only from the internal Docker nginx proxy.
+        trusted_proxies: 'REMOTE_ADDR'
+        trusted_headers: ['x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-port']
+
+when@dev:
+    framework:
+        profiler: { only_exceptions: false }
+
+when@test: &framework_test
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file
+
+when@test_cached: *framework_test

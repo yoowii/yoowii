@@ -1,0 +1,39 @@
+services:
+    php:
+        build:
+            context: .
+            dockerfile: docker/php/Dockerfile
+            args:
+                PHP_BASE_IMAGE: ghcr.io/sylius/sylius-php:8.3-alpine
+        image: yoowii-php:local
+        environment:
+            YOOWII_REDIS_DSN: redis://redis:6379
+        volumes:
+            - ./docker/php/uploads.ini:/usr/local/etc/php/conf.d/zz-uploads.ini:ro
+    mysql:
+        image: mysql:8.4
+        platform: linux/amd64
+        healthcheck:
+            test: '/usr/bin/mysql --execute "SHOW databases;"'
+            timeout: 3s
+            interval: 1s
+            retries: 10
+        environment:
+            MYSQL_ALLOW_EMPTY_PASSWORD: 1
+        cap_add:
+            - SYS_NICE # prevent "mbind: Operation not permitted" errors
+    redis:
+        image: redis:7.4-alpine
+        command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            timeout: 3s
+            interval: 1s
+            retries: 10
+    nginx:
+        image: ghcr.io/sylius/sylius-nginx:latest
+        volumes:
+            - ./docker/nginx/upload.conf:/etc/nginx/conf.d/zz-upload.conf:ro
+    mailhog:
+        # do not use in production!
+        image: mailhog/mailhog:latest

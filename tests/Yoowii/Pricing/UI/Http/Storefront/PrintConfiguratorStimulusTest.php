@@ -1,0 +1,172 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Yoowii\Pricing\UI\Http\Storefront;
+
+use PHPUnit\Framework\TestCase;
+
+final class PrintConfiguratorStimulusTest extends TestCase
+{
+    public function testAStaleInitialSnapshotIsAppliedBeforeItsRefreshIsScheduled(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('initialProviderStateStale: Boolean', $controller);
+        self::assertStringContainsString("console.debug('[print-configurator] initial provider state'", $controller);
+        self::assertStringContainsString('hasInitialProviderStateValue: this.hasInitialProviderStateValue', $controller);
+        self::assertStringContainsString('initialProviderStateVisibility: this.initialProviderStateValue?.visibility', $controller);
+        self::assertStringContainsString('initialProviderStateStaleValue: this.initialProviderStateStaleValue', $controller);
+        self::assertStringContainsString("this.applyProviderState(this.initialProviderStateValue, { source: 'initial' });", $controller);
+        self::assertStringContainsString("this.applyProviderState(this.initialProviderStateValue, { source: 'initial-dom-ready' });", $controller);
+        self::assertStringContainsString('window.requestAnimationFrame', $controller);
+        self::assertStringContainsString('if (!this.hasInitialProviderStateValue) {', $controller);
+        self::assertLessThan(
+            strpos($controller, 'this.scheduleRefresh();'),
+            strpos($controller, "this.applyProviderState(this.initialProviderStateValue, { source: 'initial' });"),
+        );
+    }
+
+    public function testARefreshIsOnlyScheduledWhenTheSnapshotIsMissing(): void
+    {
+        self::assertStringContainsString('if (!this.hasInitialProviderStateValue) {', $this->controller());
+        self::assertStringNotContainsString('if (!this.hasInitialProviderStateValue || this.initialProviderStateStaleValue) {', $this->controller());
+    }
+
+    public function testItDoesNotStartWhenTheUnavailableTemplateHasNoForm(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('if (!this.hasFormTarget) {', $controller);
+        self::assertStringContainsString('if (!this.hasErrorTarget) {', $controller);
+    }
+
+    public function testRefreshFailureDoesNotResetTheAppliedProviderVisibility(): void
+    {
+        $controller = $this->controller();
+        $start = strpos($controller, 'async refreshProviderState()');
+        $end = strpos($controller, 'applyProviderState(state');
+        self::assertIsInt($start);
+        self::assertIsInt($end);
+        $refreshMethod = substr($controller, $start, $end - $start);
+
+        self::assertStringContainsString('this.applyProviderState(payload);', $refreshMethod);
+        self::assertStringContainsString('this.showError(error.message);', $refreshMethod);
+        self::assertStringNotContainsString('this.providerVisibility = {};', $refreshMethod);
+        self::assertStringNotContainsString('this.applyProviderState({ visibility: {}', $refreshMethod);
+    }
+
+    public function testItRejectsAndInvalidatesTheLegacyAllVisibleFallbackState(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('isUsableProviderState(payload)', $controller);
+        self::assertStringContainsString('Realisaprint a renvoyé un état de configuration incomplet.', $controller);
+        self::assertStringContainsString('show-variables:v2:', $controller);
+        self::assertStringContainsString('window.sessionStorage.removeItem(sessionKey);', $controller);
+        self::assertStringContainsString('visibility.some(([, visible]) => visible === false)', $controller);
+    }
+
+    public function testThePriceIsOnlyCalculatedAfterAnExplicitCustomerAction(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('if (this.isComplete()) {', $controller);
+        self::assertStringContainsString('this.calculate();', $controller);
+        self::assertStringNotContainsString('scheduleAutomaticQuote', $controller);
+        self::assertStringNotContainsString('scheduleCalculation', $controller);
+    }
+
+    public function testItPublishesTheSameSummaryContractAsOtherConfiguratorDrivers(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('summaryContext: String', $controller);
+        self::assertStringContainsString("yoowii:configuration-update", $controller);
+        self::assertStringContainsString("yoowii:configuration-edit", $controller);
+        self::assertStringContainsString("yoowii:configuration-reset", $controller);
+        self::assertStringContainsString('this.publishSummary();', $controller);
+    }
+
+    public function testAQuoteIsExplicitlyMarkedStaleAfterAConfigurationChange(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('markQuoteStale()', $controller);
+        self::assertStringContainsString('setQuoteStale(false)', $controller);
+        self::assertStringContainsString('quoteStale', $controller);
+    }
+
+    public function testRefreshOnlyAutoSelectsWhenOneChoiceRemains(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('if (allowedValues.length !== 1)', $controller);
+        self::assertStringContainsString('input.checked = false', $controller);
+        self::assertStringNotContainsString('step.dataset.defaultValue || \'\'', $controller);
+        self::assertStringNotContainsString('state.current?.[option] || \'\'', $controller);
+    }
+
+    public function testAutomaticCorrectionsDoNotTriggerASecondProviderRefresh(): void
+    {
+        $controller = $this->controller();
+        $start = strpos($controller, 'async refreshProviderState()');
+        $end = strpos($controller, 'applyProviderState(state');
+        self::assertIsInt($start);
+        self::assertIsInt($end);
+        $refreshMethod = substr($controller, $start, $end - $start);
+
+        self::assertStringContainsString('this.applyProviderState(payload);', $refreshMethod);
+        self::assertStringContainsString('Do not immediately call the supplier', $refreshMethod);
+        self::assertStringNotContainsString('if (corrected)', $refreshMethod);
+        self::assertStringNotContainsString('this.scheduleRefresh();', $refreshMethod);
+    }
+
+    public function testItReusesProviderStatesFromMemoryAndSessionStorage(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('this.providerStateCache = new Map();', $controller);
+        self::assertStringContainsString("{ source: 'browser-cache' }", $controller);
+        self::assertStringContainsString('window.sessionStorage.getItem(sessionKey)', $controller);
+        self::assertStringContainsString('window.sessionStorage.setItem(sessionKey, JSON.stringify(state))', $controller);
+        self::assertStringContainsString('mapping_version', $controller);
+        self::assertStringContainsString('schema_version', $controller);
+    }
+
+    public function testItDebouncesEveryProviderRefreshForFourHundredMilliseconds(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('const REFRESH_DEBOUNCE_MILLISECONDS = 400;', $controller);
+        self::assertStringContainsString('change(event, refreshDelay = REFRESH_DEBOUNCE_MILLISECONDS)', $controller);
+        self::assertStringContainsString('this.change(event, 0);', $controller);
+        self::assertStringContainsString('scheduleRefresh(delay = REFRESH_DEBOUNCE_MILLISECONDS)', $controller);
+        self::assertStringContainsString('window.setTimeout(() => this.refreshProviderState(), delay)', $controller);
+    }
+
+    public function testMatrixModeUsesPublishedCombinationsWithoutCallingTheProviderRefreshEndpoint(): void
+    {
+        $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/matrix-print-configurator_controller.js');
+
+        self::assertIsString($controller);
+        self::assertStringContainsString('matrixCombinations: Array', $controller);
+        self::assertStringContainsString('applyMatrixAvailability()', $controller);
+        self::assertStringContainsString('clearFollowingOptions(changedAxis)', $controller);
+        self::assertStringContainsString('const precedingAxes = this.pricingAxesValue.slice(0, axisIndex);', $controller);
+        self::assertStringContainsString('A new choice clears only its successors.', $controller);
+        self::assertStringContainsString('this.clearOption(axis))', $controller);
+        self::assertStringContainsString('async refreshProviderState()', $controller);
+        self::assertStringContainsString('never send a partial', $controller);
+        self::assertStringNotContainsString('fetch(', $controller);
+    }
+
+    private function controller(): string
+    {
+        $controller = file_get_contents(dirname(__DIR__, 6) . '/assets/shop/controllers/print-configurator_controller.js');
+
+        self::assertIsString($controller);
+
+        return $controller;
+    }
+}

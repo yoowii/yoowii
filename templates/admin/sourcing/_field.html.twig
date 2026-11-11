@@ -1,0 +1,11 @@
+{# One field in the administration's standard horizontal form rhythm. #}
+<div class="row mb-3">
+    <div class="col-lg-4">
+        {{ form_label(field, null, {label_attr: {class: 'form-label mb-lg-0'}}) }}
+    </div>
+    <div class="col-lg-8">
+        {{ form_widget(field) }}
+        {{ form_help(field) }}
+        {{ form_errors(field) }}
+    </div>
+</div>

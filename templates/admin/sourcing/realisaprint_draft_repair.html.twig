@@ -1,0 +1,55 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+{% set page_title = 'Corriger le brouillon — ' ~ route.yoowiiProductCode %}
+{% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog_show', {id: catalog.id}) }}">Retour au produit fournisseur</a>{% endblock %}
+{% block sourcing_content %}
+<div class="alert alert-info">Corrige ici les valeurs par défaut utilisées pour l’aperçu "show_variables", notamment les quantités et dimensions. Les valeurs imposées par Realisaprint restent reprises automatiquement. Pour un texte libre sans défaut, renseigne seulement une valeur d'essai pour le contrôle API ; le client pourra choisir son texte. Le produit Yoowii reste inactif jusqu'à publication.</div>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<div class="row justify-content-center"><div class="col-xl-9 col-xxl-8"><div class="card">
+    <div class="card-header"><h2 class="card-title">Modifications proposées</h2></div>
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+            <thead><tr><th>Option Yoowii</th><th>Variable fournisseur</th><th>Défaut actuel</th><th>Correction proposée</th></tr></thead>
+            <tbody>
+            {% for change in changes %}
+                <tr><td>{{ change.label }}</td><td><code>{{ change.variable }}</code></td><td>{{ change.old }}</td><td>
+                    {% if change.kind == 'sample' %}Valeur d'essai à renseigner ci-dessous{% else %}<strong>Valeur fixe : {{ change.new }}</strong>{% endif %}
+                </td></tr>
+            {% else %}
+                <tr><td colspan="4" class="text-secondary">Aucune valeur fixe à corriger automatiquement. Les autres erreurs nécessitent une correction spécifique.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if default_fields is not empty and not error %}
+        <div class="card-body">
+            <form method="post">
+                <input type="hidden" name="_token" value="{{ csrf_token('repair_realisaprint_draft_' ~ route.id) }}">
+                <h3 class="card-title mb-3">Valeurs par défaut de l’aperçu</h3>
+                <div class="row">
+                {% for field in default_fields %}
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="default-{{ field.code }}">{{ field.label }}</label>
+                        {% if field.fixed %}
+                            <input class="form-control" id="default-{{ field.code }}" value="{{ field.default|default('') }}" disabled>
+                            <div class="form-hint">Valeur imposée par Realisaprint.</div>
+                        {% else %}
+                            <input class="form-control" id="default-{{ field.code }}" name="default[{{ field.code }}]" value="{{ field.default|default('') }}" type="text">
+                        {% endif %}
+                        <div class="form-hint"><code>{{ field.code }}</code></div>
+                    </div>
+                {% endfor %}
+                </div>
+                {% if changes is not empty %}<h3 class="card-title mb-3">Corrections de structure</h3>{% endif %}
+                {% for change in changes %}
+                    {% if change.kind == 'sample' %}
+                        <label class="form-label" for="sample-{{ loop.index }}">{{ change.label }} — valeur d'essai pour l'API</label>
+                        <input class="form-control mb-3" id="sample-{{ loop.index }}" name="sample[{{ change.variable }}]" value="{{ change.new }}">
+                    {% endif %}
+                {% endfor %}
+                <div class="d-flex justify-content-end mt-4"><button class="btn btn-primary">Enregistrer les corrections</button></div>
+            </form>
+        </div>
+    {% endif %}
+</div>
+</div></div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% if pricing_snapshot and quote_token %}
+    <div class="yoowii-print-quote" data-quote-token="{{ quote_token }}">
+        <div class="border-top pt-3 mb-3">
+            <div class="small text-secondary">{{ 'yoowii.storefront.calculated_price'|trans }}</div>
+            <div class="display-6 fw-bold">
+                {{ (pricing_snapshot.unitPrice / 100)|number_format(2, ',', ' ') }}
+                {{ pricing_snapshot.currencyCode }}
+            </div>
+            <div class="small text-secondary">{{ 'yoowii.storefront.price_excluding_tax'|trans }}</div>
+        </div>
+        <form method="post" action="{{ path('yoowii_shop_print_add_to_cart', {token: quote_token, _locale: app.request.locale}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('add_print_quote_' ~ quote_token) }}">
+            <button type="submit" class="btn btn-success btn-lg w-100 yoowii-print-add-to-cart">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="9" cy="20" r="1"></circle>
+                    <circle cx="19" cy="20" r="1"></circle>
+                    <path d="M3 4h2l2.4 10.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 8H6"></path>
+                </svg>
+                {{ 'yoowii.storefront.add_to_cart'|trans }}
+            </button>
+        </form>
+    </div>
+{% else %}
+    <p class="text-secondary mb-0" data-empty-quote>
+        {{ 'yoowii.storefront.price_after_configuration'|trans }}
+    </p>
+{% endif %}

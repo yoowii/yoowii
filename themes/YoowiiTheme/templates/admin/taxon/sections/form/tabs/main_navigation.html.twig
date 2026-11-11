@@ -1,0 +1,14 @@
+{% set form = hookable_metadata.context.form %}
+
+<div class="tab-pane fade" id="taxon-tab-main-navigation" role="tabpanel" aria-labelledby="taxon-tab-main-navigation-button" tabindex="0">
+    <div class="card" data-controller="taxon-main-navigation">
+        <div class="card-header"><h2 class="card-title">{{ 'yoowii.form.taxon.main_navigation_title'|trans }}</h2></div>
+        <div class="card-body">
+            {{ form_row(form.showInMainNavigation, {'attr': {'data-taxon-main-navigation-target': 'toggle', 'data-action': 'change->taxon-main-navigation#toggle'}}) }}
+            <div data-taxon-main-navigation-target="details">
+                {{ form_row(form.mainNavigationPosition) }}
+                {{ form_row(form.mainNavigationLabel) }}
+            </div>
+        </div>
+    </div>
+</div>

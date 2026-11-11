@@ -1,0 +1,16 @@
+{
+  "entrypoints": {
+    "app": {
+      "css": [
+        "/themes/yoowii-theme/app.css"
+      ],
+      "js": [
+        "/themes/yoowii-theme/app.js"
+      ]
+    }
+  },
+  "integrity": {
+    "/themes/yoowii-theme/app.css": "sha384-XBTY6BtqlqWgsTgo9q7c/Hp4r3oXeyYAPz4oJQiV3PGXYMuh6IOY7LXItGZ2qLke",
+    "/themes/yoowii-theme/app.js": "sha384-p97PGHUQTvAjrx5nvYPI2QEugLv5jxx08vZu5tKVhDfQ8xixA+/VowxoJrAyNOJg"
+  }
+}

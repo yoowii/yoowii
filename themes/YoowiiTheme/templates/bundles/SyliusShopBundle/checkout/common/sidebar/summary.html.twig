@@ -1,0 +1,5 @@
+{% set order = hookable_metadata.context.order %}
+
+<div class="relative z-10 lg:pt-4">
+    {% hook 'summary' with {order} %}
+</div>

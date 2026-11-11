@@ -1,0 +1,33 @@
+framework:
+    messenger:
+        transports:
+            # Only artwork preflight messages are consumed by the initial
+            # preproduction worker. Keep its retries and failure queue isolated.
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                failure_transport: yoowii_failed
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 60000
+
+            # Supplier configuration sync must NEVER be consumed by the artwork
+            # worker. The supplier queue has no consumer in the initial rollout.
+            # Legacy default fallback maintains pre-opt-in routing.
+            yoowii_supplier_async:
+                dsn: '%env(YOOWII_SUPPLIER_MESSENGER_TRANSPORT_DSN)%'
+                failure_transport: yoowii_supplier_failed
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 60000
+
+            yoowii_failed: 'doctrine://default?queue_name=yoowii_failed'
+            yoowii_supplier_failed: 'doctrine://default?queue_name=yoowii_supplier_failed'
+            sync: 'sync://'
+
+        routing:
+            'App\Yoowii\PrintProduction\Application\Message\PreflightPrintAsset': async
+            'App\Yoowii\Sourcing\Application\Message\SynchronizeRealisaprintCatalogConfigurations': yoowii_supplier_async

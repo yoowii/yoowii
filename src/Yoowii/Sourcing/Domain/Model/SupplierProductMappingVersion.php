@@ -1,0 +1,204 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Yoowii\Sourcing\Domain\Model;
+
+use App\Yoowii\Pricing\Domain\Print\Definition\PersistedPrintProductDefinition;
+use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity]
+#[ORM\Table(name: 'yoowii_supplier_product_mapping_version')]
+#[ORM\Index(name: 'IDX_D23518858241E9B7', columns: ['supplier_product_id'])]
+#[ORM\UniqueConstraint(
+    name: 'uniq_supplier_product_mapping_version',
+    columns: ['supplier_product_id', 'yoowii_product_code', 'version'],
+)]
+class SupplierProductMappingVersion
+{
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
+    private ?int $id = null; // @phpstan-ignore property.unusedType
+
+    /** @var array<string, mixed>|null */
+    #[ORM\Column(name: 'initial_display_state', type: Types::JSON, nullable: true)]
+    private ?array $initialDisplayState = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'print_product_definition_id', nullable: true, onDelete: 'RESTRICT')]
+    private readonly ?PersistedPrintProductDefinition $printProductDefinition;
+
+    #[ORM\Column(type: Types::BOOLEAN)]
+    private bool $active = true;
+
+    #[ORM\Column(name: 'published_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $publishedAt = null;
+
+    #[ORM\Column(name: 'archived_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $archivedAt = null;
+
+    /**
+     * @param array<string, mixed> $configurationMapping
+     */
+    public function __construct(
+        #[ORM\ManyToOne]
+        #[ORM\JoinColumn(name: 'supplier_product_id', nullable: false, onDelete: 'RESTRICT')]
+        private readonly SupplierProduct $supplierProduct,
+        #[ORM\Column(name: 'yoowii_product_code', type: Types::STRING, length: 64)]
+        private readonly string $yoowiiProductCode,
+        #[ORM\Column(type: Types::STRING, length: 64)]
+        private readonly string $version,
+        #[ORM\Column(name: 'configuration_mapping', type: Types::JSON)]
+        private readonly array $configurationMapping,
+        #[ORM\Column(name: 'effective_from', type: Types::DATETIME_IMMUTABLE)]
+        private readonly \DateTimeImmutable $effectiveFrom,
+        #[ORM\Column(name: 'effective_until', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+        private readonly ?\DateTimeImmutable $effectiveUntil = null,
+        ?PersistedPrintProductDefinition $printProductDefinition = null,
+    ) {
+        $this->printProductDefinition = $printProductDefinition;
+        if ('' === trim($this->yoowiiProductCode)) {
+            throw new \InvalidArgumentException('The Yoowii product code must not be empty.');
+        }
+
+        if ('' === trim($this->version)) {
+            throw new \InvalidArgumentException('The mapping version must not be empty.');
+        }
+
+        if (null !== $this->effectiveUntil && $this->effectiveUntil <= $this->effectiveFrom) {
+            throw new \InvalidArgumentException('The mapping end date must be after its start date.');
+        }
+
+        self::assertJsonCompatible($this->configurationMapping, 'configuration_mapping');
+    }
+
+    public function supplierProduct(): SupplierProduct
+    {
+        return $this->supplierProduct;
+    }
+
+    public function id(): ?int
+    {
+        return $this->id;
+    }
+
+    public function yoowiiProductCode(): string
+    {
+        return $this->yoowiiProductCode;
+    }
+
+    public function version(): string
+    {
+        return $this->version;
+    }
+
+    /** @return array<string, mixed> */
+    public function configurationMapping(): array
+    {
+        return $this->configurationMapping;
+    }
+
+    public function printProductDefinition(): ?PersistedPrintProductDefinition
+    {
+        return $this->printProductDefinition;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function initialDisplayState(): ?array
+    {
+        return $this->initialDisplayState;
+    }
+
+    /** @param array<string, mixed>|null $state */
+    public function storeInitialDisplayState(?array $state): void
+    {
+        if (null !== $state) {
+            self::assertJsonCompatible($state, 'initial_display_state');
+        }
+
+        $this->initialDisplayState = $state;
+    }
+
+    public function effectiveFrom(): \DateTimeImmutable
+    {
+        return $this->effectiveFrom;
+    }
+
+    public function effectiveUntil(): ?\DateTimeImmutable
+    {
+        return $this->effectiveUntil;
+    }
+
+    public function isEffectiveAt(\DateTimeImmutable $at): bool
+    {
+        return $this->active &&
+            $at >= $this->effectiveFrom &&
+            (null === $this->effectiveUntil || $at < $this->effectiveUntil);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->active;
+    }
+
+    public function deactivate(): void
+    {
+        $this->active = false;
+    }
+
+    public function activate(): void
+    {
+        $this->active = true;
+    }
+
+    public function markPublished(\DateTimeImmutable $at): void
+    {
+        $this->active = true;
+        $this->publishedAt ??= $at;
+        $this->archivedAt = null;
+    }
+
+    public function publishedAt(): ?\DateTimeImmutable
+    {
+        return $this->publishedAt;
+    }
+
+    public function archivedAt(): ?\DateTimeImmutable
+    {
+        return $this->archivedAt;
+    }
+
+    public function archive(\DateTimeImmutable $at): void
+    {
+        if ($this->active || null === $this->publishedAt) {
+            throw new \DomainException('Seule une version publiée désactivée peut être archivée.');
+        }
+        $this->archivedAt ??= $at;
+    }
+
+    /** @param array<array-key, mixed> $value */
+    private static function assertJsonCompatible(array $value, string $path): void
+    {
+        foreach ($value as $key => $nestedValue) {
+            $nestedPath = sprintf('%s.%s', $path, (string) $key);
+
+            if (null === $nestedValue || is_bool($nestedValue) || is_int($nestedValue) || is_string($nestedValue)) {
+                continue;
+            }
+
+            if (is_float($nestedValue) && is_finite($nestedValue)) {
+                continue;
+            }
+
+            if (is_array($nestedValue)) {
+                self::assertJsonCompatible($nestedValue, $nestedPath);
+
+                continue;
+            }
+
+            throw new \InvalidArgumentException(sprintf('The value at "%s" is not JSON-compatible.', $nestedPath));
+        }
+    }
+}

@@ -1,0 +1,127 @@
+# Architecture de Yoowii
+
+## Objectif
+
+Yoowii commercialise des produits imprimés et des prestations numériques, puis suit leur réalisation dans Yoowii Flow. Le produit démarre comme un monolithe modulaire afin de conserver un déploiement et un modèle d'authentification uniques.
+
+## Responsabilités
+
+| Contexte | Responsabilités |
+|---|---|
+| Sylius Catalog | Produits, taxons, attributs, variantes et canaux |
+| Sylius Order | Panier, commande, promotions, taxes et totalisation |
+| Sylius Customer | Compte client et adresses |
+| Sylius Payment | Demandes et états de paiement |
+| Sylius Shipping | Modes, frais et expéditions physiques |
+| Pricing | Matrices tarifaires et calcul serveur |
+| Sourcing | Fournisseurs print, mappings, grilles d'achat et routage principal/secours |
+| Configurator | Parcours et choix propres à une famille de produits |
+| PrintProduction | Fichiers, BAT, production, contrôle et livraison |
+| WebProject | CDC, prototype, intégration, recette et mise en production |
+| MediaProject | Brief, planification, shooting, montage et livraison |
+| Subscription | Contrats et cycles récurrents |
+| CustomerPortal | Vue client des commandes, projets, validations et documents |
+| Automation | Mantis, Plesk, LWS, WP-CLI et fournisseurs externes |
+
+## Flux principal
+
+```text
+Configuration
+  -> calcul du prix côté serveur
+  -> snapshot tarifaire immuable
+  -> panier Sylius
+  -> checkout et paiement
+  -> événement OrderPaid
+  -> plan d'exécution par ligne
+  -> création idempotente des travaux
+  -> jalons visibles dans le portail client
+```
+
+## Types d'exécution
+
+Chaque produit commercial définit un type d'exécution :
+
+- `print` : crée un travail d'impression ;
+- `web_project` : crée un projet de création ou refonte de site ;
+- `media_project` : crée un projet photo ou vidéo ;
+- `subscription` : crée ou rattache un contrat récurrent ;
+- `quote_only` : crée une demande de devis sans checkout direct.
+
+`quote_only` est la valeur par défaut. Ce choix empêche un produit existant, importé ou de démonstration de déclencher une production tant que son type d’exécution n’a pas été validé dans l’administration.
+
+Une commande peut contenir plusieurs produits d'impression. Le MVP utilise des checkouts distincts pour l'impression, les services et les abonnements afin d'éviter les ambiguïtés de livraison, de remboursement et de renouvellement.
+
+## Calcul tarifaire
+
+Les choix affichés par le navigateur ne constituent jamais la source de vérité. Le serveur reçoit la configuration, la valide, charge une version de matrice tarifaire, calcule le détail et renvoie un devis temporaire signé ou identifié.
+
+La ligne de commande conserve au minimum :
+
+```json
+{
+  "schema_version": 1,
+  "calculator": "print.flyer",
+  "pricing_version": "2026-08-01",
+  "configuration": {},
+  "price_breakdown": {
+    "total": 12900
+  },
+  "unit_price": 12900,
+  "currency_code": "EUR",
+  "calculated_at": "2026-08-27T12:00:00+00:00"
+}
+```
+
+Les montants utilisent l’unité monétaire mineure : `12900` représente `129,00 EUR`. Le total du détail doit correspondre au prix unitaire de la ligne et la devise doit correspondre à celle du panier.
+
+Le snapshot reste remplaçable tant que la commande est un panier. Une fois le checkout terminé, l’entité refuse toute modification. La ligne est également marquée comme prix personnalisé afin que le recalculateur Sylius ne remplace pas son montant par le prix générique de la variante.
+
+Deux lignes configurées ne sont jamais fusionnées automatiquement : la quantité d’impression appartient à la configuration (`1 000 flyers`) et non à la quantité Sylius de la ligne.
+
+## Sourcing multi-fournisseurs
+
+Le catalogue vendu au client reste indépendant des références Laboprint, Realisaprint, WIRmachenDRUCK ou 123imprim. Un `SupplierProduct` représente la référence technique d'un imprimeur. Ses options sont traduites depuis la configuration Yoowii par un `SupplierProductMappingVersion` immuable.
+
+L’administration affiche par défaut la version la plus récente par produit et référence fournisseur ; l’historique est disponible à la demande. Une suppression définitive, confirmée et protégée par CSRF, n’est permise que pour une version désactivée, remplacée, sans route, validation conservée ni commande qui la référence.
+
+Chaque grille de coût est importée dans un nouveau `SupplierPricingMatrixVersion`. Une version suit le cycle `draft -> active -> archived` et une version archivée ne peut pas être réactivée. Son checksum permet de détecter un import identique, indépendamment de l'ordre des clés JSON.
+
+Le MVP applique un routage fixe par code produit Yoowii : priorité `10` pour le fournisseur principal, puis `20`, `30`, etc. pour les secours. Le routeur refuse une égalité de priorité et ignore les routes hors période ainsi que les fournisseurs ou produits désactivés. Aucun appel API fournisseur n'est effectué dans ce premier lot.
+
+Le prix de vente et le sourcing restent séparés :
+
+- `PricingSnapshot` sur `OrderItem` conserve le prix client ;
+- un futur `SourcingSnapshot` sur le travail d'impression conservera le fournisseur, la référence, la grille de coût et la règle de routage retenus ;
+- le coût d'achat ne sera jamais exposé par les endpoints du storefront.
+
+Les produits matriciels utilisent un moteur commun piloté par `PrintProductDefinition`. Chaque définition déclare ses options, leur type et l'ordre des axes tarifaires. Pour Realisaprint, une définition est partagée par les produits Yoowii issus de la même référence catalogue ; chaque produit conserve son propre mapping fournisseur, notamment son stock. Une définition inactive reste visible dans l’administration pour terminer un brouillon, mais elle reste exclue du storefront et des devis. Le sélecteur produit affiche le nom commercial du catalogue Realisaprint, et non son code technique. Les flyers et cartes de visite partagent ainsi `PrintPricingMatrixCsvImporter` et `MatrixPrintPriceCalculator` sans dupliquer le calcul.
+
+Le calculateur classe les routes fixes, charge les versions actives et effectives, puis passe à la route de secours si la combinaison n'existe pas chez le fournisseur principal. La politique commerciale est exprimée séparément en majoration, marge minimale et frais de traitement.
+
+Les nouvelles matrices utilisent `calculator: print.matrix_exact` et identifient le code produit ainsi que la version de son schéma. Les anciennes matrices `print.flyer` restent lisibles pour assurer une évolution non destructive.
+
+L’administration Sylius expose ce référentiel sous `/admin/print-sourcing`. Elle permet de gérer les fournisseurs et leurs références, de planifier les routes principal/secours, d’importer et d’activer des matrices puis de simuler un devis. Les coûts d’achat et la marge ne sont visibles que dans cet espace protégé par le pare-feu d’administration. Les activations, archivages et changements d’état utilisent exclusivement des requêtes `POST` protégées par CSRF.
+
+Les définitions disponibles dans le MVP sont centralisées par `BuiltInPrintProductDefinitionRegistry`. Ajouter un produit print consiste donc à ajouter sa définition générique et son exemple de matrice, sans créer un nouveau calculateur métier propre à ce produit.
+
+## Calculateur print storefront
+
+Le storefront construit ses listes de formats, papiers, quantités et finitions depuis les matrices génériques actives. Les valeurs postées sont revalidées par la définition du produit, puis `PrintQuoteService` recalcule le prix sur le serveur. Aucun montant envoyé par le navigateur n’est accepté.
+
+Un calcul valide crée un identifiant aléatoire de 256 bits, lié à la session, valable quinze minutes et utilisable une seule fois. La session conserve le code de variante Sylius, le code de définition print, le snapshot du prix client et son expiration ; elle ne contient ni coût fournisseur ni marge. Au moment de l’ajout, le serveur vérifie la variante Sylius, la définition associée au produit, son type d’exécution `print`, son canal, la devise et la composition du panier avant de recopier le snapshot sur `OrderItem`.
+
+Le code de variante Sylius et le code de définition du calculateur sont indépendants. Par exemple, la variante `FLYER_STANDARD` peut utiliser la définition `PRINT_FLYER`. La quantité Sylius reste `1` car la quantité physique imprimée appartient à la configuration tarifaire. Grâce à la règle `OrderItem::equals()`, deux configurations restent deux lignes distinctes.
+
+Le storefront conserve le catalogue et la fiche produit Sylius pour toutes les familles. Les cartes print affichent le prix de canal comme un prix « À partir de », tandis que le calculateur pleine largeur de la fiche produit détermine le prix commandé. La landing `/print` est une vue marketing secondaire alimentée par les mêmes produits Sylius, jamais une seconde source de vérité.
+
+Le montant du snapshot print est hors taxes : Sylius applique ensuite la fiscalité du produit. Le transport fournisseur étant déjà inclus dans la matrice, le checkout utilise un mode d’expédition print à coût nul pour éviter une double facturation.
+
+## Fichiers clients
+
+Les fichiers d'impression, briefs et contenus ne doivent pas être placés dans le répertoire public. Le stockage cible est compatible S3 avec URL signée, contrôle de type/taille, antivirus et journal d'accès. Le stockage local peut être utilisé uniquement en développement.
+
+## Évolution
+
+Le fonctionnement des drivers de configurateur print et le mode d'intégration d'un nouveau fournisseur API sont documentés dans [print-configurator-drivers.md](print-configurator-drivers.md).
+
+Redis, un frontend headless, un service de préflight PDF ou des services séparés ne seront ajoutés qu'à partir d'une contrainte mesurée. Les frontières des modules permettent cette extraction sans introduire cette complexité dès le MVP.

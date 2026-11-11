@@ -1,0 +1,83 @@
+{% extends 'admin/sourcing/base.html.twig' %}
+{% set page_title = 'Realisaprint — ' ~ product.name %}
+{% block sourcing_actions %}<a class="btn btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_catalog') }}">Retour catalogue</a>{% endblock %}
+{% block sourcing_content %}
+<div class="card">
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-3">Produit fournisseur</dt><dd class="col-sm-9"><code>{{ product.providerProductId }}</code></dd>
+            <dt class="col-sm-3">Configuration actualisée</dt><dd class="col-sm-9">{{ product.configurationSyncedAt ? product.configurationSyncedAt|date('d/m/Y H:i') : 'Jamais' }}</dd>
+            <dt class="col-sm-3">Stocks Préscript</dt><dd class="col-sm-9">{% if product.prescriptStocks %}{% for id, label in product.prescriptStocks %}<span class="badge bg-azure-lt me-1"><code>{{ id }}</code> · {{ label }}</span>{% endfor %}{% else %}Aucun{% endif %}</dd>
+        </dl>
+        <div class="btn-list">
+            <form method="post" action="{{ path('yoowii_admin_realisaprint_catalog_configuration_synchronize', {id: product.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('realisaprint_catalog_configuration_' ~ product.id) }}">
+                <button class="btn btn-outline-primary">Actualiser la configuration</button>
+            </form>
+            {% if product.configuration %}
+                <a class="btn btn-primary" href="{{ path('yoowii_admin_realisaprint_catalog_draft', {id: product.id}) }}">Créer un produit Yoowii lié</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header"><h2 class="card-title">Produits Yoowii liés</h2></div>
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+            <thead><tr><th>Produit</th><th>Stock</th><th>Configurateur</th><th>État</th><th>Configuration</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for item in generated_products %}
+                <tr>
+                    <td><a href="{{ path('sylius_admin_product_update', {id: item.product.id}) }}">{{ item.product.name }}</a><br><code>{{ item.product.code }}</code></td>
+                    <td>{{ item.stock }}</td>
+                    <td><span class="badge {{ item.configurator_mode == 'prescript' ? 'bg-azure-lt' : 'bg-secondary-lt' }}">{{ item.configurator_mode == 'prescript' ? 'Préscript' : 'API classique' }}</span></td>
+                    <td><span class="badge {{ item.product.enabled ? 'bg-success-lt' : 'bg-secondary-lt' }}">{{ item.product.enabled ? 'Actif' : 'Brouillon' }}</span></td>
+                    <td><span class="badge {{ item.configuration_status == 'Compatible' ? 'bg-success-lt' : 'bg-warning-lt' }}">{{ item.configuration_status }}</span></td>
+                    <td>
+                        <div class="btn-list">
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_linked_product_definition', {id: product.id, routeId: item.route.id}) }}">Consulter la définition</a>
+                            {% if item.mapping %}
+                                {% if item.product.enabled %}
+                                    <form method="post" action="{{ path('yoowii_admin_realisaprint_revision_create', {routeId: item.route.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('create_realisaprint_revision_' ~ item.route.id) }}">
+                                        <button class="btn btn-sm btn-outline-primary">Créer une révision</button>
+                                    </form>
+                                {% endif %}
+                                {% if not item.product.enabled %}
+                                    <a class="btn btn-sm btn-outline-secondary" href="{{ path('yoowii_admin_realisaprint_draft_repair', {routeId: item.route.id}) }}">Prévisualiser / corriger le brouillon</a>
+                                {% endif %}
+                                {% if item.configurator_mode == 'prescript' %}
+                                    {% if prescript_quick_publication_enabled %}
+                                        <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_publish_prescript', {catalogId: product.id, id: item.mapping.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('publish_realisaprint_prescript_mapping_' ~ item.mapping.id) }}">
+                                            <button class="btn btn-sm btn-success">{{ item.product.enabled ? 'Basculer vers Préscript' : 'Publier avec Préscript' }}</button>
+                                        </form>
+                                    {% endif %}
+                                {% else %}
+                                    <form method="post" action="{{ path('yoowii_admin_realisaprint_mapping_validate', {id: item.mapping.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('validate_realisaprint_mapping_' ~ item.mapping.id) }}">
+                                        <button class="btn btn-sm btn-outline-primary">Vérifier la configuration et le prix</button>
+                                    </form>
+                                {% endif %}
+                                {% if item.configurator_mode == 'classic' and item.configuration_status != 'Compatible' %}
+                                    <a class="btn btn-sm btn-outline-warning" href="{{ path('yoowii_admin_realisaprint_mapping', {routeId: item.route.id}) }}">Corriger les correspondances</a>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="text-center text-secondary py-4">Aucun produit Yoowii lié à cette référence.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% if product.configuration %}
+    <details class="card mt-4">
+        <summary class="card-header">Données fournisseur synchronisées (avancé)</summary>
+        <div class="card-body"><pre class="mb-0 small">{{ product.configuration|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre></div>
+    </details>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+{% set product = hookable_metadata.context.product %}
+
+{% if product.fulfillmentType.value == 'print' %}
+    <p class="mb-3 text-sm text-base-content/60">
+        {{ 'yoowii.storefront.reference'|trans }}&nbsp;{{ product.code }}
+    </p>
+{% endif %}

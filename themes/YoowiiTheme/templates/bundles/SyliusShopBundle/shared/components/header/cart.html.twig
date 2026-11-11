@@ -1,0 +1,17 @@
+{# Rendered with \Sylius\Bundle\ShopBundle\Twig\Component\Common\CartComponent #}
+
+{% import "@SyliusShop/shared/macro/money.html.twig" as money %}
+{% from '@SyliusShop/shared/macro/icon.html.twig' import icon %}
+
+<div class="relative" {{ attributes }}>
+    <div {{ sylius_test_html_attribute('cart-button') }}>
+        <button class="flex items-center gap-2 rounded-btn px-2 py-1 text-left text-base-content transition-colors hover:bg-base-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" type="button" js-cart-opener>
+            <span class="relative text-primary">{{ icon('cart', 'size-6') }}
+                {% if cart.totalQuantity > 0 %}
+                    <span class="absolute -right-2 -top-2 bg-[#B0307F] text-white text-[11px] rounded-full px-1.5">{{ cart.totalQuantity }}</span>
+                {% endif %}
+            </span>
+            <span class="hidden leading-tight xl:block"><span class="block text-sm font-bold">{{ 'sylius.ui.cart'|trans }}</span><span class="block text-xs text-base-content/70" {{ sylius_test_html_attribute('cart-total') }}>{{ money.convertAndFormat(cart.itemsTotal) }}</span></span>
+        </button>
+    </div>
+</div>

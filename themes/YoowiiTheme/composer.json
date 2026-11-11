@@ -1,0 +1,15 @@
+{
+    "name": "yoowii/yoowii-theme",
+    "description": "Yoowii storefront theme based on Tailwind CSS and daisyUI.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Yoowii"
+        }
+    ],
+    "extra": {
+        "sylius-theme": {
+            "title": "Yoowii Theme"
+        }
+    }
+}

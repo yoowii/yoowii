@@ -1,0 +1,22 @@
+sylius_grid:
+    templates:
+        bulk_action:
+            product_availability: 'admin/product/grid/bulk_action/availability.html.twig'
+    grids:
+        sylius_admin_product:
+            actions:
+                bulk:
+                    enable:
+                        type: product_availability
+                        label: yoowii.admin.product.bulk_availability.enable
+                        options:
+                            enabled: true
+                            link:
+                                route: yoowii_admin_product_bulk_availability
+                    disable:
+                        type: product_availability
+                        label: yoowii.admin.product.bulk_availability.disable
+                        options:
+                            enabled: false
+                            link:
+                                route: yoowii_admin_product_bulk_availability

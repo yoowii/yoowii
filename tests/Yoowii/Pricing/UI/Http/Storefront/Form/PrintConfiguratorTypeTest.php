@@ -1,0 +1,60 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Yoowii\Pricing\UI\Http\Storefront\Form;
+
+use App\Yoowii\Pricing\UI\Http\Storefront\Form\PrintConfiguratorType;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\FormBuilderInterface;
+
+final class PrintConfiguratorTypeTest extends TestCase
+{
+    public function testItExposesEveryPricingAxisAsExpandedChoiceCards(): void
+    {
+        $builder = $this->createMock(FormBuilderInterface::class);
+        $builder
+            ->expects(self::exactly(2))
+            ->method('add')
+            ->willReturnCallback(static function (string $name, string $type, array $options) use ($builder): FormBuilderInterface {
+                self::assertSame(ChoiceType::class, $type);
+                self::assertTrue($options['expanded']);
+                self::assertFalse($options['placeholder']);
+                self::assertNotEmpty($options['choices']);
+                self::assertContains($name, ['format', 'quantity']);
+                self::assertSame($name, $options['attr']['data-option-code']);
+
+                return $builder;
+            })
+        ;
+
+        (new PrintConfiguratorType())->buildForm($builder, [
+            'option_choices' => [
+                'format' => ['a5', 'a4'],
+                'quantity' => [500, 1000],
+            ],
+        ]);
+    }
+
+    public function testItUsesAnUnselectedPlaceholderForLongSelectLists(): void
+    {
+        $builder = $this->createMock(FormBuilderInterface::class);
+        $builder
+            ->expects(self::once())
+            ->method('add')
+            ->willReturnCallback(static function (string $name, string $type, array $options) use ($builder): FormBuilderInterface {
+                self::assertSame('format', $name);
+                self::assertSame(ChoiceType::class, $type);
+                self::assertFalse($options['expanded']);
+                self::assertSame('Choisissez une option', $options['placeholder']);
+
+                return $builder;
+            })
+        ;
+
+        (new PrintConfiguratorType())->buildForm($builder, [
+            'option_choices' => ['format' => ['a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8']],
+        ]);
+    }
+}

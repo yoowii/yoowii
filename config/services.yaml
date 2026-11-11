@@ -1,0 +1,213 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+# See also https://symfony.com/doc/current/service_container/import.html
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+    yoowii.print_pricing.version: 'retail-v1'
+    yoowii.print_pricing.markup_basis_points: 3500
+    yoowii.print_pricing.minimum_margin: 1200
+    yoowii.print_pricing.handling_fee: 0
+    yoowii.print_quote.ttl: 900
+    yoowii.print_assets.directory: '%kernel.project_dir%/var/private/print'
+    yoowii.print_job_link.ttl: 2592000
+    yoowii.print_production.alert_recipients: '%env(csv:YOOWII_PRINT_PRODUCTION_ALERT_RECIPIENTS)%'
+    yoowii.realisaprint.initial_display_state_ttl: 1800
+
+services:
+    # Default configuration for services in *this* file
+    _defaults:
+        # Automatically injects dependencies in your services
+        autowire: true
+
+        # Automatically registers your services as commands, event subscribers, etc.
+        autoconfigure: true
+
+        # Allows optimizing the container by removing unused services; this also means
+        # fetching services directly from the container via $container->get() won't work
+        public: false
+
+    _instanceof:
+        Sylius\Bundle\ResourceBundle\Controller\ResourceController:
+            autowire: false
+        Sylius\Bundle\ResourceBundle\Form\Type\AbstractResourceType:
+            autowire: false
+
+    # Makes classes in src/ available to be used as services;
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+            - '../src/Yoowii/Commerce/Domain/'
+            - '../src/Yoowii/Pricing/Domain/Exception/'
+            - '../src/Yoowii/Pricing/Domain/PricingSnapshot.php'
+            - '../src/Yoowii/Pricing/Domain/Flyer/Exception/'
+            - '../src/Yoowii/Pricing/Domain/Flyer/FlyerConfiguration.php'
+            - '../src/Yoowii/Pricing/Domain/Flyer/FlyerPricingPolicy.php'
+            - '../src/Yoowii/Pricing/Domain/Flyer/FlyerQuote.php'
+            - '../src/Yoowii/Pricing/Domain/Print/Definition/'
+            - '../src/Yoowii/Pricing/Domain/Print/Exception/'
+            - '../src/Yoowii/Pricing/Domain/Print/PrintConfiguration.php'
+            - '../src/Yoowii/Pricing/Domain/Print/PrintPricingPolicy.php'
+            - '../src/Yoowii/Pricing/Domain/Print/PrintQuote.php'
+            - '../src/Yoowii/Pricing/Application/Quote/Exception/'
+            - '../src/Yoowii/Pricing/Application/Quote/StoredPrintQuote.php'
+            - '../src/Yoowii/Sourcing/Application/Import/Exception/'
+            - '../src/Yoowii/Sourcing/Application/Import/FlyerPricingMatrixImportResult.php'
+            - '../src/Yoowii/Sourcing/Application/Import/PrintPricingMatrixImportResult.php'
+            - '../src/Yoowii/Sourcing/Domain/Exception/'
+            - '../src/Yoowii/Sourcing/Domain/Model/'
+            - '../src/Yoowii/Sourcing/Domain/PricingMatrixStatus.php'
+            - '../src/Yoowii/Sourcing/Domain/SupplierCapability.php'
+            - '../src/Yoowii/Sourcing/Domain/SupplierIntegrationMode.php'
+            - '../src/Yoowii/Sourcing/UI/Http/Admin/Data/'
+            - '../src/Yoowii/PrintProduction/Domain/'
+
+    # Controllers are imported separately to make sure services can be injected
+    # as action arguments even if you don't extend any base controller class
+    App\Controller\:
+        resource: '../src/Controller'
+        tags: ['controller.service_arguments']
+
+    App\Yoowii\Sourcing\UI\Http\Admin\Controller\:
+        resource: '../src/Yoowii/Sourcing/UI/Http/Admin/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Yoowii\Commerce\UI\Http\Admin\Controller\:
+        resource: '../src/Yoowii/Commerce/UI/Http/Admin/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Yoowii\Pricing\UI\Http\Storefront\Controller\:
+        resource: '../src/Yoowii/Pricing/UI/Http/Storefront/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Yoowii\PrintProduction\UI\Http\Storefront\:
+        resource: '../src/Yoowii/PrintProduction/UI/Http/Storefront/'
+        tags: ['controller.service_arguments']
+
+    App\Yoowii\PrintProduction\UI\Http\Admin\Controller\:
+        resource: '../src/Yoowii/PrintProduction/UI/Http/Admin/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider:
+        arguments:
+            $version: '%yoowii.print_pricing.version%'
+            $markupBasisPoints: '%yoowii.print_pricing.markup_basis_points%'
+            $minimumMargin: '%yoowii.print_pricing.minimum_margin%'
+            $handlingFee: '%yoowii.print_pricing.handling_fee%'
+
+    App\Yoowii\Pricing\Infrastructure\Http\SessionPrintQuoteStore:
+        arguments:
+            $timeToLive: '%yoowii.print_quote.ttl%'
+
+    App\Yoowii\Pricing\Application\Quote\PrintQuoteStore:
+        alias: App\Yoowii\Pricing\Infrastructure\Http\SessionPrintQuoteStore
+
+    App\Yoowii\PrintProduction\Application\PrintAssetStorage:
+        alias: App\Yoowii\PrintProduction\Infrastructure\Storage\PrivateLocalPrintAssetStorage
+
+    App\Yoowii\PrintProduction\Infrastructure\Storage\PrivateLocalPrintAssetStorage:
+        arguments:
+            $rootDirectory: '%yoowii.print_assets.directory%'
+
+    App\Yoowii\PrintProduction\Application\PrintJobAccessLink:
+        arguments:
+            $secret: '%kernel.secret%'
+            $timeToLive: '%yoowii.print_job_link.ttl%'
+
+    App\Yoowii\PrintProduction\Application\QueuePrintJobNotification:
+        arguments:
+            $productionAlertRecipients: '%yoowii.print_production.alert_recipients%'
+
+    # These explicit scalar arguments must be declared after the App\ resource,
+    # which otherwise replaces this definition during service discovery.
+    App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient:
+        arguments:
+            $throttle: '@App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RedisRealisaprintRequestThrottle'
+            $shopId: '%yoowii.realisaprint.shop_id%'
+            $apiKey: '%yoowii.realisaprint.api_key%'
+            $enabled: '%yoowii.realisaprint.enabled%'
+            $baseUrl: '%yoowii.realisaprint.base_url%'
+            $idleTimeout: '%yoowii.realisaprint.http_idle_timeout%'
+            $maxDuration: '%yoowii.realisaprint.http_max_duration%'
+            $logger: '@logger'
+
+    yoowii.sourcing.draft_picture_http_client:
+        class: Symfony\Component\HttpClient\NoPrivateNetworkHttpClient
+        arguments:
+            $client: '@http_client'
+
+    App\Yoowii\Sourcing\Application\DraftProductImageImporter:
+        arguments:
+            $httpClient: '@yoowii.sourcing.draft_picture_http_client'
+
+    App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RedisRealisaprintRequestThrottle:
+        arguments:
+            $redisDsn: '%env(default:yoowii.realisaprint.default_redis_dsn:YOOWII_REDIS_DSN)%'
+            $logger: '@logger'
+
+    App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintFtpTransport:
+        arguments:
+            $enabled: '%yoowii.realisaprint.ftp_enabled%'
+            $host: '%yoowii.realisaprint.ftp_host%'
+            $port: '%yoowii.realisaprint.ftp_port%'
+            $user: '%yoowii.realisaprint.ftp_user%'
+            $password: '%yoowii.realisaprint.ftp_password%'
+            $baseDirectory: '%yoowii.realisaprint.ftp_base_directory%'
+
+    App\Yoowii\Pricing\Application\RealisaprintLiveQuoteCalculator:
+        arguments:
+            $cache: '@cache.app'
+            $cacheTtl: '%yoowii.realisaprint.quote_cache_ttl%'
+            $configurationCacheTtl: '%yoowii.realisaprint.configuration_cache_ttl%'
+            $lock: '@App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock'
+            $popularity: '@App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintConfigurationPopularity'
+            $enabled: '%yoowii.realisaprint.quote_enabled%'
+
+    App\Yoowii\Pricing\Application\RealisaprintVariableStateCache:
+        arguments:
+            $cache: '@cache.app'
+            $timeToLive: '%yoowii.realisaprint.variable_state_cache_ttl%'
+            $staleTimeToLive: '%yoowii.realisaprint.variable_state_stale_ttl%'
+            $lock: '@App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock'
+            $logger: '@logger'
+
+    App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintVariableStateLock:
+        arguments:
+            $redisDsn: '%env(default:yoowii.realisaprint.default_redis_dsn:YOOWII_REDIS_DSN)%'
+
+    App\Yoowii\Pricing\Infrastructure\Cache\RedisRealisaprintConfigurationPopularity:
+        arguments:
+            $redisDsn: '%env(default:yoowii.realisaprint.default_redis_dsn:YOOWII_REDIS_DSN)%'
+            $logger: '@logger'
+
+    App\Yoowii\Sourcing\Application\RealisaprintInitialDisplayStateBuilder:
+        arguments:
+            $timeToLive: '%yoowii.realisaprint.initial_display_state_ttl%'
+
+    App\Yoowii\Sourcing\Infrastructure\Translation\ProductTranslationDictionary:
+        arguments:
+            $dictionaryPath: '%kernel.project_dir%/config/yoowii/product_translations.en_US.json'
+
+    App\Yoowii\Sourcing\Application\RealisaprintPublicationService:
+        arguments:
+            $prescriptQuickPublicationEnabled: '%yoowii.realisaprint.prescript_quick_publication_enabled%'
+
+    App\Yoowii\Pricing\Application\RealisaprintPrescriptTemplateProvider:
+        arguments:
+            $cache: '@cache.app'
+            $timeToLive: '%yoowii.realisaprint.prescript_template_cache_ttl%'
+
+    App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository:
+        alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierRouteRepository
+
+    App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository:
+        alias: App\Yoowii\Sourcing\Infrastructure\Doctrine\Repository\DoctrineSupplierPricingMatrixVersionRepository
+
+    Sylius\Component\Core\Factory\CartItemFactoryInterface:
+        alias: sylius.custom_factory.order_item

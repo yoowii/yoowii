@@ -1,0 +1,177 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Yoowii\Pricing\Application;
+
+use App\Yoowii\Pricing\Domain\Print\Definition\PrintProductDefinition;
+use App\Yoowii\Sourcing\Domain\Model\SupplierRoute;
+use App\Yoowii\Sourcing\Domain\Repository\SupplierPricingMatrixVersionRepository;
+use App\Yoowii\Sourcing\Domain\Repository\SupplierRouteRepository;
+use App\Yoowii\Sourcing\Domain\SupplierCapability;
+use App\Yoowii\Sourcing\Domain\SupplierIntegrationMode;
+
+final readonly class PrintConfigurationCatalog
+{
+    public function __construct(
+        private SupplierRouteRepository $routeRepository,
+        private SupplierPricingMatrixVersionRepository $matrixRepository,
+        private RealisaprintConfigurationMapper $realisaprintMapper,
+    ) {
+    }
+
+    /** @return array<string, list<string|int>> */
+    public function availableOptions(
+        PrintProductDefinition $definition,
+        string $currencyCode,
+        \DateTimeImmutable $at,
+        ?SupplierRoute $resolvedRoute = null,
+    ): array {
+        $routes = null === $resolvedRoute
+            ? $this->routeRepository->findCandidates($definition->productCode(), $at)
+            : [$resolvedRoute];
+        $supplierProducts = array_map(
+            static fn (SupplierRoute $route) => $route->supplierProduct(),
+            $routes,
+        );
+        $matrices = $this->matrixRepository->findSelectableFor($supplierProducts, $currencyCode, $at);
+        /** @var array<string, array<string, string|int>> $collectedOptions */
+        $collectedOptions = [];
+
+        foreach ($definition->pricingAxes() as $axis) {
+            $collectedOptions[$axis] = [];
+        }
+
+        foreach ($routes as $route) {
+            $supplier = $route->supplierProduct()->supplier();
+            if (
+                'realisaprint' !== $supplier->code() ||
+                !in_array($supplier->integrationMode(), [SupplierIntegrationMode::Api, SupplierIntegrationMode::Hybrid], true) ||
+                !$supplier->supports(SupplierCapability::RealtimeQuote)
+            ) {
+                continue;
+            }
+
+            try {
+                $apiOptions = $this->realisaprintMapper->catalogOptions($definition->productCode(), $route->supplierProduct(), $at);
+            } catch (\DomainException) {
+                continue;
+            }
+            foreach ($definition->pricingAxes() as $axis) {
+                foreach ($apiOptions[$axis] ?? [] as $value) {
+                    $collectedOptions[$axis][$this->valueKey($value)] = $value;
+                }
+            }
+        }
+
+        foreach ($matrices as $matrix) {
+            $payload = $matrix->matrix();
+
+            if (
+                'print.matrix_exact' !== ($payload['calculator'] ?? null) ||
+                $definition->productCode() !== ($payload['product_code'] ?? null) ||
+                $definition->schemaVersion() !== ($payload['product_schema_version'] ?? null)
+            ) {
+                continue;
+            }
+
+            $entries = $payload['entries'] ?? null;
+
+            if (!is_array($entries)) {
+                continue;
+            }
+
+            foreach ($entries as $entry) {
+                $configuration = is_array($entry) ? ($entry['configuration'] ?? null) : null;
+
+                if (!is_array($configuration)) {
+                    continue;
+                }
+
+                foreach ($definition->pricingAxes() as $axis) {
+                    $value = $configuration[$axis] ?? null;
+
+                    if (is_string($value) || is_int($value)) {
+                        $collectedOptions[$axis][$this->valueKey($value)] = $value;
+                    }
+                }
+            }
+        }
+
+        $options = [];
+
+        foreach ($collectedOptions as $axis => $values) {
+            $sortedValues = array_values($values);
+            usort(
+                $sortedValues,
+                static fn (string|int $left, string|int $right): int => strnatcasecmp((string) $left, (string) $right),
+            );
+            $options[$axis] = $sortedValues;
+        }
+
+        return $options;
+    }
+
+    /**
+     * Returns only the selectable axis values of each matrix row. Prices and
+     * supplier costs deliberately never leave the pricing layer. The storefront
+     * uses this projection to disable combinations that cannot produce a quote.
+     *
+     * @return list<array<string, string>>
+     */
+    public function matrixCombinations(
+        PrintProductDefinition $definition,
+        string $currencyCode,
+        \DateTimeImmutable $at,
+        ?SupplierRoute $resolvedRoute = null,
+    ): array {
+        $routes = null === $resolvedRoute
+            ? $this->routeRepository->findCandidates($definition->productCode(), $at)
+            : [$resolvedRoute];
+        $supplierProducts = array_map(
+            static fn (SupplierRoute $route) => $route->supplierProduct(),
+            $routes,
+        );
+        $matrices = $this->matrixRepository->findSelectableFor($supplierProducts, $currencyCode, $at);
+        $combinations = [];
+
+        foreach ($matrices as $matrix) {
+            $payload = $matrix->matrix();
+            if (
+                'print.matrix_exact' !== ($payload['calculator'] ?? null) ||
+                $definition->productCode() !== ($payload['product_code'] ?? null) ||
+                $definition->schemaVersion() !== ($payload['product_schema_version'] ?? null)
+            ) {
+                continue;
+            }
+
+            $entries = $payload['entries'] ?? null;
+            if (!is_array($entries)) {
+                continue;
+            }
+            foreach ($entries as $entry) {
+                $configuration = is_array($entry) ? ($entry['configuration'] ?? null) : null;
+                if (!is_array($configuration)) {
+                    continue;
+                }
+
+                $combination = [];
+                foreach ($definition->pricingAxes() as $axis) {
+                    $value = $configuration[$axis] ?? null;
+                    if (!is_scalar($value) || '' === trim((string) $value)) {
+                        continue 2;
+                    }
+                    $combination[$axis] = (string) $value;
+                }
+                $combinations[json_encode($combination, \JSON_THROW_ON_ERROR)] = $combination;
+            }
+        }
+
+        return array_values($combinations);
+    }
+
+    private function valueKey(string|int $value): string
+    {
+        return sprintf('%s:%s', get_debug_type($value), (string) $value);
+    }
+}
