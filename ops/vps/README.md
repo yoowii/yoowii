@@ -48,6 +48,26 @@ Pour vérifier celle du fichier en service :
 sudo bash -n /usr/local/sbin/yoowii-audit-readonly
 ```
 
+## Évolution proposée — contrôles supplémentaires (non installés sur VPS)
+
+La branche `feat/audit-vps-services-queues` ajoute au script versionné, **sans changer la commande forcée SSH ni les règles existantes** :
+
+- Un seul conteneur attendu pour chaque service du projet Compose `yoowii-preprod` : PHP, Nginx, MySQL et Redis ; contrôle `running` et état de healthcheck MySQL/Redis (`healthy` requis).
+- Comparaison des références d'images PHP/Nginx à `YOOWII_IMAGE_TAG` ; images MySQL `mysql:8.4` et Redis `redis:7.4-alpine` selon le manifeste Compose applicatif examiné.
+- Vérification des montages Docker de type `volume` : PHP `/srv/sylius/public/media` et `/srv/sylius/var/private/print` en écriture, Nginx `/srv/sylius/public/media` en lecture seule, MySQL `/var/lib/mysql` en écriture. **Cela ne valide pas l'intégrité du contenu des volumes.**
+- Une seule requête MySQL **`SELECT` agrégée** sur `messenger_messages`, par `queue_name`, affichant `total`, `unreserved` et `reserved`. Aucune sortie SQL non validée n'est imprimée ; aucun message n'est consommé, acquitté ou supprimé. Les noms de file sont limités à des caractères sûrs, et les compteurs doivent être cohérents.
+- **Échec de requête / table manquante : WARN**, jamais un succès de lecture. Un écart d'image, de montage, de santé ou l'absence d'un service essentiel : **FAIL**. Le worker volontairement arrêté et le comportement historique des avertissements HTTP sont conservés.
+
+**Attention :** ces contrôles sont une proposition Git jusqu'à validation, installation root-owned sur VPS et comparaison des empreintes. Ne pas supposer qu'ils sont exécutés par l'audit actuel. Le SQL se contente de compter les lignes ; les 19 messages historiques observés sur la file `default` ne constituent pas une valeur figée ni un seuil d'échec.
+
+### Recette et installation contrôlées (hors de cette PR)
+
+1. Vérifier la syntaxe `bash -n ops/vps/yoowii-audit-readonly`, le diff et le Compose effectivement déployé ; confirmer images, montages et table SQL avant tout remplacement.
+2. Exécuter l'audit **en lecture seule** en tant qu'administrateur, sur une copie temporaire, sans modifier le script forcé existant ; contrôler explicitement les sorties PASS/WARN/FAIL et l'absence de secrets.
+3. Conserver une sauvegarde du script précédent, installer la version revue avec `root:root`, `0755`, puis vérifier `sha256sum` Git ↔ VPS et les restrictions SSH/sudoers.
+4. Relancer [le workflow d'audit existant](../../.github/workflows/audit-vps.yml), comparer le rapport et enregistrer le SHA du commit, l'empreinte SHA-256 et les résultats.
+5. En cas de régression, restaurer uniquement le script d'audit précédent via procédure administrateur ; ne pas changer Docker, les messages, MySQL ou les autres sites Plesk.
+
 ## Maintenance, changements et traçabilité
 
 1. Proposer toute évolution du script dans une PR dédiée et documenter chaque contrôle, son caractère read-only, les sorties et codes de retour.
