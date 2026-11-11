@@ -25,11 +25,11 @@ Depuis le VPS, dans une session administrateur, **remplacer** `COMMIT_AUDITE` ci
 ```bash
 # Préparation : aucune modification du script actif.
 COMMIT_AUDITE='COMMIT_AUDITE'
-test "\${#COMMIT_AUDITE}" -eq 40 || { echo 'SHA Git invalide'; exit 1; }
+test "${#COMMIT_AUDITE}" -eq 40 || { echo 'SHA Git invalide'; exit 1; }
 
 umask 077
 curl --fail --silent --show-error --location \
-  "https://raw.githubusercontent.com/yoowii/yoowii/\${COMMIT_AUDITE}/ops/vps/yoowii-audit-readonly" \
+  "https://raw.githubusercontent.com/yoowii/yoowii/${COMMIT_AUDITE}/ops/vps/yoowii-audit-readonly" \
   -o /tmp/yoowii-audit-readonly-candidate
 
 bash -n /tmp/yoowii-audit-readonly-candidate
@@ -43,6 +43,7 @@ Le `diff` peut normalement retourner 1 quand des contrôles ont été ajoutés. 
 ```bash
 # Depuis un clone de yoowii/yoowii sur votre poste :
 git fetch origin main
+set -o pipefail
 git show COMMIT_AUDITE:ops/vps/yoowii-audit-readonly | sha256sum
 ```
 
@@ -83,7 +84,7 @@ set -Eeuo pipefail
 
 # Sauvegarde distincte et horodatée dans le répertoire protégé, avant remplacement.
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BACKUP="/usr/local/sbin/yoowii-audit-readonly.backup-\${STAMP}"
+BACKUP="/usr/local/sbin/yoowii-audit-readonly.backup-${STAMP}"
 sudo cp -a /usr/local/sbin/yoowii-audit-readonly "$BACKUP"
 sudo stat -c '%U:%G %a %n' "$BACKUP"
 
