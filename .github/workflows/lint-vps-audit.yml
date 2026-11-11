@@ -21,3 +21,5 @@ jobs:
           set -Eeuo pipefail
           bash -n ops/vps/yoowii-audit-readonly
           echo 'PASS: audit Bash syntax valid; audit was NOT executed.'
+      - name: Test local HTTP probe with mocked curl (offline)
+        run: python3 -m unittest discover -s ops/vps/tests -p 'test_*.py' -v
