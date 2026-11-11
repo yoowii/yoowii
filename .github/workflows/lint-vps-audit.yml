@@ -1,0 +1,23 @@
+name: Lint VPS audit script (no VPS access)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/vps/**'
+      - '.github/workflows/lint-vps-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Bash syntax only
+        run: |
+          set -Eeuo pipefail
+          bash -n ops/vps/yoowii-audit-readonly
+          echo 'PASS: audit Bash syntax valid; audit was NOT executed.'
