@@ -1,0 +1,83 @@
+name: Audit Yoowii VPS (read-only)
+
+on:
+  workflow_dispatch:
+
+# This workflow only invokes the fixed SSH authorized_keys forced command.
+# It must never run Docker directly or receive the deployment SSH key.
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Read-only preprod diagnostic
+    runs-on: ubuntu-24.04
+    environment: preprod-audit
+    timeout-minutes: 5
+    concurrency:
+      # Do not inspect the VPS during an image/Compose deployment.
+      group: deploy-yoowii-preprod
+      cancel-in-progress: false
+
+    steps:
+      - name: Connect to restricted audit account
+        shell: bash
+        env:
+          AUDIT_HOST: ${{ secrets.YOOWII_AUDIT_HOST }}
+          AUDIT_SSH_KEY: ${{ secrets.YOOWII_AUDIT_SSH_KEY }}
+          AUDIT_KNOWN_HOSTS: ${{ secrets.YOOWII_AUDIT_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+
+          # Fail closed on missing/invalid settings (especially known_hosts).
+          [[ -n "$AUDIT_HOST" && -n "$AUDIT_SSH_KEY" && -n "$AUDIT_KNOWN_HOSTS" ]] || {
+            echo "Missing audit SSH configuration. No connection attempted." >&2
+            exit 2
+          }
+          [[ "$AUDIT_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9._:-]*$ ]] || {
+            echo "Invalid audit host format." >&2
+            exit 2
+          }
+
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$AUDIT_SSH_KEY" > "$HOME/.ssh/yoowii_audit"
+          printf '%s\n' "$AUDIT_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/yoowii_audit" "$HOME/.ssh/known_hosts"
+          test -s "$HOME/.ssh/known_hosts"
+          ssh-keygen -lf "$HOME/.ssh/known_hosts" >/dev/null || {
+            echo "Invalid known_hosts: verify the VPS fingerprint before running." >&2
+            exit 2
+          }
+          # Independently verified by the VPS administrator on 2026-11-09.
+          ssh-keygen -lf "$HOME/.ssh/known_hosts" |
+            grep -Fq 'SHA256:vfyeiorYFdmJp90VT0UYNeSL2vsJK3ks2woLPH/noQY' || {
+              echo "Known hosts does not contain the pinned VPS ED25519 fingerprint." >&2
+              exit 2
+            }
+          ssh-keygen -F "$AUDIT_HOST" -f "$HOME/.ssh/known_hosts" >/dev/null || {
+            echo "Known hosts has no entry matching the configured audit host." >&2
+            exit 2
+          }
+
+          # The server must enforce a single fixed command in authorized_keys.
+          # Do not accept or interpolate user-supplied shell commands here.
+          # The audit uses exit 1 for non-blocking warnings (e.g., locale
+          # redirect), and exit 2 for failed checks. SSH failures return 255.
+          set +e
+          ssh -T -i "$HOME/.ssh/yoowii_audit" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=15 \
+            -o ConnectionAttempts=1 \
+            "yoowii-audit@$AUDIT_HOST"
+          audit_status=$?
+          set -e
+          case "$audit_status" in
+            0) echo "Read-only audit completed without warnings." ;;
+            1) echo "::warning::Read-only audit reported warnings; inspect diagnostic output." ;;
+            *) echo "::error::Read-only audit failed (status $audit_status)." >&2
+               exit "$audit_status" ;;
+          esac
