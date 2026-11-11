@@ -68,6 +68,11 @@ La branche `feat/audit-vps-services-queues` ajoute au script versionné, **sans 
 4. Relancer [le workflow d'audit existant](../../.github/workflows/audit-vps.yml), comparer le rapport et enregistrer le SHA du commit, l'empreinte SHA-256 et les résultats.
 5. En cas de régression, restaurer uniquement le script d'audit précédent via procédure administrateur ; ne pas changer Docker, les messages, MySQL ou les autres sites Plesk.
 
+
+### Redirection locale HTTP constatée (11/11/2026)
+
+Le VPS répond à `HEAD http://127.0.0.1:8086/fr_FR/` avec `HTTP 302` et `Location: /en_US/` (redirection **relative**, constat fourni par l'administrateur). La reconnaissance de cette réponse est étendue pour produire un **WARN explicite** identique à celui de la forme absolue `http://127.0.0.1:8086/en_US/`. Cela ne classe **pas** le 302 comme un PASS et ne corrige pas le changement de locale : une revue des réglages de routing/localisation Sylius reste distincte. Le script installé sur VPS n'est pas automatiquement remplacé par cette modification Git.
+
 ## Maintenance, changements et traçabilité
 
 1. Proposer toute évolution du script dans une PR dédiée et documenter chaque contrôle, son caractère read-only, les sorties et codes de retour.

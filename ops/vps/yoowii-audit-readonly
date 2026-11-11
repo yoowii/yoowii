@@ -248,7 +248,7 @@ redirect="$(printf '%s\n' "$http_headers" | sed -n 's/^[Ll]ocation:[[:space:]]*\
 printf 'INFO local_http_status=%s\n' "${http_code:-unavailable}"
 if [[ "$http_code" == 200 ]]; then
   ok 'local storefront responds HTTP 200'
-elif [[ "$http_code" == 302 && "$redirect" == "http://127.0.0.1:8086/en_US/" ]]; then
+elif [[ "$http_code" == 302 && ( "$redirect" == "/en_US/" || "$redirect" == "http://127.0.0.1:8086/en_US/" ) ]]; then
   warning 'local /fr_FR/ redirects to /en_US/ on internal HTTP origin; locale and public URL generation need review'
 else
   warning 'local storefront returned unexpected status or redirect; inspect reverse proxy and locale'
