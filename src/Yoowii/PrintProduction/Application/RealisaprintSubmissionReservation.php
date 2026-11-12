@@ -67,6 +67,44 @@ final readonly class RealisaprintSubmissionReservation
         return new RealisaprintSubmissionReservationResult($submission, $attemptToken);
     }
 
+    /**
+     * @param callable(PrintJobSupplierSubmission, PrintJob): void $record
+     */
+    public function finalize(PrintJob $job, PrintJobSupplierSubmission $submission, string $attemptToken, callable $record): bool
+    {
+        $jobId = $job->id();
+        if (null === $jobId || $submission->printJob() !== $job) {
+            throw new \LogicException('A supplier result must belong to its persisted print job.');
+        }
+
+        $completed = false;
+        $connection = $this->entityManager->getConnection();
+        $connection->transactional(function () use ($connection, $jobId, $attemptToken, $submission, $job, $record, &$completed): void {
+            $row = $connection->fetchAssociative(
+                'SELECT status, attempt_id FROM yoowii_print_job_supplier_submission WHERE print_job_id = :job FOR UPDATE',
+                ['job' => $jobId],
+            );
+            if (!is_array($row) || 'submitting' !== $row['status'] || !is_string($row['attempt_id']) || !hash_equals($attemptToken, $row['attempt_id'])) {
+                // Do not flush a stale Doctrine entity over a quarantined result.
+                $this->entityManager->refresh($submission);
+                $this->entityManager->refresh($job);
+
+                return;
+            }
+
+            // The database row is now locked. Restore the actual DB state
+            // before applying the result, and flush the job and submission
+            // together before releasing the lock.
+            $this->entityManager->refresh($submission);
+            $this->entityManager->refresh($job);
+            $record($submission, $job);
+            $this->entityManager->flush();
+            $completed = true;
+        });
+
+        return $completed;
+    }
+
     private function expired(mixed $value, \DateTimeImmutable $now): bool
     {
         if (!$value instanceof \DateTimeInterface) {
