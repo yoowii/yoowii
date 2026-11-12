@@ -76,6 +76,7 @@ final readonly class SubmitPrintJobToRealisaprint
         $responsePayload = null;
         $supplierOrderId = null;
         $requestPayload = $payload;
+
         try {
             if (!$this->client->isEnabled()) {
                 $responsePayload = [
