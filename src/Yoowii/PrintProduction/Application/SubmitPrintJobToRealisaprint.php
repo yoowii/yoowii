@@ -66,12 +66,22 @@ final readonly class SubmitPrintJobToRealisaprint
             return $submission;
         }
 
+        $attemptToken = $reservation->attemptToken();
+        if (null === $attemptToken) {
+            throw new \LogicException('An acquired supplier reservation must have an attempt token.');
+        }
+
+        $outcome = 'simulated';
+        $reason = null;
+        $responsePayload = null;
+        $supplierOrderId = null;
+        $requestPayload = $payload;
         try {
             if (!$this->client->isEnabled()) {
-                $submission->recordSimulation($payload, [
+                $responsePayload = [
                     'simulation' => true,
                     'operations' => null === $prescript ? ['save_configuration', 'create_order'] : ['create_order'],
-                ], $now);
+                ];
             } else {
                 $configurationResponse = null;
                 $configurationCode = $prescript['code'] ?? null;
@@ -80,24 +90,48 @@ final readonly class SubmitPrintJobToRealisaprint
                     $configurationCode = $configurationResponse['code'] ?? null;
                 }
                 if (!is_scalar($configurationCode) || '' === trim((string) $configurationCode)) {
-                    $submission->recordFailure($payload, null === $prescript ? $this->error($configurationResponse, 'Realisaprint did not return a configuration code.') : 'Le code Préscript est invalide.', $now);
-
-                    return $submission;
-                }
-                $response = $this->client->post('create_order', ['code' => (string) $configurationCode] + $orderPayload);
-                $supplierOrderId = $this->supplierOrderId($response);
-                if (null === $supplierOrderId) {
-                    // A malformed or ambiguous create_order response is not proof of rejection.
-                    $submission->awaitConfirmation($payload, $this->error($response, 'Realisaprint did not return a supplier order identifier.'), $now);
+                    $outcome = 'failed';
+                    $reason = null === $prescript ? $this->error($configurationResponse, 'Realisaprint did not return a configuration code.') : 'Le code Préscript est invalide.';
                 } else {
-                    $submission->recordSuccess(array_filter(['save_configuration' => $configurationPayload, 'create_order' => ['code' => (string) $configurationCode] + $orderPayload]), array_filter(['save_configuration' => $configurationResponse, 'create_order' => $response]), $supplierOrderId, $now);
-                    $job->registerSupplierOrder($supplierOrderId, $now);
+                    $orderRequest = ['code' => (string) $configurationCode] + $orderPayload;
+                    $requestPayload = array_filter(['save_configuration' => $configurationPayload, 'create_order' => $orderRequest]);
+                    $response = $this->client->post('create_order', $orderRequest);
+                    $supplierOrderId = $this->supplierOrderId($response);
+                    if (null === $supplierOrderId) {
+                        $outcome = 'pending_confirmation';
+                        $reason = $this->error($response, 'Realisaprint did not return a supplier order identifier.');
+                    } else {
+                        $outcome = 'submitted';
+                        $responsePayload = array_filter(['save_configuration' => $configurationResponse, 'create_order' => $response]);
+                    }
                 }
             }
         } catch (\Throwable $exception) {
-            // After reserving and especially after create_order, transport failure is ambiguous.
-            $submission->awaitConfirmation($payload, $exception->getMessage(), $now);
+            // The supplier may have received the request. Never retry blindly.
+            $outcome = 'pending_confirmation';
+            $reason = $exception->getMessage();
         }
+
+        // Lock, verify the attempt owner and commit the submission and PrintJob
+        // atomically. A late worker cannot overwrite pending_confirmation.
+        $this->reservation->finalize(
+            $job,
+            $submission,
+            $attemptToken,
+            static function (PrintJobSupplierSubmission $currentSubmission, PrintJob $currentJob) use ($outcome, $requestPayload, $responsePayload, $supplierOrderId, $reason): void {
+                $finishedAt = new \DateTimeImmutable();
+                if ('simulated' === $outcome) {
+                    $currentSubmission->recordSimulation($requestPayload, $responsePayload ?? [], $finishedAt);
+                } elseif ('failed' === $outcome) {
+                    $currentSubmission->recordFailure($requestPayload, $reason ?? 'Supplier configuration rejected.', $finishedAt);
+                } elseif ('submitted' === $outcome && null !== $supplierOrderId) {
+                    $currentSubmission->recordSuccess($requestPayload, $responsePayload ?? [], $supplierOrderId, $finishedAt);
+                    $currentJob->registerSupplierOrder($supplierOrderId, $finishedAt);
+                } else {
+                    $currentSubmission->awaitConfirmation($requestPayload, $reason ?? 'Supplier outcome requires confirmation.', $finishedAt);
+                }
+            },
+        );
 
         return $submission;
     }
