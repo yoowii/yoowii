@@ -18,7 +18,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class SubmitPrintJobToRealisaprint
 {
-    public function __construct(private EntityManagerInterface $entityManager, private RealisaprintClient $client, private AssertArtworkPreflightIsReady $assertPreflight, private RealisaprintConfigurationMapper $configurationMapper)
+    public function __construct(private EntityManagerInterface $entityManager, private RealisaprintClient $client, private AssertArtworkPreflightIsReady $assertPreflight, private RealisaprintConfigurationMapper $configurationMapper, private RealisaprintSubmissionReservation $reservation)
     {
     }
 
@@ -34,20 +34,17 @@ final readonly class SubmitPrintJobToRealisaprint
         if (!in_array($supplier->integrationMode(), [SupplierIntegrationMode::Api, SupplierIntegrationMode::Hybrid], true) || !$supplier->supports(SupplierCapability::OrderSubmission)) {
             throw new \DomainException('The selected supplier is not configured for API order submission.');
         }
+        $now = new \DateTimeImmutable();
+        $existing = $this->entityManager->getRepository(PrintJobSupplierSubmission::class)->findOneBy(['printJob' => $job]);
+        // `submitting` must go through the locked reservation: it may be an
+        // expired lease that has to be quarantined, not returned blindly.
+        if ($existing instanceof PrintJobSupplierSubmission && in_array($existing->status(), ['submitted', 'simulated', 'pending_confirmation'], true)) {
+            return $existing;
+        }
         if (PrintJobStatus::BatApproved !== $job->status()) {
             throw new \DomainException('A supplier order can only be transmitted after BAT approval.');
         }
         ($this->assertPreflight)($job);
-
-        $now = new \DateTimeImmutable();
-        $submission = $this->entityManager->getRepository(PrintJobSupplierSubmission::class)->findOneBy(['printJob' => $job]);
-        if (!$submission instanceof PrintJobSupplierSubmission) {
-            $submission = new PrintJobSupplierSubmission($job, 'realisaprint:' . $job->reference(), $now, $now);
-            $this->entityManager->persist($submission);
-        }
-        if ('submitted' === $submission->status()) {
-            return $submission;
-        }
 
         $prescript = $this->prescriptConfiguration($job);
         $configurationPayload = null;
@@ -61,9 +58,17 @@ final readonly class SubmitPrintJobToRealisaprint
         }
         $orderPayload = $this->orderPayload($job, $prescript['quantity'] ?? null);
 
+        $payload = array_filter(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload]);
+
+        $reservation = $this->reservation->reserve($job, $now);
+        $submission = $reservation->submission();
+        if (!$reservation->acquired()) {
+            return $submission;
+        }
+
         try {
             if (!$this->client->isEnabled()) {
-                $submission->recordSimulation(array_filter(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload]), [
+                $submission->recordSimulation($payload, [
                     'simulation' => true,
                     'operations' => null === $prescript ? ['save_configuration', 'create_order'] : ['create_order'],
                 ], $now);
@@ -75,21 +80,23 @@ final readonly class SubmitPrintJobToRealisaprint
                     $configurationCode = $configurationResponse['code'] ?? null;
                 }
                 if (!is_scalar($configurationCode) || '' === trim((string) $configurationCode)) {
-                    $submission->recordFailure(array_filter(['save_configuration' => $configurationPayload]), null === $prescript ? $this->error($configurationResponse, 'Realisaprint did not return a configuration code.') : 'Le code Préscript est invalide.', $now);
+                    $submission->recordFailure($payload, null === $prescript ? $this->error($configurationResponse, 'Realisaprint did not return a configuration code.') : 'Le code Préscript est invalide.', $now);
 
                     return $submission;
                 }
                 $response = $this->client->post('create_order', ['code' => (string) $configurationCode] + $orderPayload);
                 $supplierOrderId = $this->supplierOrderId($response);
                 if (null === $supplierOrderId) {
-                    $submission->recordFailure(array_filter(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload]), $this->error($response, 'Realisaprint did not return a supplier order identifier.'), $now);
+                    // A malformed or ambiguous create_order response is not proof of rejection.
+                    $submission->awaitConfirmation($payload, $this->error($response, 'Realisaprint did not return a supplier order identifier.'), $now);
                 } else {
                     $submission->recordSuccess(array_filter(['save_configuration' => $configurationPayload, 'create_order' => ['code' => (string) $configurationCode] + $orderPayload]), array_filter(['save_configuration' => $configurationResponse, 'create_order' => $response]), $supplierOrderId, $now);
                     $job->registerSupplierOrder($supplierOrderId, $now);
                 }
             }
         } catch (\Throwable $exception) {
-            $submission->recordFailure(array_filter(['save_configuration' => $configurationPayload, 'create_order' => $orderPayload]), $exception->getMessage(), $now);
+            // After reserving and especially after create_order, transport failure is ambiguous.
+            $submission->awaitConfirmation($payload, $exception->getMessage(), $now);
         }
 
         return $submission;
