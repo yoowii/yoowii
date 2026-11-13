@@ -51,7 +51,7 @@ class PrintJobSupplierSubmission
         #[ORM\Column(name: 'idempotency_key', type: Types::STRING, length: 128, unique: true)]
         private readonly string $idempotencyKey,
         #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
-        private readonly \DateTimeImmutable $createdAt,
+        private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'updated_at', type: Types::DATETIME_IMMUTABLE)]
         private \DateTimeImmutable $updatedAt,
     ) {
