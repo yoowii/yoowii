@@ -35,7 +35,10 @@ final class RealisaprintSubmissionMysqlIntegrationTest extends KernelTestCase
         $em = static::getContainer()->get('doctrine.orm.entity_manager');
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $db = $em->getConnection();
-        self::assertSame('yoowii_issue28_test', $db->fetchOne('SELECT DATABASE()'));
+        self::assertSame('test', static::getContainer()->getParameter('kernel.environment'));
+        $databaseName = $db->fetchOne('SELECT DATABASE()');
+        self::assertIsString($databaseName);
+        self::assertMatchesRegularExpression('/(?:^test_|_test$|_test_)/D', $databaseName, 'Integration tests must use an isolated test database.');
         $otherDb = DriverManager::getConnection($db->getParams());
         $other = new EntityManager($otherDb, $em->getConfiguration());
         self::assertNotSame($db->fetchOne('SELECT CONNECTION_ID()'), $otherDb->fetchOne('SELECT CONNECTION_ID()'));
