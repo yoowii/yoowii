@@ -1,3 +1,17 @@
-<aside class="lg:sticky lg:top-6 lg:self-start">
-    {{ knp_menu_render('sylius_shop.account', {'template': '@SyliusShop/account/menu/content.html.twig'}) }}
+{# Keep the existing Sylius account menu (routes and permissions) for both breakpoints. #}
+<aside class="min-w-0 lg:col-start-1 lg:row-start-2 lg:sticky lg:top-6 lg:self-start" aria-label="{{ 'sylius.ui.my_account'|trans }}">
+    <div class="lg:hidden">
+        <details class="group rounded-box border border-base-300 bg-base-100 shadow-sm">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 rounded-box px-4 py-3 font-semibold text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <span>{{ 'sylius.ui.my_account'|trans }}</span>
+                <span aria-hidden="true" class="text-primary transition-transform group-open:rotate-180">⌄</span>
+            </summary>
+            <div class="border-t border-base-300 px-2 py-2">
+                {{ knp_menu_render('sylius_shop.account', {'template': '@SyliusShop/account/menu/content.html.twig'}) }}
+            </div>
+        </details>
+    </div>
+    <div class="hidden lg:block">
+        {{ knp_menu_render('sylius_shop.account', {'template': '@SyliusShop/account/menu/content.html.twig'}) }}
+    </div>
 </aside>
