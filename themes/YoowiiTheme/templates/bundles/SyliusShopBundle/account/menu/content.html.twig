@@ -1,21 +1,32 @@
 {% extends 'knp_menu.html.twig' %}
 
 {% block root %}
-    <div class="mb-3 px-3 text-sm font-semibold uppercase tracking-wide text-base-content/60">{{ item.label|trans }}</div>
+    <div class="mb-3 hidden px-3 text-sm font-semibold uppercase tracking-wide text-base-content/60 lg:block">{{ item.label|trans }}</div>
     {{ block('list') }}
 {% endblock %}
 
 {% block list %}
-    <div class="menu rounded-box border border-base-300 bg-base-100 p-2 shadow-sm">
-        {% for item in item.children %}
-            {{ block('item') }}
-        {% endfor %}
-    </div>
+    <nav class="rounded-box border-0 bg-base-100 p-1 lg:border lg:border-base-300 lg:p-2 lg:shadow-sm" aria-label="{{ 'sylius.ui.my_account'|trans }}">
+        <ul class="flex flex-col gap-1">
+            {% for item in item.children %}
+                {{ block('item') }}
+            {% endfor %}
+        </ul>
+    </nav>
 {% endblock %}
 
 {% block item %}
-    <a class="flex items-center gap-2 rounded-btn px-3 py-2 transition-colors hover:bg-base-200 hover:text-primary" href="{{ item.uri }}">
-        {{ ux_icon(item.labelAttributes.icon, {'class': 'size-5'}) }}
-        {{ item.label|trans }}
-    </a>
+    {% set active = item.current or item.currentAncestor %}
+    <li>
+        <a
+            class="flex min-h-11 min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium leading-5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {{ active ? 'bg-primary/10 font-semibold text-primary' : 'text-base-content hover:bg-base-200 hover:text-primary' }}"
+            href="{{ item.uri }}"
+            {% if item.current %}aria-current="page"{% endif %}
+        >
+            {% if item.labelAttributes.icon is defined %}
+                {{ ux_icon(item.labelAttributes.icon, {'class': 'size-5 shrink-0', 'aria-hidden': 'true'}) }}
+            {% endif %}
+            <span class="min-w-0 break-words">{{ item.label|trans }}</span>
+        </a>
+    </li>
 {% endblock %}
