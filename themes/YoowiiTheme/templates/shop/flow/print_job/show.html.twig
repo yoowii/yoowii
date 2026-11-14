@@ -71,11 +71,10 @@
                                 <strong class="break-all text-base-content" data-print-upload-target="label">{{ 'yoowii.print_flow.drop_file'|trans }}</strong>
                                 <span class="text-sm text-base-content/65">{{ 'yoowii.print_flow.or_choose_file'|trans }}</span>
                             </label>
-                            {# Legacy d-none class retained for the existing Stimulus controller; upload UX is addressed in #38. #}
-                            <div class="d-none mt-3 h-6 overflow-hidden rounded-full bg-base-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-print-upload-target="progress">
+                            <div class="hidden mt-3 h-6 overflow-hidden rounded-full bg-base-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-print-upload-target="progress">
                                 <div class="h-full min-w-0 rounded-full bg-primary text-center text-xs leading-6 text-primary-content" style="width: 0%" data-print-upload-target="bar">0%</div>
                             </div>
-                            <div class="d-none alert alert-error mt-3" role="alert" data-print-upload-target="error"></div>
+                            <div class="hidden alert alert-error mt-3" role="alert" data-print-upload-target="error"></div>
                             <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-base-content">
                                 <input class="checkbox checkbox-primary mt-0.5" type="checkbox" name="artwork_confirmation" value="1" required>
                                 <span>{{ 'yoowii.print_flow.artwork_confirmation'|trans }}</span>
