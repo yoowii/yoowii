@@ -31,11 +31,11 @@ class PrintPreflightReport
     public function __construct(
         #[ORM\OneToOne]
         #[ORM\JoinColumn(name: 'print_asset_id', nullable: false, onDelete: 'CASCADE')]
-        private readonly PrintAsset $printAsset,
+        private PrintAsset $printAsset,
         #[ORM\Column(name: 'asset_checksum', type: Types::STRING, length: 64)]
-        private readonly string $assetChecksum,
+        private string $assetChecksum,
         #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
-        private readonly \DateTimeImmutable $createdAt,
+        private \DateTimeImmutable $createdAt,
     ) {
     }
 
