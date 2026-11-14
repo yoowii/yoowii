@@ -1051,7 +1051,7 @@
         color: var(--color-base-content);
     }
 
-    .yoowii-print-timeline li.is-complete > span,
+    .yoowii-print-timeline li.is-complete > span:first-child,
     .yoowii-print-timeline li.is-complete::before {
         border-color: var(--color-success);
         background: var(--color-success);
