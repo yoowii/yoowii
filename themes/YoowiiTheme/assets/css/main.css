@@ -1035,7 +1035,7 @@
         display: none;
     }
 
-    .yoowii-print-timeline li > span {
+    .yoowii-print-timeline li > span:first-child {
         position: relative;
         z-index: 1;
         width: 0.9rem;
@@ -1058,7 +1058,29 @@
     }
 
     .yoowii-print-timeline li.is-current {
+        color: var(--color-base-content);
         font-weight: 700;
+    }
+
+    .yoowii-print-timeline li.is-current > span:first-child {
+        border-color: var(--color-primary);
+        background: var(--color-base-100);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+    }
+
+    .yoowii-print-timeline li.is-complete > span:first-child::after {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--color-success-content);
+        font-size: 0.65rem;
+        font-weight: 900;
+        content: '✓';
+    }
+
+    .yoowii-print-timeline li[aria-current='step'] {
+        scroll-margin-top: 6rem;
     }
 
     @media (max-width: 640px) {
