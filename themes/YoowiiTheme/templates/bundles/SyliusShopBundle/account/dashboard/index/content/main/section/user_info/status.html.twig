@@ -1,7 +1,5 @@
-<div class="absolute right-0">
-    {% if hookable_metadata.context.customer.user.verified %}
-        <span class="badge badge-primary">{{ 'sylius.ui.verified'|trans }}</span>
-    {% else %}
-        <span class="badge badge-danger">{{ 'sylius.ui.not_verified'|trans }}</span>
-    {% endif %}
-</div>
+{% if hookable_metadata.context.customer.user.verified %}
+    <span class="badge badge-success shrink-0">{{ 'sylius.ui.verified'|trans }}</span>
+{% else %}
+    <span class="badge badge-warning shrink-0">{{ 'sylius.ui.not_verified'|trans }}</span>
+{% endif %}
