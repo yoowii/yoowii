@@ -37,7 +37,7 @@ export default class extends Controller {
         event.preventDefault();
         this.clearError();
         this.submitTarget.disabled = true;
-        this.progressTarget.classList.remove('d-none');
+        this.progressTarget.classList.remove('hidden', 'd-none');
 
         const request = new XMLHttpRequest();
         request.open('POST', this.formTarget.action);
@@ -68,13 +68,13 @@ export default class extends Controller {
 
     showError(message) {
         this.errorTarget.textContent = message;
-        this.errorTarget.classList.remove('d-none');
-        this.progressTarget.classList.add('d-none');
+        this.errorTarget.classList.remove('hidden', 'd-none');
+        this.progressTarget.classList.add('hidden', 'd-none');
     }
 
     clearError() {
         this.errorTarget.textContent = '';
-        this.errorTarget.classList.add('d-none');
+        this.errorTarget.classList.add('hidden', 'd-none');
     }
 
     formatSize(bytes) {

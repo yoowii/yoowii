@@ -6,13 +6,13 @@
 {% endfor %}
 
 {% if has_print and order.paymentState == 'paid' %}
-    <div class="alert alert-primary d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 my-4">
-        <div>
-            <strong class="d-block">{{ 'yoowii.print_flow.thank_you_title'|trans }}</strong>
-            <span>{{ 'yoowii.print_flow.thank_you_hint'|trans }}</span>
+    <section class="my-5 flex min-w-0 flex-col gap-4 rounded-2xl border border-primary/20 bg-base-200 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div class="min-w-0">
+            <h2 class="font-bold text-base-content">{{ 'yoowii.print_flow.thank_you_title'|trans }}</h2>
+            <p class="mt-1 text-sm text-base-content/70">{{ 'yoowii.print_flow.thank_you_hint'|trans }}</p>
         </div>
-        <a class="btn btn-primary text-nowrap" href="{{ path('yoowii_shop_flow_order_print_files', {_locale: app.request.locale, tokenValue: order.tokenValue}) }}">
+        <a class="btn btn-primary shrink-0" href="{{ path('yoowii_shop_flow_order_print_files', {_locale: app.request.locale, tokenValue: order.tokenValue}) }}">
             {{ 'yoowii.print_flow.upload_my_files'|trans }}
         </a>
-    </div>
+    </section>
 {% endif %}
