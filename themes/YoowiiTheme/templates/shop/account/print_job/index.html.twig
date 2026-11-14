@@ -3,18 +3,37 @@
 {% block title %}Mes impressions | {{ parent() }}{% endblock %}
 
 {% block content %}
-    <div class="container py-5">
-        <p class="text-uppercase text-primary fw-semibold mb-2">Yoowii Flow</p>
-        <h1 class="display-6 mb-4">Mes impressions</h1>
-        <div class="row g-3">
-            {% for job in jobs %}
-                <div class="col-12"><article class="card border-0 shadow-sm"><div class="card-body d-md-flex align-items-center justify-content-between gap-3 p-4">
-                    <div><h2 class="h5 mb-1">{{ job.orderItem.productName }}</h2><p class="text-secondary mb-0">{{ job.reference }} · {{ job.orderItem.quantity }} exemplaire{{ job.orderItem.quantity > 1 ? 's' }}</p></div>
-                    <div class="d-flex align-items-center gap-3"><span class="yoowii-print-status is-{{ job.status.value }}">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span><a class="btn btn-primary" href="{{ path('yoowii_shop_flow_print_job_show', {_locale: app.request.locale, reference: job.reference}) }}">Ouvrir le suivi</a></div>
-                </div></article></div>
-            {% else %}
-                <div class="col-12"><div class="alert alert-info">Vous n’avez pas encore de dossier d’impression.</div></div>
-            {% endfor %}
-        </div>
+    <div class="mx-auto my-8 grid w-full max-w-7xl grid-cols-1 items-start gap-6 px-4 sm:px-6 lg:my-12 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8 lg:px-8">
+        <aside class="min-w-0 lg:sticky lg:top-6" aria-label="{{ 'sylius.ui.my_account'|trans }}">
+            {{ knp_menu_render('sylius_shop.account', {'template': '@SyliusShop/account/menu/content.html.twig'}) }}
+        </aside>
+        <main class="min-w-0">
+            <header class="mb-6">
+                <p class="mb-2 text-xs font-bold uppercase tracking-widest text-primary">Yoowii Flow</p>
+                <h1 class="text-2xl font-extrabold tracking-tight text-base-content sm:text-3xl">Mes impressions</h1>
+                <p class="mt-2 text-sm text-base-content/65">Retrouvez vos dossiers d'impression et leur suivi.</p>
+            </header>
+            <div class="grid min-w-0 gap-4">
+                {% for job in jobs %}
+                    <article class="min-w-0 rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm sm:p-6">
+                        <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">{{ job.reference }}</p>
+                                <h2 class="break-words text-lg font-bold text-base-content">{{ job.orderItem.productName }}</h2>
+                                <p class="mt-1 text-sm text-base-content/65">{{ 'yoowii.print_flow.quantity'|trans({'%quantity%': job.orderItem.quantity}) }}</p>
+                            </div>
+                            <div class="flex shrink-0 flex-wrap items-center gap-3">
+                                <span class="yoowii-print-status is-{{ job.status.value }}">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span>
+                                <a class="btn btn-primary" href="{{ path('yoowii_shop_flow_print_job_show', {_locale: app.request.locale, reference: job.reference}) }}">Ouvrir le suivi</a>
+                            </div>
+                        </div>
+                    </article>
+                {% else %}
+                    <div class="rounded-2xl border border-base-300 bg-base-100 p-8 text-center text-base-content/70" role="status">
+                        {{ 'yoowii.print_flow.no_jobs'|trans }}
+                    </div>
+                {% endfor %}
+            </div>
+        </main>
     </div>
 {% endblock %}
