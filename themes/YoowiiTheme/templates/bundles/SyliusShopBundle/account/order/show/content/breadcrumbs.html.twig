@@ -2,7 +2,7 @@
 
 {% set order = hookable_metadata.context.order %}
 
-<div class="col-span-12">
+<div class="col-span-full min-w-0">
     {{ breadcrumbs([
         {label: 'sylius.ui.home'|trans, path: path('sylius_shop_homepage')},
         {label: 'sylius.ui.my_account'|trans, path: path('sylius_shop_account_dashboard')},
