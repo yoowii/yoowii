@@ -9,6 +9,7 @@
     {% for step in steps %}
         {% if step == job.status.value %}{% set current_step = loop.index0 %}{% endif %}
     {% endfor %}
+    {% set interrupted = job.status.value in ['blocked', 'cancelled'] %}
 
     <div class="yoowii-print-flow mx-auto my-8 w-full max-w-7xl px-4 sm:px-6 lg:my-12 lg:px-8">
         <div class="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-8">
@@ -147,12 +148,30 @@
             <aside class="min-w-0 lg:sticky lg:top-6" aria-label="{{ 'yoowii.print_flow.follow_up'|trans }}">
                 <section class="yoowii-print-flow-summary rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm sm:p-6">
                     <h2 class="mb-3 text-lg font-bold">{{ 'yoowii.print_flow.follow_up'|trans }}</h2>
-                    <span class="yoowii-print-status is-{{ job.status.value }} mb-5">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span>
-                    <ol class="yoowii-print-timeline m-0 list-none p-0">
+                    <span class="yoowii-print-status is-{{ job.status.value }} mb-4">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span>
+                    {% if interrupted %}
+                        <p class="mb-4 rounded-lg border border-error/30 bg-error/5 p-3 text-sm text-base-content" role="status">
+                            {% if job.status.value == 'blocked' %}
+                                Le suivi de ce dossier est actuellement bloqué. Consultez les messages ci-dessous ou contactez Yoowii pour connaître la suite.
+                            {% else %}
+                                Ce dossier d'impression a été annulé. Les prochaines étapes de production ne sont plus programmées.
+                            {% endif %}
+                        </p>
+                    {% else %}
+                        <p class="mb-4 text-sm text-base-content/65" role="status">
+                            {{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}
+                        </p>
+                    {% endif %}
+                    <ol class="yoowii-print-timeline m-0 list-none p-0" aria-label="{{ 'yoowii.print_flow.follow_up'|trans }}">
                         {% for step in steps %}
-                            <li class="{{ current_step >= loop.index0 ? 'is-complete' : '' }}{{ current_step == loop.index0 ? ' is-current' : '' }}">
+                            {% set is_current = not interrupted and current_step == loop.index0 %}
+                            {% set is_past = not interrupted and current_step > loop.index0 %}
+                            <li class="{{ is_past ? 'is-complete' : '' }}{{ is_current ? ' is-current' : '' }}" {% if is_current %}aria-current="step"{% endif %}>
                                 <span aria-hidden="true"></span>
-                                {{ ('yoowii.print_flow.status.' ~ step)|trans }}
+                                <span class="min-w-0 break-words">
+                                    {{ ('yoowii.print_flow.status.' ~ step)|trans }}
+                                    {% if is_current %}<span class="block text-xs font-medium text-primary">Étape en cours</span>{% endif %}
+                                </span>
                             </li>
                         {% endfor %}
                     </ol>
