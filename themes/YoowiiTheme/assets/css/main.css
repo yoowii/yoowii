@@ -1116,3 +1116,10 @@
         vertical-align: middle;
     }
 }
+
+/* Compatibility with the existing print-upload Stimulus controller until issue #38. */
+@layer components {
+    .yoowii-print-flow .d-none {
+        display: none;
+    }
+}
