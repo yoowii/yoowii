@@ -16,12 +16,13 @@
 {% endblock %}
 
 {% block item %}
-    {% set active = item.current or item.currentAncestor %}
+    {% set current = matcher.isCurrent(item) %}
+    {% set active = current or matcher.isAncestor(item) %}
     <li>
         <a
             class="flex min-h-11 min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium leading-5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {{ active ? 'bg-primary/10 font-semibold text-primary' : 'text-base-content hover:bg-base-200 hover:text-primary' }}"
             href="{{ item.uri }}"
-            {% if item.current %}aria-current="page"{% endif %}
+            {% if current %}aria-current="page"{% endif %}
         >
             {% if item.labelAttributes.icon is defined %}
                 {{ ux_icon(item.labelAttributes.icon, {'class': 'size-5 shrink-0', 'aria-hidden': 'true'}) }}
