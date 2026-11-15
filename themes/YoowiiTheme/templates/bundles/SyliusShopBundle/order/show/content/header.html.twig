@@ -3,9 +3,18 @@
 
 <div class="mb-6 rounded-box border border-base-300 bg-base-100 p-5 shadow-sm sm:p-6">
     <h1 class="text-2xl font-bold tracking-tight">{{ 'sylius.ui.summary_of_your_order'|trans }} #{{ order.number }}</h1>
-    <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-base-content/65">
-        {{ order.checkoutCompletedAt|date }}
-        {{ money.convertAndFormat(order.total) }}
-        {{ order.totalQuantity }} {{ 'sylius.ui.items'|trans|lower }}
+    <div class="mt-5 grid gap-3 text-sm sm:grid-cols-3" aria-label="{{ 'yoowii.storefront.order_summary.details'|trans }}">
+        <div class="rounded-box bg-base-200/60 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{{ 'yoowii.storefront.order_summary.placed_on'|trans }}</p>
+            <time class="mt-1 block font-medium text-base-content" datetime="{{ order.checkoutCompletedAt|date('c') }}">{{ order.checkoutCompletedAt|format_datetime('long', 'short') }}</time>
+        </div>
+        <div class="rounded-box bg-base-200/60 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{{ 'yoowii.storefront.order_summary.total'|trans }}</p>
+            <p class="mt-1 text-base font-bold text-base-content">{{ money.convertAndFormat(order.total) }}</p>
+        </div>
+        <div class="rounded-box bg-base-200/60 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{{ 'yoowii.storefront.order_summary.products'|trans }}</p>
+            <p class="mt-1 text-base font-bold text-base-content">{{ order.totalQuantity }} {{ 'sylius.ui.items'|trans|lower }}</p>
+        </div>
     </div>
 </div>

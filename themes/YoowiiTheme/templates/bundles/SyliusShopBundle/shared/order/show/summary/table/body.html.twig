@@ -3,5 +3,8 @@
         <tr {{ sylius_test_html_attribute('product-row', item.productName) }}>
             {% hook 'body' with { item } %}
         </tr>
+        {% if item.variant.product.fulfillmentType.value|default('') == 'print' and item.pricingSnapshot %}
+            <tr><td colspan="4">{% include 'shop/cart/index/content/form/sections/general/items/body/_print_details.html.twig' with { pricing_snapshot: item.pricingSnapshot } only %}</td></tr>
+        {% endif %}
     {% endfor %}
 </tbody>
