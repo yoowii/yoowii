@@ -24,6 +24,7 @@ final class PrintPreflightReportRefreshIntegrationTest extends KernelTestCase
         self::assertMatchesRegularExpression('/(?:^test_|_test$|_test_)/D', $databaseName);
 
         $createdSchema = false;
+        $productId = $orderId = $itemId = $jobId = null;
 
         try {
             if (!$connection->createSchemaManager()->tablesExist(['yoowii_print_preflight_report'])) {
@@ -32,7 +33,23 @@ final class PrintPreflightReportRefreshIntegrationTest extends KernelTestCase
                 $createdSchema = true;
             }
 
-            $connection->executeStatement("INSERT INTO yoowii_print_asset (print_job_id, type, original_name, storage_key, mime_type, size, checksum, created_at) VALUES (1, 'customer_artwork', 'test.pdf', 'ci-only/refresh-test.pdf', 'application/pdf', 1, ?, NOW())", [str_repeat('a', 64)]);
+            if (!$createdSchema) {
+                // The normal test schema enforces the asset-to-job foreign key.
+                // Create the minimal aggregate graph rather than bypassing it.
+                $suffix = bin2hex(random_bytes(8));
+                $connection->executeStatement("INSERT INTO sylius_product (code, created_at, enabled, variant_selection_method) VALUES (?, NOW(), 1, 'choice')", [$suffix]);
+                $productId = $connection->lastInsertId();
+                $connection->executeStatement('INSERT INTO sylius_product_variant (product_id, code, created_at, position, enabled, on_hold, on_hand, tracked, shipping_required) VALUES (?, ?, NOW(), 0, 1, 0, 0, 0, 0)', [$productId, $suffix]);
+                $variantId = $connection->lastInsertId();
+                $connection->executeStatement("INSERT INTO sylius_order (state, items_total, adjustments_total, total, created_at, currency_code, locale_code, checkout_state, payment_state, shipping_state, abandoned_email) VALUES ('cart', 0, 0, 0, NOW(), 'EUR', 'fr_FR', 'cart', 'cart', 'cart', 0)");
+                $orderId = $connection->lastInsertId();
+                $connection->executeStatement('INSERT INTO sylius_order_item (order_id, variant_id, quantity, unit_price, units_total, adjustments_total, total, is_immutable) VALUES (?, ?, 1, 0, 0, 0, 0, 0)', [$orderId, $variantId]);
+                $itemId = $connection->lastInsertId();
+                $connection->executeStatement("INSERT INTO yoowii_print_job (order_item_id, reference, supplier_code, supplier_product_code, production_snapshot, status, created_at, updated_at) VALUES (?, ?, 'test', 'test', '{}', 'awaiting_files', NOW(), NOW())", [$itemId, 'TEST-' . $suffix]);
+                $jobId = $connection->lastInsertId();
+            }
+
+            $connection->executeStatement("INSERT INTO yoowii_print_asset (print_job_id, type, original_name, storage_key, mime_type, size, checksum, created_at) VALUES (?, 'customer_artwork', 'test.pdf', 'ci-only/refresh-test.pdf', 'application/pdf', 1, ?, NOW())", [$jobId ?? 1, str_repeat('a', 64)]);
             $assetId = $connection->lastInsertId();
             $connection->executeStatement("INSERT INTO yoowii_print_preflight_report (print_asset_id, status, report, asset_checksum, created_at) VALUES (?, 'pending', '{}', ?, NOW())", [$assetId, str_repeat('a', 64)]);
             $reportId = (int) $connection->lastInsertId();
@@ -52,6 +69,11 @@ final class PrintPreflightReportRefreshIntegrationTest extends KernelTestCase
             if ($createdSchema) {
                 $connection->executeStatement('DROP TABLE yoowii_print_preflight_report');
                 $connection->executeStatement('DROP TABLE yoowii_print_asset');
+            } elseif (null !== $jobId) {
+                $connection->executeStatement('DELETE FROM yoowii_print_job WHERE id = ?', [$jobId]);
+                $connection->executeStatement('DELETE FROM sylius_order_item WHERE id = ?', [$itemId]);
+                $connection->executeStatement('DELETE FROM sylius_order WHERE id = ?', [$orderId]);
+                $connection->executeStatement('DELETE FROM sylius_product WHERE id = ?', [$productId]);
             }
         }
     }
