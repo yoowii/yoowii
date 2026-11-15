@@ -1038,9 +1038,13 @@
     .yoowii-print-timeline li > span:first-child {
         position: relative;
         z-index: 1;
+        display: inline-flex;
         width: 0.9rem;
         height: 0.9rem;
         flex: 0 0 0.9rem;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
         margin-top: 0.1rem;
         border: 2px solid var(--color-base-300);
         border-radius: 9999px;
@@ -1068,15 +1072,11 @@
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
     }
 
-    .yoowii-print-timeline li.is-complete > span:first-child::after {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
+    .yoowii-print-timeline li.is-complete > span:first-child svg {
+        display: block;
+        width: 0.6rem;
+        height: 0.6rem;
         color: var(--color-success-content);
-        font-size: 0.65rem;
-        font-weight: 900;
-        content: '✓';
     }
 
     .yoowii-print-timeline li[aria-current='step'] {

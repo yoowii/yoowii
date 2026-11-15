@@ -22,9 +22,10 @@
                 {% endfor %}
 
                 <header class="mb-6">
-                    <p class="mb-2 text-xs font-bold uppercase tracking-widest text-primary">Yoowii Flow</p>
                     <h1 class="break-words text-2xl font-extrabold tracking-tight text-base-content sm:text-3xl">{{ item.productName }}</h1>
-                    <p class="mt-2 text-sm text-base-content/65">{{ job.reference }} · {{ 'yoowii.print_flow.quantity'|trans({'%quantity%': item.quantity}) }}</p>
+                    {% set configuration = item.pricingSnapshot ? item.pricingSnapshot.configuration : {} %}
+                    {% set quantity = configuration.sourcing.provider_quantity|default(configuration.quantity|default(configuration.options.quantity|default(null))) %}
+                    <p class="mt-2 text-sm text-base-content/65">{{ job.reference }}{% if quantity is not null %} · {{ 'yoowii.print_flow.quantity'|trans({'%quantity%': quantity|number_format(0, ',', ' ')}) }}{% endif %}</p>
                 </header>
 
                 {% if job.canAcceptCustomerArtwork %}
@@ -167,7 +168,7 @@
                             {% set is_current = not interrupted and current_step == loop.index0 %}
                             {% set is_past = not interrupted and current_step > loop.index0 %}
                             <li class="{{ is_past ? 'is-complete' : '' }}{{ is_current ? ' is-current' : '' }}" {% if is_current %}aria-current="step"{% endif %}>
-                                <span aria-hidden="true"></span>
+                                <span aria-hidden="true">{% if is_past %}<svg viewBox="0 0 16 16" fill="none" focusable="false"><path d="m3.5 8.25 2.75 2.75L12.5 4.75" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25"/></svg>{% endif %}</span>
                                 <span class="min-w-0 break-words">
                                     {{ ('yoowii.print_flow.status.' ~ step)|trans }}
                                     {% if is_current %}<span class="block text-xs font-medium text-primary">Étape en cours</span>{% endif %}
