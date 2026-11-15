@@ -43,6 +43,51 @@ jobs:
             YOOWII_PHP_IMAGE=ghcr.io/yoowii/yoowii-php:sha-${{ github.sha }}
           tags: ghcr.io/yoowii/yoowii-nginx:sha-${{ github.sha }}
 
+      - name: Verify both published GHCR image manifests
+        if: github.ref == 'refs/heads/preprod'
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          for image in yoowii-php yoowii-nginx; do
+            docker buildx imagetools inspect "ghcr.io/yoowii/${image}:sha-${RELEASE_SHA}" >/dev/null
+            echo "Verified GHCR manifest: ${image}:sha-${RELEASE_SHA}"
+          done
+          {
+            echo "## GHCR preprod release verified"
+            echo ""
+            echo "Both PHP and Nginx manifests exist for \`${RELEASE_SHA}\`."
+            echo "Publishing images does **not** deploy to the VPS."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Propose verified release to infra-deploy
+        if: github.ref == 'refs/heads/preprod'
+        env:
+          INFRA_DISPATCH_TOKEN: ${{ secrets.INFRA_REPOSITORY_DISPATCH_TOKEN }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          if [[ -z "$INFRA_DISPATCH_TOKEN" ]]; then
+            echo "::warning::INFRA_REPOSITORY_DISPATCH_TOKEN is not configured. GHCR build is verified, but no deployment proposal was sent."
+            echo "Infra handoff: not configured (no VPS deployment)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # The cross-repository token must have Contents:write on yoowii/infra-deploy only.
+          payload="$(jq -nc --arg sha "$RELEASE_SHA" '{
+            event_type: "yoowii_preprod_images_published",
+            client_payload: {sha: $sha, source_repository: "yoowii/yoowii", source_ref: "refs/heads/preprod"}
+          }')"
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${INFRA_DISPATCH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --data "$payload" \
+            "https://api.github.com/repos/yoowii/infra-deploy/dispatches"
+          echo "Infra deployment proposal requested for ${RELEASE_SHA} (human approval required)." >> "$GITHUB_STEP_SUMMARY"
+
+
 # Intentionally no deploy job here: publication does not imply promotion.
 # Promote a verified image SHA through the separate, manually dispatched
 # Deploy Yoowii preprod workflow after explicit operational approval.
