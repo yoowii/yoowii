@@ -1,1 +1,8 @@
-<td class="text-right">{{ hookable_metadata.context.item.quantity }}</td>
+{% set item = hookable_metadata.context.item %}
+{% if item.variant.product.fulfillmentType.value|default('') == 'print' %}
+    {% set configuration = item.pricingSnapshot ? item.pricingSnapshot.configuration : {} %}
+    {% set quantity = configuration.sourcing.provider_quantity|default(configuration.quantity|default(configuration.options.quantity|default(null))) %}
+    <td class="text-right">{{ quantity is not null ? quantity|number_format(0, ',', ' ') ~ ' exemplaires' : '—' }}</td>
+{% else %}
+    <td class="text-right">{{ item.quantity }}</td>
+{% endif %}

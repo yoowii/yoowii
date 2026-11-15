@@ -55,7 +55,7 @@ docker compose run --rm php bin/console cache:clear
 docker compose run --rm php bin/console debug:router | grep yoowii_admin_sourcing
 docker compose run --rm php bin/console lint:twig templates/admin/sourcing
 docker compose run --rm php bin/console lint:container
-docker compose run --rm php bin/phpunit tests/Yoowii
+docker compose run --rm php vendor/bin/phpunit tests/Yoowii
 docker compose run --rm php vendor/bin/phpstan analyse
 docker compose run --rm php bin/console doctrine:schema:validate
 ```
