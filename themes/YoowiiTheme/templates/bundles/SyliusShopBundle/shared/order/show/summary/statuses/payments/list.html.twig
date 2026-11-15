@@ -1,7 +1,7 @@
 {% for payment in hookable_metadata.context.order.payments %}
-    <div class="flex flex-col gap-2 mt-4">
-        <div class="flex gap-4">
-            {% hook 'list' with {payment} %}
+    <div class="mt-3 min-w-0">
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+            {% hook 'list' with { payment } %}
         </div>
     </div>
 {% endfor %}

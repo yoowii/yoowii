@@ -4,3 +4,10 @@
 {% set attrs = { resources } %}
 
 {% block title %}{{ 'sylius.ui.order_history'|trans }} | {{ parent() }}{% endblock %}
+
+{# Scope responsive styling to the order grid without replacing Sylius grid hooks. #}
+{% block content %}
+    <div class="yoowii-order-history min-w-0 w-full">
+        {{ parent() }}
+    </div>
+{% endblock %}

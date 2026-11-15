@@ -32,6 +32,11 @@ yoowii:
         PRINT_FLYER: Flyers
         PRINT_BUSINESS_CARD: Cartes de visite
     storefront:
+        order_summary:
+            details: Détails de la commande
+            placed_on: Commandée le
+            total: Total
+            products: Produits
         mega_menu:
             navigation_label: Navigation principale
             mobile_navigation_label: Navigation mobile
@@ -72,6 +77,11 @@ yoowii:
         add_to_cart: Ajouter au panier
         price_excluding_tax: HT
     print_flow:
+        order_date: Commandée le
+        view_order: 'Voir la commande n° %number%'
+        quantity_unavailable: Quantité non disponible
+        copy_one: '%quantity% exemplaire'
+        copy_many: '%quantity% exemplaires'
         my_print_files: Mes fichiers d’impression
         order_hint: 'Commande %number% : déposez et suivez les fichiers de chaque produit imprimé.'
         thank_you_title: Votre commande nécessite des fichiers d’impression

@@ -1,7 +1,7 @@
 {% set default_address = hookable_metadata.context.default_address|default(null) %}
 
-<div {{ sylius_test_html_attribute('addresses') }}>
-    {% for address in hookable_metadata.context.addresses|filter(address => default_address is null or address.id != default_address.id|default()) %}
+<div class="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2" {{ sylius_test_html_attribute('addresses') }}>
+    {% for address in hookable_metadata.context.addresses|filter(address => default_address is null or address.id != default_address.id) %}
         {% hook 'list' with { address } %}
     {% endfor %}
 </div>
