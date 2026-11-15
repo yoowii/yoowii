@@ -2,7 +2,7 @@ name: Build Yoowii preprod images
 
 on:
   push:
-    branches: [chore/ci-cd]
+    branches: [preprod]
   workflow_dispatch:
 
 permissions:
