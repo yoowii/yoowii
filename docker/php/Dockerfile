@@ -6,6 +6,7 @@ USER root
 # PDF preflight requires Poppler's command-line utilities and Ghostscript.
 # Redis backs the shared Realisaprint cache, locks and request throttle.
 RUN apk add --no-cache poppler-utils ghostscript $PHPIZE_DEPS \
+    && docker-php-ext-install pcntl \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del $PHPIZE_DEPS

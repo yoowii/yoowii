@@ -32,6 +32,11 @@ yoowii:
         PRINT_FLYER: Flyers
         PRINT_BUSINESS_CARD: Business cards
     storefront:
+        order_summary:
+            details: Order details
+            placed_on: Placed on
+            total: Total
+            products: Products
         mega_menu:
             navigation_label: Main navigation
             mobile_navigation_label: Mobile navigation
@@ -72,6 +77,11 @@ yoowii:
         add_to_cart: Add to cart
         price_excluding_tax: excl. tax
     print_flow:
+        order_date: Ordered on
+        view_order: 'View order no. %number%'
+        quantity_unavailable: Quantity unavailable
+        copy_one: '%quantity% copy'
+        copy_many: '%quantity% copies'
         my_print_files: My print files
         order_hint: 'Order %number%: upload and track the files for each printed product.'
         thank_you_title: Your order requires print files
