@@ -110,6 +110,18 @@ final class RealisaprintPrescriptBridgeStimulusTest extends TestCase
         self::assertStringNotContainsString('quoteResultTarget', $controller);
     }
 
+    public function testItChangesTheIdempotencyKeyOnlyWhenTheActualCartConfigurationChanges(): void
+    {
+        $controller = $this->controller();
+
+        self::assertStringContainsString('this.cartRequestSignature = null;', $controller);
+        self::assertStringContainsString('invalidateCartRequestIfChanged()', $controller);
+        self::assertStringContainsString('currentCartRequestSignature()', $controller);
+        self::assertStringContainsString('quantity: this.priceQuantity(radio)', $controller);
+        self::assertStringContainsString('delivery: this.priceDelivery(radio)', $controller);
+        self::assertStringContainsString('this.cartRequestSignature !== requestSignature', $controller);
+    }
+
     public function testItPublishesSupplierMediaToTheYoowiiGalleryAndPlacesOptionsInTheProductLayout(): void
     {
         $controller = $this->controller();

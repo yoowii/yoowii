@@ -21,23 +21,24 @@ final class PreflightLockIntegrationTest extends KernelTestCase
         /** @var Connection $primary */
         $primary = static::getContainer()->get('doctrine.dbal.default_connection');
         $params = $primary->getParams();
-        self::assertSame('sylius_test', $params['dbname'] ?? null, 'Never run lock probe outside test DB');
+        self::assertSame('test', static::getContainer()->getParameter('kernel.environment'), 'Never run lock probe outside test environment');
+        self::assertIsString($params['dbname'] ?? null, 'The test connection must name an isolated database.');
 
         $secondary = DriverManager::getConnection($params);
-        $table = 'yoowii_ci_preflight_lock_'.bin2hex(random_bytes(5));
-        $primary->executeStatement('CREATE TABLE '.$table.' (id INT PRIMARY KEY, status VARCHAR(16) NOT NULL) ENGINE=InnoDB');
+        $table = 'yoowii_ci_preflight_lock_' . bin2hex(random_bytes(5));
+        $primary->executeStatement('CREATE TABLE ' . $table . ' (id INT PRIMARY KEY, status VARCHAR(16) NOT NULL) ENGINE=InnoDB');
         $primary->executeStatement("INSERT INTO $table (id, status) VALUES (1, 'pending')");
 
         try {
             $primary->beginTransaction();
-            $primary->executeQuery('SELECT status FROM '.$table.' WHERE id = 1 FOR UPDATE')->fetchOne();
+            $primary->executeQuery('SELECT status FROM ' . $table . ' WHERE id = 1 FOR UPDATE')->fetchOne();
             $secondary->executeStatement('SET SESSION innodb_lock_wait_timeout = 1');
             $secondary->beginTransaction();
 
             $blocked = false;
 
             try {
-                $secondary->executeQuery('SELECT status FROM '.$table.' WHERE id = 1 FOR UPDATE')->fetchOne();
+                $secondary->executeQuery('SELECT status FROM ' . $table . ' WHERE id = 1 FOR UPDATE')->fetchOne();
             } catch (\Doctrine\DBAL\Exception) {
                 $blocked = true;
             }
@@ -49,7 +50,7 @@ final class PreflightLockIntegrationTest extends KernelTestCase
             $primary->commit();
 
             $secondary->beginTransaction();
-            $status = $secondary->executeQuery('SELECT status FROM '.$table.' WHERE id = 1 FOR UPDATE')->fetchOne();
+            $status = $secondary->executeQuery('SELECT status FROM ' . $table . ' WHERE id = 1 FOR UPDATE')->fetchOne();
             self::assertSame('passed', $status, 'Consumer must see committed final status after the lock');
             $secondary->commit();
         } finally {
@@ -60,7 +61,7 @@ final class PreflightLockIntegrationTest extends KernelTestCase
                 $secondary->rollBack();
             }
             $secondary->close();
-            $primary->executeStatement('DROP TABLE IF EXISTS '.$table);
+            $primary->executeStatement('DROP TABLE IF EXISTS ' . $table);
         }
     }
 }

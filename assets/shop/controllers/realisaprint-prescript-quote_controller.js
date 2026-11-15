@@ -8,6 +8,7 @@ export default class extends Controller {
 
     connect() {
         this.cartRequestKey = null;
+        this.cartRequestSignature = null;
         this.pending = false;
         this.summaryTimer = null;
         this.galleryTimer = null;
@@ -434,18 +435,20 @@ export default class extends Controller {
         this.syncOptionCardStates();
         if (!(control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement)) return;
         if (control.matches('input[name="optionsRadios"]')) {
+            this.invalidateCartRequestIfChanged();
             this.refreshPurchaseAction();
             this.scheduleSummary();
             return;
         }
         if (control.matches('[id^="VAR_"], #code_liaison')) {
+            this.invalidateCartRequestIfChanged();
             this.scheduleSummary();
             this.refreshPurchaseAction();
             return;
         }
 
         this.priceNeedsRefresh = true;
-        this.cartRequestKey = null;
+        this.invalidateCartRequestIfChanged();
         this.supplierPriceCalculated = false;
         this.refreshPurchaseAction();
         this.scheduleSummary();
@@ -516,9 +519,14 @@ export default class extends Controller {
             this.showError('Impossible de récupérer les paramètres Prescript pour cette sélection.');
             return;
         }
+        const requestSignature = JSON.stringify({ quantity, delivery, variables: Object.fromEntries(Object.entries(variables).sort(([left], [right]) => left.localeCompare(right))) });
+        if (this.cartRequestSignature !== null && this.cartRequestSignature !== requestSignature) {
+            this.cartRequestKey = null;
+        }
         this.pending = true;
         this.clearError();
         this.setLoading(true);
+        this.cartRequestSignature = requestSignature;
         try {
             const response = await fetch(this.cartUrlValue, {
                 method: 'POST',
@@ -526,7 +534,7 @@ export default class extends Controller {
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     quantity, delivery, variables,
-                    idempotency_key: (this.cartRequestKey ||= crypto.randomUUID()),
+                    idempotency_key: this.cartRequestKey ||= crypto.randomUUID(),
                     _token: this.csrfTokenValue,
                 }),
             });
@@ -558,6 +566,30 @@ export default class extends Controller {
             this.pending = false;
             this.setLoading(false);
         }
+    }
+
+    invalidateCartRequestIfChanged() {
+        if (!this.cartRequestSignature) return;
+        const signature = this.currentCartRequestSignature();
+        if (signature !== this.cartRequestSignature) {
+            this.cartRequestKey = null;
+            this.cartRequestSignature = null;
+        }
+    }
+
+    currentCartRequestSignature() {
+        const radio = this.selectedPriceOption();
+        const variables = {};
+        this.configurationScope().querySelectorAll('input, select, textarea').forEach((field) => {
+            const match = field.name?.match(/^VARTICLE_NUMERO_EN_COURS_(\d+_)$/);
+            if (match && field.value !== '') variables[`VARTICLE_${match[1]}`] = field.value;
+        });
+
+        return JSON.stringify({
+            quantity: this.priceQuantity(radio),
+            delivery: this.priceDelivery(radio),
+            variables: Object.fromEntries(Object.entries(variables).sort(([left], [right]) => left.localeCompare(right))),
+        });
     }
 
     async prepareCart(event) {

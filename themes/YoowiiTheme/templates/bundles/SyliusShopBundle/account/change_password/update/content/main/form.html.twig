@@ -1,10 +1,10 @@
 {# Rendered with \Sylius\Bundle\ShopBundle\Twig\Component\Account\ChangePassword\FormComponent #}
 {% form_theme form '@SyliusShop/form/theme.html.twig' %}
 
-<div {{ attributes }} class="mb-4 relative">
+<div {{ attributes }} class="relative w-full min-w-0 max-w-3xl rounded-2xl border border-base-300 bg-base-100 p-5 shadow-sm sm:p-6">
     {{ form_start(form, {'action': path('sylius_shop_account_change_password'), 'attr': {'novalidate': 'novalidate'}}) }}
 
-    {% hook 'form' with {form} %}
+    {% hook 'form' with { form } %}
 
     {{ form_row(form._token) }}
     {{ form_end(form, {'render_rest': false}) }}

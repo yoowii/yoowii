@@ -61,7 +61,7 @@ class PrintJob
         #[ORM\Column(name: 'production_snapshot', type: Types::JSON)]
         private readonly array $productionSnapshot,
         #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
-        private readonly \DateTimeImmutable $createdAt,
+        private \DateTimeImmutable $createdAt,
     ) {
         if ('' === trim($reference) || '' === trim($supplierCode) || '' === trim($supplierProductCode)) {
             throw new \InvalidArgumentException('Print job reference and supplier identifiers are required.');

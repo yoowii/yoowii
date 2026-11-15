@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Yoowii\Pricing\UI\Http\Storefront\Controller;
 
+use App\Entity\Order\Order;
 use App\Entity\Order\OrderItem;
 use App\Entity\Product\Product;
 use App\Entity\Product\ProductVariant;
 use App\Yoowii\Commerce\Domain\FulfillmentType;
+use App\Yoowii\Pricing\Application\PrescriptCartOperationReservation;
 use App\Yoowii\Pricing\Application\RealisaprintPrescriptQuoteCreator;
 use App\Yoowii\Pricing\Application\RealisaprintResponseError;
 use App\Yoowii\Pricing\Application\RetailPrintPricingPolicyProvider;
 use App\Yoowii\Pricing\Application\StorefrontPrintSourcingResolver;
+use App\Yoowii\Pricing\Domain\Model\PrescriptCartOperation;
 use App\Yoowii\Pricing\Domain\Print\ConfiguratorKind;
 use App\Yoowii\PrintProduction\Infrastructure\Realisaprint\RealisaprintClient;
 use App\Yoowii\Sourcing\Domain\Model\SupplierProductMappingVersion;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Sylius\Component\Channel\Context\ChannelContextInterface;
@@ -48,6 +52,7 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         StorefrontPrintSourcingResolver $sourcingResolver,
         RealisaprintClient $client,
         RealisaprintPrescriptQuoteCreator $creator,
+        PrescriptCartOperationReservation $operationReservation,
         RetailPrintPricingPolicyProvider $pricingPolicy,
         CartContextInterface $cartContext,
         CartItemFactoryInterface $cartItemFactory,
@@ -72,13 +77,6 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
             !is_string($key) || !preg_match('/^[a-zA-Z0-9_-]{16,100}$/D', $key)) {
             return $this->failure('Quantité, délai ou identifiant de demande invalide.', 422);
         }
-        $session = $request->getSession();
-        $sessionKey = 'yoowii_prescript_cart_' . hash('sha256', $productCode . ':' . $key);
-        $storedConfigurationCode = $session->get($sessionKey);
-        if (is_string($storedConfigurationCode) && preg_match('/^\d+$/D', $storedConfigurationCode)) {
-            return $this->configurationCodeResponse($storedConfigurationCode, Response::HTTP_OK);
-        }
-
         $channel = $channelContext->getChannel();
         if (!$channel instanceof \Sylius\Component\Core\Model\ChannelInterface) {
             return $this->failure('Canal de vente indisponible.', 500);
@@ -141,23 +139,68 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
         }
 
         $cart = $cartContext->getCart();
-        if (!$cart instanceof \Sylius\Component\Core\Model\OrderInterface) {
+        if (!$cart instanceof Order) {
             return $this->failure('Panier indisponible.', 500);
         }
         foreach ($cart->getItems() as $item) {
-            $existing = $item->getVariant()?->getProduct();
+            $existing = $item instanceof OrderItem ? $item->getVariant()?->getProduct() : null;
             if (!$existing instanceof Product || FulfillmentType::Print !== $existing->getFulfillmentType()) {
                 return $this->failure('Finalisez ou videz votre panier avant d’ajouter un produit imprimé.', 409);
             }
         }
 
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $fingerprint = hash('sha256', json_encode($this->canonicalize([
+            'product' => $productCode, 'variant' => $variant->getCode(), 'quantity' => (int) $quantity, 'delivery' => $delivery,
+            'variables' => $variables, 'mapping_version' => $mapping->version(), 'provider_product' => $providerProduct, 'provider_stock' => $providerStock,
+        ]), \JSON_THROW_ON_ERROR));
+        $operation = $entityManager->getRepository(PrescriptCartOperation::class)->findOneBy(['idempotencyKeyHash' => hash('sha256', $key)]);
+        if ($operation instanceof PrescriptCartOperation) {
+            if ($operation->cart() !== $cart || !hash_equals($operation->payloadFingerprint(), $fingerprint)) {
+                return $this->failure('Cette clé d’idempotence appartient à une autre demande.', 409);
+            }
+            $item = $operation->orderItem();
+            if ('completed' === $operation->status() && $item instanceof OrderItem && $item->getOrder() === $cart && $cart->getItems()->contains($item) && is_string($operation->configurationCode())) {
+                return $this->configurationCodeResponse($operation->configurationCode(), Response::HTTP_OK);
+            }
+            if ('completed' === $operation->status()) {
+                return $this->failure('La ligne panier liée à cette demande n’existe plus.', 409);
+            }
+        } else {
+            // Persist the cart and the operation before save_configuration: a local failure remains resumable.
+            $entityManager->persist($cart);
+            $entityManager->flush();
+            $operation = new PrescriptCartOperation(hash('sha256', $key), $fingerprint, $mapping->version(), $cart, $product, $variant, $now, $now);
+            $entityManager->persist($operation);
+
+            try {
+                $entityManager->flush();
+            } catch (UniqueConstraintViolationException) {
+                return $this->failure('Cette demande est déjà en cours de traitement.', 409);
+            }
+        }
+
+        $attemptToken = $operationReservation->reserve($operation, $now);
+        if (null === $attemptToken) {
+            return $this->failure(
+                'pending_confirmation' === $operation->status()
+                    ? 'La configuration fournisseur doit être confirmée manuellement avant toute reprise.'
+                    : 'Cette demande est déjà en cours de traitement.',
+                409,
+            );
+        }
+
         try {
-            $saved = $client->post('save_configuration', [
-                'product' => $providerProduct,
-                'stock' => $providerStock,
-                'variables' => $variables,
-            ]);
-            $code = $saved['code'] ?? null;
+            $code = $operation->configurationCode();
+            $saved = [];
+            if (null === $code) {
+                $saved = $client->post('save_configuration', [
+                    'product' => $providerProduct,
+                    'stock' => $providerStock,
+                    'variables' => $variables,
+                ]);
+                $code = $saved['code'] ?? null;
+            }
             $status = $saved['_http_status'] ?? 200;
             if (!is_int($status) || $status < 200 || $status >= 300 || RealisaprintResponseError::isPresent($saved) ||
                 !is_scalar($code) || !preg_match('/^\d+$/D', (string) $code)) {
@@ -184,24 +227,33 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
             if (null !== $savedQuantity && (!is_scalar($savedQuantity) || (string) $savedQuantity !== (string) $quantity)) {
                 return $this->failure('La quantité enregistrée chez Realisaprint est incorrecte.', 422);
             }
-            $snapshot = $creator->create($definitionCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), new \DateTimeImmutable('now', new \DateTimeZone('UTC')), $delivery, $sourcing->route());
+            if (null === $operation->configurationCode()) {
+                if (!$operationReservation->recordConfiguration($operation, $attemptToken, (string) $code, $now)) {
+                    return $this->failure('La réservation de cette demande a expiré avant l’enregistrement fournisseur.', 409);
+                }
+            }
+            $snapshot = $creator->create($definitionCode, $mapping, (string) $code, (int) $quantity, $pricingPolicy->get(), $now, $delivery, $sourcing->route());
             if (!$cart->isEmpty() && null !== $cart->getCurrencyCode() && $cart->getCurrencyCode() !== $snapshot->currencyCode()) {
                 return $this->failure('La devise du panier ne correspond pas au devis.', 409);
             }
             if ($cart->isEmpty() || null === $cart->getCurrencyCode()) {
                 $cart->setCurrencyCode($snapshot->currencyCode());
             }
-            $cartItem = $cartItemFactory->createNew();
-            if (!$cartItem instanceof OrderItem) {
-                throw new \LogicException('La fabrique panier doit produire des OrderItem Yoowii.');
+            $completed = $operationReservation->finalize($operation, $attemptToken, function () use ($cartItemFactory, $variant, $quantityModifier, $snapshot, $orderModifier, $cart, $operation, $now, $entityManager): void {
+                $cartItem = $cartItemFactory->createNew();
+                if (!$cartItem instanceof OrderItem) {
+                    throw new \LogicException('La fabrique panier doit produire des OrderItem Yoowii.');
+                }
+                $cartItem->setVariant($variant);
+                $quantityModifier->modify($cartItem, 1);
+                $cartItem->replacePricingSnapshot($snapshot);
+                $orderModifier->addToOrder($cart, $cartItem);
+                $operation->complete($cartItem, $now);
+                $entityManager->persist($cart);
+            });
+            if (!$completed) {
+                return $this->failure('Cette demande a été reprise par un autre traitement.', 409);
             }
-            $cartItem->setVariant($variant);
-            $quantityModifier->modify($cartItem, 1);
-            $cartItem->replacePricingSnapshot($snapshot);
-            $orderModifier->addToOrder($cart, $cartItem);
-            $entityManager->persist($cart);
-            $entityManager->flush();
-            $session->set($sessionKey, (string) $code);
 
             return $this->configurationCodeResponse((string) $code, Response::HTTP_CREATED);
         } catch (\Throwable $exception) {
@@ -228,5 +280,22 @@ final class RealisaprintPrescriptAddToCartController extends AbstractController
     private function configurationCodeResponse(string $code, int $status): Response
     {
         return new Response($code, $status, ['Cache-Control' => 'no-store', 'Content-Type' => 'text/plain; charset=utf-8']);
+    }
+
+    /**
+     * @param array<array-key, mixed> $value
+     *
+     * @return array<array-key, mixed>
+     */
+    private function canonicalize(array $value): array
+    {
+        ksort($value);
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                $value[$key] = $this->canonicalize($item);
+            }
+        }
+
+        return $value;
     }
 }

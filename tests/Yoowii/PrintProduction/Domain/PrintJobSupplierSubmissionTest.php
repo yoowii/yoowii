@@ -23,4 +23,19 @@ final class PrintJobSupplierSubmissionTest extends TestCase
         self::assertSame(1, $submission->attemptCount());
         self::assertNull($submission->supplierOrderId());
     }
+
+    public function testAnAmbiguousAttemptRequiresConfirmationAndCannotBeRetried(): void
+    {
+        $at = new \DateTimeImmutable('2026-11-11T17:00:00+00:00');
+        $job = new PrintJob(new OrderItem(), 'PJ-TEST-11', 'realisaprint', 'FLYER', ['schema_version' => 1], $at);
+        $submission = new PrintJobSupplierSubmission($job, 'realisaprint:PJ-TEST-11', $at, $at);
+
+        $submission->beginSubmission('attempt-1', $at);
+        $submission->awaitConfirmation(['create_order' => ['reference' => 'PJ-TEST-11']], 'Timed out after create_order.', $at);
+
+        self::assertSame('pending_confirmation', $submission->status());
+        self::assertSame(1, $submission->attemptCount());
+        $this->expectException(\DomainException::class);
+        $submission->beginSubmission('attempt-2', $at);
+    }
 }
