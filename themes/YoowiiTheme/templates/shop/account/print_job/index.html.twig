@@ -9,7 +9,6 @@
         </aside>
         <main class="min-w-0">
             <header class="mb-6">
-                <p class="mb-2 text-xs font-bold uppercase tracking-widest text-primary">Yoowii Flow</p>
                 <h1 class="text-2xl font-extrabold tracking-tight text-base-content sm:text-3xl">Mes impressions</h1>
                 <p class="mt-2 text-sm text-base-content/65">Retrouvez vos dossiers d'impression et leur suivi.</p>
             </header>
@@ -20,7 +19,14 @@
                             <div class="min-w-0">
                                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/60">{{ job.reference }}</p>
                                 <h2 class="break-words text-lg font-bold text-base-content">{{ job.orderItem.productName }}</h2>
-                                <p class="mt-1 text-sm text-base-content/65">{{ 'yoowii.print_flow.quantity'|trans({'%quantity%': job.orderItem.quantity}) }}</p>
+                                {% set configuration = job.orderItem.pricingSnapshot ? job.orderItem.pricingSnapshot.configuration : {} %}
+                                {% set quantity = configuration.sourcing.provider_quantity|default(configuration.quantity|default(configuration.options.quantity|default(null))) %}
+                                {% set order = job.orderItem.order %}
+                                <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-base-content/70">
+                                    {% if order.checkoutCompletedAt %}<span>{{ 'yoowii.print_flow.order_date'|trans }} <time datetime="{{ order.checkoutCompletedAt|date('c') }}">{{ order.checkoutCompletedAt|date('d/m/Y') }}</time></span>{% endif %}
+                                    <span>{{ quantity is not null ? (quantity == 1 ? 'yoowii.print_flow.copy_one' : 'yoowii.print_flow.copy_many')|trans({'%quantity%': quantity|number_format(0, ',', ' ')}) : 'yoowii.print_flow.quantity_unavailable'|trans }}</span>
+                                    <a class="link link-primary font-semibold" href="{{ path('sylius_shop_account_order_show', {_locale: app.request.locale, number: order.number}) }}">{{ 'yoowii.print_flow.view_order'|trans({'%number%': order.number}) }}</a>
+                                </div>
                             </div>
                             <div class="flex shrink-0 flex-wrap items-center gap-3">
                                 <span class="yoowii-print-status is-{{ job.status.value }}">{{ ('yoowii.print_flow.status.' ~ job.status.value)|trans }}</span>
