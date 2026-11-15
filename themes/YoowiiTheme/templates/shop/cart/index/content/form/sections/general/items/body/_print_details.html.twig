@@ -1,7 +1,7 @@
 {# Print-only configuration, rendered from the immutable OrderItem pricing snapshot. #}
 {% set configuration = pricing_snapshot.configuration %}
 {% set sourcing = configuration.sourcing|default({}) %}
-{% set ordered_quantity = sourcing.provider_quantity|default(configuration.quantity|default(null)) %}
+{% set ordered_quantity = sourcing.provider_quantity|default(configuration.quantity|default(configuration.options.quantity|default(null))) %}
 {% set provider_details = sourcing.provider_details|default('') %}
 {% set delivery_label = sourcing.provider_delivery_label|default(sourcing.provider_delivery_service|default(null)) %}
 {% set manufacturing_days = sourcing.provider_manufacturing_days|default(null) %}

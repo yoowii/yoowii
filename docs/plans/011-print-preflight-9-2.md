@@ -39,7 +39,7 @@ Le worker doit être isolé, sans accès sortant inutile et avec les mêmes droi
 Après le déploiement du lot, les rapports déjà terminés par le lot 9.1 peuvent être enrichis une seule fois :
 
 ```bash
-bin/console yoowii:print-preflight:recheck-active
+docker compose run --rm php bin/console yoowii:print-preflight:recheck-active
 ```
 
 ## Limites assumées

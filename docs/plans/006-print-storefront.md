@@ -128,7 +128,7 @@ docker compose run --rm php bin/console cache:clear
 docker compose run --rm php bin/console debug:router | grep yoowii_shop_print
 docker compose run --rm php bin/console lint:twig templates/shop
 docker compose run --rm php bin/console lint:container
-docker compose run --rm php bin/phpunit tests/Yoowii tests/Entity
+docker compose run --rm php vendor/bin/phpunit tests/Yoowii tests/Entity
 docker compose run --rm php vendor/bin/phpstan analyse
 docker compose run --rm php vendor/bin/ecs check
 docker compose run --rm php bin/console doctrine:migrations:migrate --no-interaction

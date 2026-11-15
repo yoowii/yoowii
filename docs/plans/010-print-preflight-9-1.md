@@ -28,11 +28,11 @@ PDF/X, polices incorporées, surimpression, profils ICC et analyse fiable des TI
 Le transport `async` réutilise `MESSENGER_TRANSPORT_DSN`, déjà présent dans le projet. En production, lancer un worker :
 
 ```bash
-bin/console messenger:consume async --time-limit=3600 --memory-limit=256M
+docker compose run --rm php bin/console messenger:consume async --time-limit=3600 --memory-limit=256M
 ```
 
 Après une interruption de worker ou un déploiement, republier les contrôles en attente :
 
 ```bash
-bin/console yoowii:print-preflight:dispatch-pending
+docker compose run --rm php bin/console yoowii:print-preflight:dispatch-pending
 ```
