@@ -15,8 +15,8 @@ Cette checklist vérifie la refonte UI de l'espace client et les parcours d'impr
 ```bash
 # Selon les dépendances installées et la configuration du projet :
 yarn build
-php bin/console lint:twig themes/YoowiiTheme/templates/shop themes/YoowiiTheme/templates/bundles/SyliusShopBundle/account
-php bin/phpunit tests/Yoowii/PrintProduction/UI/Http/Storefront/PrintFlowRoutingTest.php
+docker compose run --rm php bin/console lint:twig themes/YoowiiTheme/templates/shop themes/YoowiiTheme/templates/bundles/SyliusShopBundle/account
+docker compose run --rm php vendor/bin/phpunit tests/Yoowii/PrintProduction/UI/Http/Storefront/PrintFlowRoutingTest.php
 ```
 
 Si `lint:twig` ne supporte pas plusieurs chemins sur la version installée, lancer la commande séparément pour chaque dossier. Réaliser ces commandes dans le conteneur PHP/Node configuré par le projet.
