@@ -17,7 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_prescript_cart_operation_key', columns: ['idempotency_key_hash'])]
 #[ORM\Index(name: 'idx_prescript_cart_operation_cart_status', columns: ['cart_id', 'status'])]
 #[ORM\Index(name: 'idx_prescript_cart_operation_lease', columns: ['status', 'attempt_started_at'])]
-final class PrescriptCartOperation
+class PrescriptCartOperation
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
