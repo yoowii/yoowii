@@ -2,9 +2,10 @@ name: Test preprod deployment script
 
 on:
   pull_request:
-    branches: [chore/ci-cd]
+    branches: [preprod]
     paths:
       - 'scripts/preprod/**'
+      - 'compose.preprod.yml'
       - '.github/workflows/test-preprod-deploy-script.yml'
   workflow_dispatch:
 
