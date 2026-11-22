@@ -79,9 +79,28 @@ for name in ("mysql", "redis"):
     if old["services"].get(name) != new["services"].get(name):
         sys.exit(f"Unsafe Compose: {name} configuration changed.")
 
-for name in ("networks", "volumes", "secrets", "configs"):
+# Permit exactly the one-time adoption of the two existing, pre-labelled
+# Docker volumes. The names must stay identical, and mysql_data is protected.
+# No other volume changes are allowed through the application deploy workflow.
+for name in ("networks", "secrets", "configs"):
     if old.get(name, {}) != new.get(name, {}):
         sys.exit(f"Unsafe Compose: top-level {name} changed.")
+
+old_volumes = old.get("volumes", {})
+new_volumes = new.get("volumes", {})
+if set(old_volumes) != set(new_volumes):
+    sys.exit("Unsafe Compose: volume keys changed.")
+for name in old_volumes:
+    before, after = old_volumes[name], new_volumes[name]
+    if before == after:
+        continue
+    expected_name = f"yoowii-preprod_{name}"
+    if (name not in {"media", "private_assets"}
+            or before.get("name") != expected_name
+            or bool(before.get("external"))
+            or after != {"name": expected_name, "external": True}):
+        sys.exit(f"Unsafe Compose: volume {name} changed unexpectedly.")
+    print(f"Approved external-volume adoption: {expected_name}")
 
 for name in ("php", "nginx"):
     before = old["services"].get(name, {})
@@ -97,6 +116,24 @@ for name in ("php", "nginx"):
 
 print("Infrastructure guard passed: protected services, networks, volumes and mounts unchanged.")
 PY
+
+# Before adopting existing volumes as external, verify they truly exist and
+# are the very same named volumes already mounted by the live app containers.
+# Never let the release workflow create an empty replacement volume.
+for volume in media private_assets; do
+  expected_volume="yoowii-preprod_${volume}"
+  [[ "$(docker volume inspect --format '{{.Name}}' "$expected_volume")" == "$expected_volume" ]] || {
+    echo "Required existing volume missing: $expected_volume" >&2; exit 10;
+  }
+  actual_volume="$(docker inspect --format "{{range .Mounts}}{{if eq .Destination \"$([[ $volume == media ]] && echo /srv/sylius/public/media || echo /srv/sylius/var/private/print)\"}}{{.Name}}{{end}}{{end}}" yoowii-preprod-php-1)"
+  [[ "$actual_volume" == "$expected_volume" ]] || {
+    echo "Existing PHP mount does not match protected volume: $volume" >&2; exit 10;
+  }
+done
+
+# The worker overlay is deliberately not in the base Compose; its lifecycle
+# is handled explicitly below. Suppress orphan warnings, never remove orphans.
+export COMPOSE_IGNORE_ORPHANS=true
 
 compose=(docker compose --env-file "$dir/.env" -f "$dir/compose.preprod.yml")
 healthcheck() {
