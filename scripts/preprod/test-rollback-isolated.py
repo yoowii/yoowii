@@ -55,6 +55,15 @@ if args[0] == "ps" and "-a" in args:
     if state in ("running", "stopped"):
         print("worker-456")
     sys.exit(0)
+if args[:2] == ["volume", "inspect"]:
+    print(args[-1])
+    sys.exit(0)
+if args[0] == "inspect" and any(".Mounts" in arg for arg in args):
+    if "public/media" in " ".join(args):
+        print("yoowii-preprod_media")
+    else:
+        print("yoowii-preprod_private_assets")
+    sys.exit(0)
 if args[0] == "inspect":
     if any(".Config.Image" in arg for arg in args):
         print("ghcr.io/yoowii/yoowii-php:" + os.environ.get("FAKE_WORKER_IMAGE_TAG", image.read_text()))
