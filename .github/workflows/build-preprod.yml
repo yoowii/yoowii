@@ -26,13 +26,74 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and publish PHP
+      # The exact PHP image shipped to preprod must pass its prod bootstrap
+      # BEFORE anything is pushed to GHCR or dispatched to infra-deploy.
+      - name: Build PHP image locally (not published)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/preprod/php.Dockerfile
-          push: true
+          load: true
+          push: false
           tags: ghcr.io/yoowii/yoowii-php:sha-${{ github.sha }}
+
+      - name: Smoke test Symfony prod bootstrap (isolated)
+        shell: bash
+        env:
+          PHP_IMAGE: ghcr.io/yoowii/yoowii-php:sha-${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          network="yoowii-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          redis="yoowii-smoke-redis-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cleanup() {
+            docker rm -f "$redis" >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker network create --internal "$network"
+          docker run -d --name "$redis" --network "$network" \
+            --network-alias ci-redis --read-only \
+            --tmpfs /data:rw,nosuid,nodev \
+            redis:7.4-alpine redis-server --save "" --appendonly no
+          for attempt in $(seq 1 20); do
+            if docker exec "$redis" redis-cli ping | grep -qx PONG; then
+              break
+            fi
+            if (( attempt == 20 )); then
+              echo "::error::Disposable Redis failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # CI-only placeholders: no prod secrets, live MySQL or external network.
+          # Cache/log files are ephemeral, and the final runtime image is tested.
+          docker run --rm --network "$network" --read-only \
+            --tmpfs /tmp:rw,nosuid,nodev \
+            --tmpfs /srv/sylius/var/cache:rw,uid=82,gid=82 \
+            --tmpfs /srv/sylius/var/log:rw,uid=82,gid=82 \
+            -e APP_ENV=prod -e APP_DEBUG=0 \
+            -e APP_SECRET=ci-only-bootstrap-placeholder \
+            -e 'DATABASE_URL=mysql://ci:ci@127.0.0.1:3306/ci_smoke?serverVersion=8.4.0&charset=utf8mb4' \
+            -e YOOWII_REDIS_DSN=redis://ci-redis:6379 \
+            --entrypoint sh "$PHP_IMAGE" -ec '
+              cd /srv/sylius
+              if ! php bin/console about --no-interaction --no-ansi >/tmp/about.log 2>&1; then
+                echo "Symfony prod bootstrap failed:"
+                tail -n 80 /tmp/about.log
+                exit 1
+              fi
+              if ! php bin/console cache:warmup --no-interaction --no-ansi >/tmp/warmup.log 2>&1; then
+                echo "Symfony prod cache warmup failed:"
+                tail -n 80 /tmp/warmup.log
+                exit 1
+              fi
+              echo "PASS: Symfony prod bootstrap and cache warmup"
+            '
+
+      - name: Publish verified PHP image to GHCR
+        run: docker push ghcr.io/yoowii/yoowii-php:sha-${{ github.sha }}
+
       - name: Build and publish Nginx
         uses: docker/build-push-action@v6
         with:
