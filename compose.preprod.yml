@@ -99,5 +99,10 @@ networks:
 
 volumes:
   mysql_data:
+  # Existing VPS volumes predate this Compose project; never recreate or delete them.
   media:
+    external: true
+    name: yoowii-preprod_media
   private_assets:
+    external: true
+    name: yoowii-preprod_private_assets
