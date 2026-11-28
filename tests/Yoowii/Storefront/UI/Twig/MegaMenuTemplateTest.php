@@ -84,6 +84,22 @@ final class MegaMenuTemplateTest extends TestCase
         self::assertStringContainsString("'yoowii.storefront.mega_menu.view_all_products'", $template);
     }
 
+    public function testTopNavigationFamilyReusesTheAllProductsHierarchyWithoutReplacingSubfamilyProductCards(): void
+    {
+        $template = $this->menuTemplate();
+        $familyMacro = file_get_contents(dirname(__DIR__, 5) . '/themes/YoowiiTheme/templates/shop/shared/header/mega_menu_family.html.twig');
+
+        self::assertIsString($familyMacro);
+        self::assertStringContainsString('menu_taxons|filter(family => family.id == taxon.id)|first', $template);
+        self::assertStringContainsString('{% if catalogue_family %}', $template);
+        self::assertStringContainsString('{{ mega_menu.groups(catalogue_family) }}', $template);
+        self::assertStringContainsString('{% else %}', $template);
+        self::assertStringContainsString('taxon.products is not empty', $template);
+        self::assertStringContainsString("product.imagesByType('thumbnail').first", $template);
+        self::assertStringContainsString('yoowii_mega_menu_products(group_taxon)', $familyMacro);
+        self::assertStringContainsString('advanced_taxon_ordered_children(group_taxon)', $familyMacro);
+    }
+
     private function menuTemplate(): string
     {
         $template = file_get_contents(dirname(__DIR__, 5) . '/themes/YoowiiTheme/templates/bundles/SyliusShopBundle/shared/layout/base/header/navbar/menu.html.twig');
